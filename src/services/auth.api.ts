@@ -24,3 +24,26 @@ export const loginApi = async (
 
   return response.data.data;
 };
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  fullName: string;
+  phoneNumber?: string;
+  role: "USER" | "SHOP_OWNER";
+}
+
+export interface RegisterResponse {
+  id: string;
+  email: string;
+  fullName: string;
+  role: "USER" | "SHOP_OWNER" | "ADMIN";
+}
+
+export const registerApi = async (
+  data: RegisterRequest
+): Promise<RegisterResponse> => {
+  const response = await api.post("/auth/register", data);
+
+  return response.data.data;
+};

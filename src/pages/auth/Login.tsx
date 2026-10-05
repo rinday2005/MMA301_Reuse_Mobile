@@ -47,25 +47,25 @@ const Login = () => {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-  setApiError("");
-  setLoginSuccess(false);
+    setApiError("");
+    setLoginSuccess(false);
 
-  try {
-    const user = await login(data);
+    try {
+      const user = await login(data);
 
-    setLoginSuccess(true);
+      setLoginSuccess(true);
 
-    if (user.role === "ADMIN") {
-      navigate("/admin/dashboard");
-    } else if (user.role === "SHOP_OWNER") {
-      navigate("/shop/dashboard");
-    } else {
-      navigate("/");
+      if (user.role === "ADMIN") {
+        navigate("/admin/dashboard");
+      } else if (user.role === "SHOP_OWNER") {
+        navigate("/shop/dashboard");
+      } else {
+        navigate("/");
+      }
+    } catch {
+      setApiError("Email hoặc mật khẩu không chính xác.");
     }
-  } catch {
-    setApiError("Email hoặc mật khẩu không chính xác.");
-  }
-};
+  };
 
   return (
     <main className="min-h-screen bg-[#fdf9f2] px-6 py-12 text-[#1c1c18]">
@@ -82,24 +82,21 @@ const Login = () => {
               <div className="flex items-center justify-between">
                 <span className="inline-flex items-center gap-2 rounded bg-[#f1ede6] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest text-[#4a463f]">
                   <Circle className="h-1.5 w-1.5 fill-current" />
-                  Circular Archive № 108
+                  Circular Fashion Archive 108
                 </span>
 
                 <span className="text-[11px] uppercase tracking-wider text-[#4a463f]">
-                  Custody Protocol
+                  Quy Trình Chăm Sóc & Bảo Quản
                 </span>
               </div>
 
               <div className="pt-6">
                 <h2 className="font-serif text-[28px] font-medium leading-tight text-[#141310]">
-                  Curated custody for timeless tools
+                  A circular wardrobe for timeless style.
                 </h2>
 
                 <p className="mt-4 text-sm leading-relaxed text-[#4a463f]">
-                  By shifting from terminal consumption to perpetual
-                  stewardship, ReUse Hub extends gear lifecycles through
-                  rigorously maintained chain-of-custody protocols, dampening
-                  planetary extraction.
+                  Chuyển từ tiêu dùng nhanh sang quản lý thời trang bền vững, ReUse Hub kéo dài vòng đời trang phục thông qua các giao thức giặt sấy, bảo quản được duy trì nghiêm ngặt, giảm thiểu tác động đến môi trường.
                 </p>
               </div>
             </div>
@@ -117,7 +114,7 @@ const Login = () => {
                     <ShieldCheck className="h-4 w-4" />
 
                     <span className="text-[11px] uppercase tracking-wider">
-                      Preserved Heritage Item #RH-7740
+                      Phong Cách Tuần Hoàn #RH-7740
                     </span>
                   </div>
                 </div>
@@ -132,19 +129,18 @@ const Login = () => {
 
                 <div>
                   <p className="text-base font-semibold">
-                    4.2 kg CO₂ Saved
+                    Tiết kiệm 4,2 kg CO₂
                   </p>
 
                   <p className="text-xs leading-relaxed text-[#4a463f]">
-                    Computed per rental rotation vs. virgin hardware
-                    manufacturing.
+                    Tính toán dựa trên mỗi lần thuê trang phục so với sản xuất sản phẩm mới
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center justify-between px-1 text-[11px] uppercase tracking-wider text-[#4a463f]">
-                <span>Circularity Index: 98.4%</span>
-                <span>Audited 2025</span>
+                <span>Chỉ số tuần hoàn: 98,4%</span>
+                <span>Kiểm toán 2026</span>
               </div>
             </div>
           </section>
@@ -164,18 +160,17 @@ const Login = () => {
                 </div>
 
                 <span className="rounded bg-[#f7f3ec] px-2.5 py-1 text-[11px] uppercase tracking-wider text-[#4a463f]">
-                  Portal Access
+                  Truy Cập Cổng
                 </span>
               </div>
 
               <div className="mb-8">
                 <h1 className="font-serif text-[28px] font-medium text-[#1c1c18]">
-                  Welcome back
+                  Chào mừng trở lại
                 </h1>
 
                 <p className="mt-1.5 text-sm leading-relaxed text-[#4a463f]">
-                  Please enter your credentials to access your account and
-                  active stewards ledger.
+                 Vui lòng nhập thông tin đăng nhập để truy cập tài khoản và tủ đồ tuần hoàn của bạn.
                 </p>
               </div>
 
@@ -185,7 +180,7 @@ const Login = () => {
                   <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
 
                   <div>
-                    <p className="font-semibold">Authentication Failed</p>
+                    <p className="font-semibold">Xác thực thất bại</p>
 
                     <p className="mt-1 text-xs">
                       {apiError}
@@ -200,7 +195,7 @@ const Login = () => {
                   <CheckCircle className="mt-0.5 h-5 w-5 shrink-0" />
 
                   <div>
-                    <p className="font-semibold">Access Granted</p>
+                    <p className="font-semibold">Đăng nhập thành công</p>
 
                     <p className="mt-1 text-xs">
                       Đăng nhập thành công. Đang chuyển đến trang của bạn...
@@ -221,7 +216,7 @@ const Login = () => {
                       htmlFor="email"
                       className="text-[13px] font-medium text-[#1c1c18]"
                     >
-                      Email address
+                      Địa chỉ Email
                     </label>
 
                     {errors.email && (
@@ -242,11 +237,10 @@ const Login = () => {
                       autoComplete="email"
                       placeholder="curator@reusehub.org"
                       {...register("email")}
-                      className={`w-full rounded bg-[#f7f3ec] py-3 pl-10 pr-4 text-sm text-[#1c1c18] outline-none transition-all placeholder:text-[#4a463f]/60 focus:bg-white focus:ring-1 ${
-                        errors.email
-                          ? "ring-1 ring-[#ba1a1a]"
-                          : "focus:ring-[#141310]"
-                      }`}
+                      className={`w-full rounded bg-[#f7f3ec] py-3 pl-10 pr-4 text-sm text-[#1c1c18] outline-none transition-all placeholder:text-[#4a463f]/60 focus:bg-white focus:ring-1 ${errors.email
+                        ? "ring-1 ring-[#ba1a1a]"
+                        : "focus:ring-[#141310]"
+                        }`}
                     />
                   </div>
                 </div>
@@ -258,7 +252,7 @@ const Login = () => {
                       htmlFor="password"
                       className="text-[13px] font-medium text-[#1c1c18]"
                     >
-                      Master Password
+                      Mật Khẩu
                     </label>
 
                     {errors.password && (
@@ -279,11 +273,10 @@ const Login = () => {
                       autoComplete="current-password"
                       placeholder="••••••••••••"
                       {...register("password")}
-                      className={`w-full rounded bg-[#f7f3ec] py-3 pl-10 pr-12 text-sm text-[#1c1c18] outline-none transition-all placeholder:text-[#4a463f]/60 focus:bg-white focus:ring-1 ${
-                        errors.password
-                          ? "ring-1 ring-[#ba1a1a]"
-                          : "focus:ring-[#141310]"
-                      }`}
+                      className={`w-full rounded bg-[#f7f3ec] py-3 pl-10 pr-12 text-sm text-[#1c1c18] outline-none transition-all placeholder:text-[#4a463f]/60 focus:bg-white focus:ring-1 ${errors.password
+                        ? "ring-1 ring-[#ba1a1a]"
+                        : "focus:ring-[#141310]"
+                        }`}
                     />
 
                     <button
@@ -314,7 +307,7 @@ const Login = () => {
                     />
 
                     <span className="text-xs text-[#1c1c18]">
-                      Keep custody active
+                      Ghi nhớ đăng nhập
                     </span>
                   </label>
 
@@ -323,7 +316,7 @@ const Login = () => {
                     onClick={() => navigate("/forgot-password")}
                     className="text-[13px] font-medium text-[#576151] underline decoration-[#576151]/40 underline-offset-4 transition-colors hover:text-[#141310]"
                   >
-                    Forgot password?
+                    Quên mật khẩu?
                   </button>
                 </div>
 
@@ -337,11 +330,11 @@ const Login = () => {
                     {isSubmitting ? (
                       <>
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        <span>Authenticating...</span>
+                        <span>Đang đăng nhập...</span>
                       </>
                     ) : (
                       <>
-                        <span>Sign In to Vault</span>
+                        <span>Đăng Nhập</span>
                         <ArrowRight className="h-4 w-4" />
                       </>
                     )}
@@ -353,20 +346,20 @@ const Login = () => {
             {/* Footer */}
             <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-[#e6e2db] pt-8 sm:flex-row">
               <p className="text-sm text-[#4a463f]">
-                Need an account?
+                Chưa có tài khoản?
 
                 <button
                   type="button"
                   onClick={() => navigate("/register")}
                   className="ml-1 font-semibold text-[#141310] hover:underline"
                 >
-                  Register here
+                  Đăng ký ngay
                 </button>
               </p>
 
               <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-[#4a463f]">
                 <span className="h-2 w-2 rounded-full bg-[#576151]" />
-                <span>Encrypted Session</span>
+                <span>Phiên Được Mã Hóa</span>
               </div>
             </div>
           </section>
