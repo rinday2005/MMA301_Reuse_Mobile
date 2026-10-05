@@ -1,17 +1,30 @@
-import { Recycle } from "lucide-react";
+import { Navigate, Route, Routes } from "react-router-dom";
+import Login from "./pages/auth/Login";
+import PublicRoutes from "./routes/PublicRoutes";
+import ProtectedRoutes from "./routes/ProtectedRoutes";
 
-function App() {
+const Home = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="flex items-center gap-2">
-        <Recycle className="h-8 w-8 text-green-600" />
-
-        <h1 className="text-3xl font-bold text-green-600">
-          ReUse Hub
-        </h1>
-      </div>
+    <div className="flex min-h-screen items-center justify-center">
+      <h1 className="text-2xl font-semibold">ReUse Hub</h1>
     </div>
   );
-}
+};
+
+const App = () => {
+  return (
+    <Routes>
+      <Route element={<PublicRoutes />}>
+        <Route path="/login" element={<Login />} />
+      </Route>
+
+      <Route element={<ProtectedRoutes />}>
+        <Route path="/" element={<Home />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
+};
 
 export default App;

@@ -7,17 +7,17 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const isLoginRequest = error.config?.url === "/auth/login";
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (error.response?.status === 401 && !isLoginRequest) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
     }
 
-    return config;
-  },
-  (error) => {
     return Promise.reject(error);
   }
 );
