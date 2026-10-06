@@ -86,7 +86,6 @@ const AddressSelector = ({
     const selectedCode = event.target.value;
 
     setProvinceCode(selectedCode);
-
     setDistrictCode("");
     setWardCode("");
 
@@ -104,9 +103,7 @@ const AddressSelector = ({
       detail: address.detail,
     });
 
-    if (!selectedCode) {
-      return;
-    }
+    if (!selectedCode) return;
 
     try {
       setLoadingDistrict(true);
@@ -131,7 +128,6 @@ const AddressSelector = ({
 
     setDistrictCode(selectedCode);
     setWardCode("");
-
     setWards([]);
 
     const selectedDistrict = districts.find(
@@ -144,9 +140,7 @@ const AddressSelector = ({
       ward: "",
     });
 
-    if (!selectedCode) {
-      return;
-    }
+    if (!selectedCode) return;
 
     try {
       setLoadingWard(true);
@@ -190,122 +184,147 @@ const AddressSelector = ({
     });
   };
 
+  const labelClass =
+    "mb-1.5 block text-sm font-semibold text-[#141b2b]";
+
+  const fieldClass =
+    "w-full rounded-xl border border-[#d1d5db] bg-white px-4 py-3 text-sm text-[#141b2b] outline-none transition-all duration-150 placeholder:text-[#9ca3af] focus:border-[#16a34a] focus:ring-4 focus:ring-[rgba(22,163,74,0.12)] disabled:cursor-not-allowed disabled:bg-[#f1f3ff] disabled:text-[#6f7a6e]";
+
   return (
-    <div className="grid gap-4">
-      <div>
-        <label
-          htmlFor="province"
-          className="mb-1 block text-sm font-medium"
-        >
-          Tỉnh / Thành phố
-        </label>
+    <section
+      className="rounded-[24px] border border-[#f3f4f6] bg-white p-6"
+      style={{
+        fontFamily: "Inter, sans-serif",
+        boxShadow:
+          "0 1px 3px 0 rgba(0,0,0,0.04), 0 10px 25px -5px rgba(0,0,0,0.04)",
+      }}
+    >
+      <div className="mb-6">
+        <div className="mb-2 inline-flex items-center rounded-full bg-[#f0fdf4] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#15803d]">
+          Verified Address
+        </div>
 
-        <select
-          id="province"
-          value={provinceCode}
-          onChange={handleProvinceChange}
-          disabled={loadingProvince}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 disabled:bg-gray-100"
-        >
-          <option value="">
-            {loadingProvince
-              ? "Đang tải..."
-              : "Chọn Tỉnh / Thành phố"}
-          </option>
+        <h2 className="text-2xl font-semibold tracking-[-0.02em] text-[#141b2b]">
+          Delivery Address
+        </h2>
 
-          {provinces.map((province) => (
-            <option
-              key={province.code}
-              value={province.code}
-            >
-              {province.name}
+        <p className="mt-2 max-w-2xl text-sm leading-5 text-[#4b5563]">
+          Select your province, district and ward, then enter the detailed
+          street address.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div>
+          <label htmlFor="province" className={labelClass}>
+            Province / City
+          </label>
+
+          <select
+            id="province"
+            value={provinceCode}
+            onChange={handleProvinceChange}
+            disabled={loadingProvince}
+            className={fieldClass}
+          >
+            <option value="">
+              {loadingProvince
+                ? "Loading provinces..."
+                : "Select Province / City"}
             </option>
-          ))}
-        </select>
-      </div>
 
-      <div>
-        <label
-          htmlFor="district"
-          className="mb-1 block text-sm font-medium"
-        >
-          Quận / Huyện
-        </label>
+            {provinces.map((province) => (
+              <option key={province.code} value={province.code}>
+                {province.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <select
-          id="district"
-          value={districtCode}
-          onChange={handleDistrictChange}
-          disabled={!provinceCode || loadingDistrict}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 disabled:bg-gray-100"
-        >
-          <option value="">
-            {loadingDistrict
-              ? "Đang tải..."
-              : "Chọn Quận / Huyện"}
-          </option>
+        <div>
+          <label htmlFor="district" className={labelClass}>
+            District
+          </label>
 
-          {districts.map((district) => (
-            <option
-              key={district.code}
-              value={district.code}
-            >
-              {district.name}
+          <select
+            id="district"
+            value={districtCode}
+            onChange={handleDistrictChange}
+            disabled={!provinceCode || loadingDistrict}
+            className={fieldClass}
+          >
+            <option value="">
+              {loadingDistrict
+                ? "Loading districts..."
+                : "Select District"}
             </option>
-          ))}
-        </select>
-      </div>
 
-      <div>
-        <label
-          htmlFor="ward"
-          className="mb-1 block text-sm font-medium"
-        >
-          Phường / Xã
-        </label>
+            {districts.map((district) => (
+              <option key={district.code} value={district.code}>
+                {district.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <select
-          id="ward"
-          value={wardCode}
-          onChange={handleWardChange}
-          disabled={!districtCode || loadingWard}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 disabled:bg-gray-100"
-        >
-          <option value="">
-            {loadingWard
-              ? "Đang tải..."
-              : "Chọn Phường / Xã"}
-          </option>
+        <div>
+          <label htmlFor="ward" className={labelClass}>
+            Ward / Commune
+          </label>
 
-          {wards.map((ward) => (
-            <option
-              key={ward.code}
-              value={ward.code}
-            >
-              {ward.name}
+          <select
+            id="ward"
+            value={wardCode}
+            onChange={handleWardChange}
+            disabled={!districtCode || loadingWard}
+            className={fieldClass}
+          >
+            <option value="">
+              {loadingWard
+                ? "Loading wards..."
+                : "Select Ward / Commune"}
             </option>
-          ))}
-        </select>
+
+            {wards.map((ward) => (
+              <option key={ward.code} value={ward.code}>
+                {ward.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="detail" className={labelClass}>
+            Street Address
+          </label>
+
+          <input
+            id="detail"
+            type="text"
+            value={address.detail}
+            onChange={handleDetailChange}
+            placeholder="House number, street name"
+            className={fieldClass}
+          />
+        </div>
       </div>
 
-      <div>
-        <label
-          htmlFor="detail"
-          className="mb-1 block text-sm font-medium"
-        >
-          Số nhà, tên đường
-        </label>
+      <div className="mt-6 flex items-start gap-3 rounded-xl bg-[#f0fdf4] p-4">
+        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#15803d] text-sm font-bold text-white">
+          ✓
+        </div>
 
-        <input
-          id="detail"
-          type="text"
-          value={address.detail}
-          onChange={handleDetailChange}
-          placeholder="Ví dụ: 123 Nguyễn Trãi"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
-        />
+        <div>
+          <p className="text-sm font-semibold text-[#141b2b]">
+            Cascading address verification
+          </p>
+          <p className="mt-1 text-xs leading-5 text-[#4b5563]">
+            Changing Province resets District and Ward. Changing District resets
+            Ward to keep the address hierarchy consistent.
+          </p>
+        </div>
       </div>
-    </div>
+    </section>
   );
 };
 
