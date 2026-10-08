@@ -7,1152 +7,835 @@ export const Home: React.FC = () => {
   const wishlistTarget = user ? '/saved-items' : '/login';
 
   return (
-    <div className="flex flex-col w-full bg-surface-container-low font-body-md text-body-md text-on-surface antialiased">
-      {/* 1. HERO SECTION */}
-      <section className="relative w-full max-w-[1440px] mx-auto px-gutter md:px-margin pt-space-xl pb-24 overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-center">
-          {/* Cột trái: Tiêu đề & Giới thiệu */}
-          <div className="lg:col-span-6 flex flex-col gap-space-lg z-10">
-            {/* Huy hiệu cam kết */}
-            <div className="inline-flex items-center gap-space-sm px-space-md py-space-xs rounded-full bg-surface-container-high w-fit shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-secondary"></span>
-              <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">
-                0% Lãng Phí Trang Phục • 100% Giặt Hấp Diệt Khuẩn • Ký Quỹ Minh Bạch
-              </span>
-            </div>
+    <div className="w-full min-h-screen bg-[#FBF9F5] text-[#1C1A18] antialiased selection:bg-[#1C1A18] selection:text-[#FBF9F5] home-container">
+      {/* NHÚNG TRỰC TIẾP FONT VÀ CSS VÀO COMPONENT */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 
-            {/* Tiêu đề chính */}
-            <div className="flex flex-col gap-space-sm">
-              <h1 className="font-display-lg text-display-lg-mobile md:text-display-lg tracking-tight text-primary leading-[1.08]">
-                Mặc Nhiều Hơn.<br />
-                <span className="italic font-normal">Sở Hữu Ít Hơn.</span>
-              </h1>
-              <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl pt-space-xs leading-relaxed">
-                Trải nghiệm tủ đồ không giới hạn: thuê trang phục dự tiệc, áo dài và đồ thiết kế cao cấp cho từng khoảnh khắc đặc biệt. Săn đồ si, vintage tuyển chọn chính hãng. Trao cho trang phục một vòng đời mới rực rỡ.
+        .home-container {
+          font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
+        }
+
+        .home-container .font-serif,
+        .home-container h1,
+        .home-container h2 {
+          font-family: 'Playfair Display', Georgia, serif !important;
+        }
+
+        .home-container .material-symbols-outlined {
+          font-family: 'Material Symbols Outlined' !important;
+          font-weight: normal;
+          font-style: normal;
+          display: inline-block;
+          line-height: 1;
+          text-transform: none;
+          letter-spacing: normal;
+          word-wrap: normal;
+          white-space: nowrap;
+          direction: ltr;
+          -webkit-font-smoothing: antialiased;
+        }
+      `}</style>
+
+      {/* MAIN CONTAINER */}
+      <div className="flex min-h-screen relative">
+        {/* Persistent Left Sidebar */}
+        <aside className="w-64 shrink-0 bg-white border-r border-[#E7E2DA] hidden md:flex flex-col sticky top-16 h-[calc(100vh-4rem)] z-40">
+          <div className="p-5 border-b border-[#E7E2DA] flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                className="p-1.5 text-[#1C1A18] hover:bg-[#F4F0EA] rounded transition-colors"
+                aria-label="Menu navigation"
+              >
+                <span className="material-symbols-outlined text-[20px] block">menu</span>
+              </button>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#78736A]">Điều hướng</span>
+            </div>
+            <span className="text-[10px] bg-[#F4F0EA] px-2 py-0.5 rounded font-mono font-medium text-[#5E5A53]">MENU</span>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-1 text-[13px]">
+            <Link
+              to="/"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[#1C1A18] text-white font-medium shadow-sm transition-colors"
+            >
+              <span className="material-symbols-outlined text-[18px]">home</span>
+              <span>Trang chủ</span>
+            </Link>
+            <Link
+              to="/rent"
+              className="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#5E5A53] hover:text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors font-medium"
+            >
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-[18px]">cached</span>
+                <span>Thuê đồ RENT</span>
+              </div>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-[#F4F0EA] border border-[#E7E2DA] rounded text-[#1C1A18]">
+                HOT
+              </span>
+            </Link>
+            <Link
+              to="/thrift"
+              className="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#5E5A53] hover:text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors font-medium"
+            >
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
+                <span>Mua đồ THRIFT</span>
+              </div>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-[#F4F0EA] border border-[#E7E2DA] rounded text-[#1C1A18]">
+                NEW
+              </span>
+            </Link>
+            <Link
+              to="/categories"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#5E5A53] hover:text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors font-medium"
+            >
+              <span className="material-symbols-outlined text-[18px]">grid_view</span>
+              <span>Danh mục sản phẩm</span>
+            </Link>
+            <div className="pt-3 pb-1.5 px-3">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#78736A]">Hệ sinh thái</span>
+            </div>
+            <Link
+              to="/how-it-works"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#5E5A53] hover:text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors font-medium"
+            >
+              <span className="material-symbols-outlined text-[18px]">sync_alt</span>
+              <span>Cách hoạt động</span>
+            </Link>
+            <Link
+              to="/about"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#5E5A53] hover:text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors font-medium"
+            >
+              <span className="material-symbols-outlined text-[18px]">info</span>
+              <span>Giới thiệu</span>
+            </Link>
+            <Link
+              to="/faq"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#5E5A53] hover:text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors font-medium"
+            >
+              <span className="material-symbols-outlined text-[18px]">help_outline</span>
+              <span>Câu hỏi FAQ</span>
+            </Link>
+            <Link
+              to="/contact"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#5E5A53] hover:text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors font-medium"
+            >
+              <span className="material-symbols-outlined text-[18px]">mail</span>
+              <span>Liên hệ hỗ trợ</span>
+            </Link>
+          </div>
+          <div className="p-4 border-t border-[#E7E2DA] bg-[#F4F0EA]/30">
+            <div className="p-3 rounded-lg bg-white border border-[#E7E2DA] space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px] text-[#1C1A18]">shield_with_heart</span>
+                <span className="text-xs font-semibold text-[#1C1A18]">Tuần hoàn 100%</span>
+              </div>
+              <p className="text-[11px] text-[#78736A] leading-relaxed">
+                Cam kết bảo hiểm và vệ sinh đạt chuẩn y tế cho mọi đơn thuê.
               </p>
             </div>
-
-            {/* Nút hành động chính */}
-            <div className="flex flex-wrap items-center gap-space-md pt-space-xs">
-              <Link
-                to="/rent"
-                className="inline-flex items-center justify-center px-space-xl py-3.5 bg-primary-container text-surface-container-low font-label-md text-label-md uppercase tracking-wider rounded-lg shadow-sm hover:bg-on-surface transition-all duration-200 font-semibold"
-              >
-                Khám Phá Thuê Đồ
-              </Link>
-              <Link
-                to="/thrift"
-                className="inline-flex items-center justify-center gap-space-xs px-space-lg py-3.5 bg-surface-container-lowest text-primary font-label-md text-label-md uppercase tracking-wider rounded-lg shadow-sm hover:bg-surface-container-high transition-all duration-200 font-semibold"
-              >
-                <span>Săn Đồ Thanh Lý</span>
-                <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-              </Link>
-            </div>
-
-            {/* Thống kê nhanh */}
-            <div className="pt-space-md flex items-center gap-space-xl border-t border-outline-variant/30">
-              <div>
-                <div className="font-headline-sm text-headline-sm text-primary font-semibold">14,200+</div>
-                <div className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Trang Phục Tuần Hoàn</div>
-              </div>
-              <div>
-                <div className="font-headline-sm text-headline-sm text-primary font-semibold">99.4%</div>
-                <div className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Tỉ Lệ Đạt Chuẩn Vải Sạch</div>
-              </div>
-              <div>
-                <div className="font-headline-sm text-headline-sm text-primary font-semibold">Đà Nẵng • HN • TP.HCM</div>
-                <div className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Hub Giao Nhận Toàn Quốc</div>
-              </div>
-            </div>
           </div>
+        </aside>
 
-          {/* Cột phải: Hình ảnh thời trang Hero */}
-          <div className="lg:col-span-6 relative mt-space-lg lg:mt-0">
-            <div className="relative w-full aspect-[4/5] sm:aspect-[16/11] lg:aspect-[4/5] rounded-xl overflow-hidden shadow-xl bg-surface-container">
-              <img
-                className="w-full h-full object-cover"
-                alt="Tủ đồ thời trang tuần hoàn thanh lịch với trang phục thiết kế cao cấp"
-                src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1200&auto=format&fit=crop"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-primary/10 to-transparent"></div>
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+          <main className="flex-1 w-full">
+            {/* 1. HERO SECTION */}
+            <section className="relative w-full border-b border-[#E7E2DA] bg-[#FBF9F5] py-14 lg:py-20 px-6 lg:px-12">
+              <div className="mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center max-w-7xl">
+                <div className="lg:col-span-7 space-y-6">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F4F0EA] border border-[#E7E2DA] text-[#1C1A18] text-[11px] font-semibold tracking-widest uppercase">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1C1A18]"></span>
+                    Kinh tế tuần hoàn · Rent &amp; Thrift Marketplace
+                  </div>
+                  <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl text-[#1C1A18] leading-[1.12] font-semibold tracking-tight">
+                    Dùng nhiều hơn.<br />
+                    <span className="italic font-normal">Sở hữu ít hơn.</span>
+                  </h1>
+                  <p className="text-base sm:text-lg text-[#5E5A53] leading-relaxed font-normal max-w-xl">
+                    Nền tảng lưu thông sản phẩm cao cấp: Thuê trang phục, máy ảnh và thiết bị dã ngoại khi bạn cần ngắn hạn; hoặc sở hữu lại đồ đã qua sử dụng với chất lượng được chứng thực nghiêm ngặt.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3.5 pt-2">
+                    <Link
+                      className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#1C1A18] hover:bg-[#292724] text-white text-xs font-semibold tracking-wider uppercase transition-all shadow-sm"
+                      to="/rent"
+                    >
+                      <span>Khám phá RENT</span>
+                      <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                    </Link>
+                    <Link
+                      className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-white hover:bg-[#F4F0EA] text-[#1C1A18] border border-[#E7E2DA] text-xs font-semibold tracking-wider uppercase transition-all"
+                      to="/thrift"
+                    >
+                      <span>Mua đồ THRIFT</span>
+                      <span className="material-symbols-outlined text-[16px]">shopping_bag</span>
+                    </Link>
+                  </div>
+                  <div className="pt-8 grid grid-cols-3 gap-6 border-t border-[#E7E2DA] text-xs max-w-lg">
+                    <div>
+                      <span className="block font-serif text-2xl font-bold text-[#1C1A18]">10,000+</span>
+                      <span className="text-[#78736A] text-[11px] mt-0.5 block">Sản phẩm lưu thông</span>
+                    </div>
+                    <div className="border-l border-[#E7E2DA] pl-6">
+                      <span className="block font-serif text-2xl font-bold text-[#1C1A18]">100%</span>
+                      <span className="text-[#78736A] text-[11px] mt-0.5 block">Kiểm định chuẩn hóa</span>
+                    </div>
+                    <div className="border-l border-[#E7E2DA] pl-6">
+                      <span className="block font-serif text-2xl font-bold text-[#1C1A18]">0 Rác thải</span>
+                      <span className="text-[#78736A] text-[11px] mt-0.5 block">Mục tiêu trọn đời</span>
+                    </div>
+                  </div>
+                </div>
 
-              {/* Thẻ chú thích nổi bật phía dưới ảnh */}
-              <div className="absolute bottom-6 left-6 right-6 p-space-md rounded-lg bg-surface-bright/95 backdrop-blur shadow-md flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Bộ Sưu Tập Tiệc &amp; Sự Kiện</span>
-                  <span className="font-title-md text-title-md text-primary font-semibold">Tủ Đồ Dạ Hội &amp; Áo Dài Tinh Tuyển</span>
+                <div className="lg:col-span-5 relative">
+                  <div className="relative rounded-lg overflow-hidden border border-[#E7E2DA] bg-white shadow-sm aspect-[4/5]">
+                    <img
+                      alt="Bộ sưu tập tuần hoàn tối giản cao cấp"
+                      className="w-full h-full object-cover"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBng4MLQhS8NFANpuN_8iWnkFh2DSw-KnZsQVyp9xW8z3bxHISE4MDg9zWP15U7Jjng4R7cEBDG8UjoyOrMJzOhlSfA8_BtpyTYA2NrsEFPPUy35Mn996CziOn7umtUIajfAzjoTYnN1wVx4HDr_c_Y4YE-V658QkFtmKgDBRNeNjJQZzt4ddD4sDacemN66MaxbEXdt7gNFXi6ZzbLXULrClm_9Q6YRIjPvoY9lp0b"
+                    />
+                    <div className="absolute top-4 left-4 flex gap-2">
+                      <span className="px-2.5 py-1 rounded bg-[#1C1A18] text-white text-[10px] font-semibold tracking-widest uppercase">
+                        RENT
+                      </span>
+                      <span className="px-2.5 py-1 rounded bg-white/90 backdrop-blur-sm border border-[#E7E2DA] text-[#1C1A18] text-[10px] font-semibold tracking-widest uppercase">
+                        THRIFT
+                      </span>
+                    </div>
+                    <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md p-3.5 rounded border border-[#E7E2DA] flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-[#78736A] font-bold">Quy chuẩn thẩm định</p>
+                        <p className="text-xs font-semibold text-[#1C1A18]">Chứng thực nguồn gốc &amp; vệ sinh y tế</p>
+                      </div>
+                      <span className="material-symbols-outlined text-[20px] text-[#1C1A18]">verified</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* 2. CATEGORIES SECTION */}
+            <section className="py-16 px-6 lg:px-12 mx-auto max-w-7xl">
+              <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 pb-4 border-b border-[#E7E2DA]">
+                <div>
+                  <span className="text-[11px] font-bold tracking-widest text-[#78736A] uppercase">DANH MỤC TUẦN HOÀN</span>
+                  <h2 className="font-serif text-2xl sm:text-3xl text-[#1C1A18] font-semibold mt-1">
+                    Khám phá theo nhu cầu
+                  </h2>
                 </div>
                 <Link
-                  to="/rent"
-                  className="font-label-sm text-label-sm uppercase tracking-wider text-primary font-semibold hover:underline flex items-center gap-1"
+                  className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-[#1C1A18] hover:opacity-60 transition-opacity"
+                  to="/categories"
                 >
-                  Xem Bộ Sưu Tập <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                  <span>Xem tất cả danh mục</span>
+                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </Link>
               </div>
-            </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <Link
+                  className="group bg-white rounded-lg border border-[#E7E2DA] overflow-hidden p-3 hover:border-[#1C1A18] transition-colors flex flex-col"
+                  to="/categories/cameras"
+                >
+                  <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
+                    <img
+                      alt="Camera & Thiết bị quang học"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-UHO6tsX0sMFex89OKO4Z-w_ShVuR9ye-q8jHlxKLabB4fX03IKz3GwLFdt0tErN6zyIIjPHl2DBj0ov7hNrFg47IiSm0KAiHQ_2-XTAJ11c9hdYpd8NtRCZWo3E3uqCub_wG4OPONy--TIp0pYcuxipvpfvUcfkNNeVXhItVO0u62PdJItZLvhFGsaRmNm3tHjo-pYEsswOvApbEfmiqMOPqORD885xgtltPTBpV"
+                    />
+                  </div>
+                  <h3 className="font-semibold text-xs text-[#1C1A18]">Camera &amp; Lens</h3>
+                  <span className="text-[11px] text-[#78736A] mt-0.5">340+ món</span>
+                </Link>
 
-            {/* Huy hiệu góc trái trên ảnh */}
-            <div className="hidden sm:flex absolute -top-4 -left-6 px-space-md py-space-sm bg-surface-container-lowest rounded-full shadow-md items-center gap-space-sm z-20">
-              <span className="material-symbols-outlined text-secondary text-[18px]">verified</span>
-              <span className="font-label-sm text-label-sm uppercase tracking-widest text-on-surface font-semibold">
-                Giặt Khô &amp; Khử Khuẩn 100%
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
+                <Link
+                  className="group bg-white rounded-lg border border-[#E7E2DA] overflow-hidden p-3 hover:border-[#1C1A18] transition-colors flex flex-col"
+                  to="/categories/fashion"
+                >
+                  <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
+                    <img
+                      alt="Quần áo thiết kế"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuAc_NEOAcWg2z30w_eikWvaCcPRd2XLRbEb12GdUQiunNKM61HtPjRjvKXft01sm1RmfnaGn1nJqqajVexSDSkQADIrFM48Ajpwz3SHYeDNLU_VT1x57f77CVngb-HttwOgNKnXcFW-N8P9J54Qp3JAovcWThv0kLB3ihcaF-RqZBw0Q3VWOs-auoIYfBoA1bD6aTTYLDTuUmnNDfzx8zYtzMMtOJ5xH-HdcDZZP_CP"
+                    />
+                  </div>
+                  <h3 className="font-semibold text-xs text-[#1C1A18]">Trang phục sự kiện</h3>
+                  <span className="text-[11px] text-[#78736A] mt-0.5">520+ món</span>
+                </Link>
 
-      {/* 2. CATEGORY GRID (DANH MỤC THỜI TRANG) */}
-      <section className="w-full bg-surface-container py-space-xl">
-        <div className="max-w-[1440px] mx-auto px-gutter md:px-margin flex flex-col gap-space-xl">
-          {/* Tiêu đề mục */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-space-sm">
-            <div className="flex flex-col gap-space-xs">
-              <span className="font-label-sm text-label-sm uppercase tracking-widest text-secondary font-semibold">Phân Loại Tủ Đồ</span>
-              <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight">Khám Phá Theo Danh Mục</h2>
-            </div>
-            <p className="font-body-md text-body-md text-on-surface-variant max-w-sm">
-              Trang phục được tuyển chọn kỹ lưỡng từ váy dạ hội, áo dài truyền thống đến suit công sở, thời trang thiết kế và phụ kiện độc đáo.
-            </p>
-          </div>
+                <Link
+                  className="group bg-white rounded-lg border border-[#E7E2DA] overflow-hidden p-3 hover:border-[#1C1A18] transition-colors flex flex-col"
+                  to="/categories/camping"
+                >
+                  <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
+                    <img
+                      alt="Đồ cắm trại dã ngoại"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhq9rUsLqHk-irxUNYTF7Ah5jMO5aswyjF74RmXy152o2w6pq0G09f6eQQm83ME_wiWm9QfPiW3XSQZ2SGcw5rtFGRE7pRZr0EneD6Oq6f6YdF-qoRo6xQ95pDgKiR94K6Gbqixn8gCeOoh-fFeUQx1m3fRMqNw24y3dwciaowAjuKCNuxghnhIebAhAfdjnb03CIH0pmvvn2p3nhuVe_vrQDSbLxTKOs8gwQ3Ejz5"
+                    />
+                  </div>
+                  <h3 className="font-semibold text-xs text-[#1C1A18]">Đồ cắm trại</h3>
+                  <span className="text-[11px] text-[#78736A] mt-0.5">180+ món</span>
+                </Link>
 
-          {/* Lưới 6 danh mục thời trang */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-gutter">
-            {/* 1. Váy Dạ Hội */}
-            <Link
-              to="/categories/dresses"
-              className="group flex flex-col bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-            >
-              <div className="relative aspect-square w-full overflow-hidden bg-surface-container">
-                <img
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                  alt="Váy dạ hội và đầm tiệc cao cấp"
-                  src="https://images.unsplash.com/photo-1566174053879-31528523f8ae?q=80&w=600&auto=format&fit=crop"
-                />
-                <span className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-bright/80 flex items-center justify-center text-primary group-hover:translate-x-0.5 transition-transform">
-                  <span className="material-symbols-outlined text-[14px]">arrow_outward</span>
-                </span>
-              </div>
-              <div className="p-space-sm flex items-center justify-between">
-                <span className="font-title-md text-title-md text-primary group-hover:text-secondary transition-colors font-medium">Váy Dạ Hội</span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant font-normal">84 mẫu</span>
-              </div>
-            </Link>
+                <Link
+                  className="group bg-white rounded-lg border border-[#E7E2DA] overflow-hidden p-3 hover:border-[#1C1A18] transition-colors flex flex-col"
+                  to="/categories/shoes"
+                >
+                  <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
+                    <img
+                      alt="Giày da và phụ kiện"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8dpFCRWWk7LW0bghdob3zWt4GE3Ev4OGoRAQ0ky5bTpFrisi3ix5NruyeQNZ8vyMKorWth4o2-Xc2la-xxnfRwyefE-vT1Z8Hi6boFFrZ70Wr8Zl4eX8FLs9ePWkX5_eyFgDH_xEUczYoKP6O1sSnV0xnMvK2qMvART-GOc8F4QEKY3ADOtyfCQcsE-dVfdmWfeCHbeJw5Kwoa9p139bi_49OYvuHf3i_c_S5tG37"
+                    />
+                  </div>
+                  <h3 className="font-semibold text-xs text-[#1C1A18]">Giày dép &amp; Da</h3>
+                  <span className="text-[11px] text-[#78736A] mt-0.5">290+ món</span>
+                </Link>
 
-            {/* 2. Áo Dài & Cổ Phục */}
-            <Link
-              to="/categories/ao-dai"
-              className="group flex flex-col bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-            >
-              <div className="relative aspect-square w-full overflow-hidden bg-surface-container">
-                <img
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                  alt="Áo dài truyền thống và cổ phục Việt Nam"
-                  src="https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?q=80&w=600&auto=format&fit=crop"
-                />
-                <span className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-bright/80 flex items-center justify-center text-primary group-hover:translate-x-0.5 transition-transform">
-                  <span className="material-symbols-outlined text-[14px]">arrow_outward</span>
-                </span>
-              </div>
-              <div className="p-space-sm flex items-center justify-between">
-                <span className="font-title-md text-title-md text-primary group-hover:text-secondary transition-colors font-medium">Áo Dài</span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant font-normal">142 mẫu</span>
-              </div>
-            </Link>
+                <Link
+                  className="group bg-white rounded-lg border border-[#E7E2DA] overflow-hidden p-3 hover:border-[#1C1A18] transition-colors flex flex-col"
+                  to="/categories/electronics"
+                >
+                  <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
+                    <img
+                      alt="Thiết bị âm thanh công nghệ"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBBqlhkGeDjGJUOQ0ldgP0rEsQeZe3EE1vajkxcTRjeNcvtkD7Y4SeJ8oBygpMprjtwW-H8ZQJDpW1F22gc87bQVTprziREZPCirHHUKtAiHrly303knMOlwOVNZp4HhZfOHZuP1_Xy2WGouVPSncWxUBelmSLcybbwC6QBGLEdU8TJqY7KG7Q2OJwzcDLTsXjADPl78uElpHxOPYrnc0zE2rOCKJcf5RYwySE92p6O"
+                    />
+                  </div>
+                  <h3 className="font-semibold text-xs text-[#1C1A18]">Thiết bị âm thanh</h3>
+                  <span className="text-[11px] text-[#78736A] mt-0.5">140+ món</span>
+                </Link>
 
-            {/* 3. Blazer & Suit */}
-            <Link
-              to="/categories/suits"
-              className="group flex flex-col bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-            >
-              <div className="relative aspect-square w-full overflow-hidden bg-surface-container">
-                <img
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                  alt="Áo blazer và suit công sở thời thượng"
-                  src="https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=600&auto=format&fit=crop"
-                />
-                <span className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-bright/80 flex items-center justify-center text-primary group-hover:translate-x-0.5 transition-transform">
-                  <span className="material-symbols-outlined text-[14px]">arrow_outward</span>
-                </span>
+                <Link
+                  className="group bg-white rounded-lg border border-[#E7E2DA] overflow-hidden p-3 hover:border-[#1C1A18] transition-colors flex flex-col"
+                  to="/categories/lifestyle"
+                >
+                  <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
+                    <img
+                      alt="Đồ trang trí studio và phong cách sống"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlMw4-MXTkbk0Uzfk8FM52ydS0JUdMq5ZndgqnjawE5U_hftTjPEV4fdCcHVV_e95LKmKF0-44E6lCchEfZIjfQbk23Scvhn0OPIe1xXb3MvQg9Y02OBxarNift8ZhggaxEJV8K3EbxQRqvqRmIPfsdocezACw4AXfOEqq5sLhVS88STJ9nVu7N4ENCRzwJ303898jE7oNenHk3Mod9uU5-cL1q91bXFXJSNokZ2xC"
+                    />
+                  </div>
+                  <h3 className="font-semibold text-xs text-[#1C1A18]">Đồ trang trí &amp; Setup</h3>
+                  <span className="text-[11px] text-[#78736A] mt-0.5">210+ món</span>
+                </Link>
               </div>
-              <div className="p-space-sm flex items-center justify-between">
-                <span className="font-title-md text-title-md text-primary group-hover:text-secondary transition-colors font-medium">Blazer &amp; Suit</span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant font-normal">95 mẫu</span>
-              </div>
-            </Link>
+            </section>
 
-            {/* 4. Đồ Thiết Kế Designer */}
-            <Link
-              to="/categories/designer"
-              className="group flex flex-col bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-            >
-              <div className="relative aspect-square w-full overflow-hidden bg-surface-container">
-                <img
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                  alt="Thời trang thiết kế và hàng hiệu cao cấp"
-                  src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=600&auto=format&fit=crop"
-                />
-                <span className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-bright/80 flex items-center justify-center text-primary group-hover:translate-x-0.5 transition-transform">
-                  <span className="material-symbols-outlined text-[14px]">arrow_outward</span>
-                </span>
-              </div>
-              <div className="p-space-sm flex items-center justify-between">
-                <span className="font-title-md text-title-md text-primary group-hover:text-secondary transition-colors font-medium">Đồ Thiết Kế</span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant font-normal">118 mẫu</span>
-              </div>
-            </Link>
+            {/* 3. RENT SECTION */}
+            <section className="py-16 bg-[#F4F0EA]/50 border-y border-[#E7E2DA] px-6 lg:px-12">
+              <div className="mx-auto max-w-7xl">
+                <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 pb-4 border-b border-[#E7E2DA]">
+                  <div>
+                    <span className="text-[11px] font-bold tracking-widest text-[#78736A] uppercase">01 · BỘ SƯU TẬP CHO THUÊ</span>
+                    <h2 className="font-serif text-2xl sm:text-3xl text-[#1C1A18] font-semibold mt-1">
+                      Thuê những gì bạn chỉ cần dùng ngắn hạn
+                    </h2>
+                  </div>
+                  <Link
+                    className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-[#1C1A18] hover:opacity-60 transition-opacity"
+                    to="/rent"
+                  >
+                    <span>Xem tất cả sản phẩm RENT</span>
+                    <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                  </Link>
+                </div>
 
-            {/* 5. Vintage & Retro */}
-            <Link
-              to="/categories/vintage"
-              className="group flex flex-col bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-            >
-              <div className="relative aspect-square w-full overflow-hidden bg-surface-container">
-                <img
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                  alt="Thời trang phong cách cổ điển vintage"
-                  src="https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=600&auto=format&fit=crop"
-                />
-                <span className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-bright/80 flex items-center justify-center text-primary group-hover:translate-x-0.5 transition-transform">
-                  <span className="material-symbols-outlined text-[14px]">arrow_outward</span>
-                </span>
-              </div>
-              <div className="p-space-sm flex items-center justify-between">
-                <span className="font-title-md text-title-md text-primary group-hover:text-secondary transition-colors font-medium">Vintage &amp; Retro</span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant font-normal">67 mẫu</span>
-              </div>
-            </Link>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {/* Card 1 */}
+                  <div className="bg-white rounded-lg border border-[#E7E2DA] overflow-hidden flex flex-col group hover:border-[#1C1A18] transition-colors">
+                    <div className="relative aspect-[4/3] bg-[#F4F0EA] overflow-hidden">
+                      <img
+                        alt="Sony Alpha A7 IV"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuArK_m_Ej6DJkf_Qxjr0TNjSBy8N_wWq8RlbthJdLRfGJOro96wzpqhhI--t44WJhzlz6AQvaaDqGEHQZknuZlwngs7jH109zjqhnrGZJ0zTx2qjpfz5atPkF02NwK4Y7lIlU7o4NdHtDtQIOAZSiStxUWBSOq5jLGLtOqBwq4NyFU3fxo9qTvYjiQpkxmeTCEtdDgSbY8Zk-rNH1GKJVQXZ3OvT9deZtkOyFLJsIWr"
+                      />
+                      <span className="absolute top-2.5 left-2.5 bg-[#1C1A18] text-white text-[10px] font-bold px-2 py-0.5 rounded tracking-wider uppercase">RENT</span>
+                      <Link
+                        className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm border border-[#E7E2DA] text-[#1C1A18] hover:bg-white flex items-center justify-center transition-colors"
+                        to={wishlistTarget}
+                        title="Lưu yêu thích"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">favorite_border</span>
+                      </Link>
+                    </div>
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between text-[11px] text-[#78736A] mb-1.5">
+                          <span>Thiết bị hình ảnh</span>
+                          <span className="text-[#1C1A18] font-medium">Tình trạng 98%</span>
+                        </div>
+                        <h3 className="font-semibold text-sm text-[#1C1A18] line-clamp-1 group-hover:underline">
+                          Sony Alpha A7 Mark IV Body
+                        </h3>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-[#E7E2DA]">
+                        <div className="flex items-baseline justify-between">
+                          <div>
+                            <span className="text-base font-bold text-[#1C1A18]">450.000đ</span>
+                            <span className="text-xs text-[#78736A]"> / ngày</span>
+                          </div>
+                          <span className="text-[11px] text-[#5E5A53]">Cọc: 2.000.000đ</span>
+                        </div>
+                        <Link
+                          className="w-full mt-3 py-2 rounded bg-[#1C1A18] hover:bg-[#292724] text-white text-xs font-semibold text-center block transition-colors tracking-wide uppercase"
+                          to="/rent"
+                        >
+                          Đặt lịch thuê
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
 
-            {/* 6. Túi & Phụ Kiện */}
-            <Link
-              to="/categories/accessories"
-              className="group flex flex-col bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-            >
-              <div className="relative aspect-square w-full overflow-hidden bg-surface-container">
-                <img
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                  alt="Túi xách và phụ kiện thời trang"
-                  src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=600&auto=format&fit=crop"
-                />
-                <span className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-bright/80 flex items-center justify-center text-primary group-hover:translate-x-0.5 transition-transform">
-                  <span className="material-symbols-outlined text-[14px]">arrow_outward</span>
-                </span>
-              </div>
-              <div className="p-space-sm flex items-center justify-between">
-                <span className="font-title-md text-title-md text-primary group-hover:text-secondary transition-colors font-medium">Túi &amp; Phụ Kiện</span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant font-normal">53 mẫu</span>
-              </div>
-            </Link>
-          </div>
-        </div>
-      </section>
+                  {/* Card 2 */}
+                  <div className="bg-white rounded-lg border border-[#E7E2DA] overflow-hidden flex flex-col group hover:border-[#1C1A18] transition-colors">
+                    <div className="relative aspect-[4/3] bg-[#F4F0EA] overflow-hidden">
+                      <img
+                        alt="Đầm dạ hội lụa tự nhiên"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8dpFCRWWk7LW0bghdob3zWt4GE3Ev4OGoRAQ0ky5bTpFrisi3ix5NruyeQNZ8vyMKorWth4o2-Xc2la-xxnfRwyefE-vT1Z8Hi6boFFrZ70Wr8Zl4eX8FLs9ePWkX5_eyFgDH_xEUczYoKP6O1sSnV0xnMvK2qMvART-GOc8F4QEKY3ADOtyfCQcsE-dVfdmWfeCHbeJw5Kwoa9p139bi_49OYvuHf3i_c_S5tG37"
+                      />
+                      <span className="absolute top-2.5 left-2.5 bg-[#1C1A18] text-white text-[10px] font-bold px-2 py-0.5 rounded tracking-wider uppercase">RENT</span>
+                      <Link
+                        className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm border border-[#E7E2DA] text-[#1C1A18] hover:bg-white flex items-center justify-center transition-colors"
+                        to={wishlistTarget}
+                        title="Lưu yêu thích"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">favorite_border</span>
+                      </Link>
+                    </div>
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between text-[11px] text-[#78736A] mb-1.5">
+                          <span>Trang phục thiết kế</span>
+                          <span className="text-[#1C1A18] font-medium">Tình trạng 99%</span>
+                        </div>
+                        <h3 className="font-semibold text-sm text-[#1C1A18] line-clamp-1 group-hover:underline">
+                          Đầm Lụa Tự Nhiên Editorial
+                        </h3>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-[#E7E2DA]">
+                        <div className="flex items-baseline justify-between">
+                          <div>
+                            <span className="text-base font-bold text-[#1C1A18]">180.000đ</span>
+                            <span className="text-xs text-[#78736A]"> / ngày</span>
+                          </div>
+                          <span className="text-[11px] text-[#5E5A53]">Cọc: 800.000đ</span>
+                        </div>
+                        <Link
+                          className="w-full mt-3 py-2 rounded bg-[#1C1A18] hover:bg-[#292724] text-white text-xs font-semibold text-center block transition-colors tracking-wide uppercase"
+                          to="/rent"
+                        >
+                          Đặt lịch thuê
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
 
-      {/* 3. RENT FEATURE SECTION (DỊCH VỤ THUÊ TRANG PHỤC) */}
-      <section className="w-full max-w-[1440px] mx-auto px-gutter md:px-margin py-20 flex flex-col gap-space-xl">
-        {/* Tiêu đề & Nút Xem tất cả */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
-          <div>
-            <div className="inline-flex items-center gap-2 mb-space-xs">
-              <span className="w-2 h-2 rounded-full bg-primary"></span>
-              <span className="font-label-sm text-label-sm uppercase tracking-widest text-primary font-bold">Tủ Đồ Chia Sẻ</span>
-            </div>
-            <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight">Thuê Trang Phục Đúng Ý</h2>
-            <p className="font-body-md text-body-md text-on-surface-variant mt-1">
-              Váy dạ hội, áo dài và suit thiết kế được giặt khô khử khuẩn tiêu chuẩn kèm tiền cọc ký quỹ an toàn.
-            </p>
-          </div>
-          <Link
-            to="/rent"
-            className="inline-flex items-center gap-1 font-label-md text-label-md uppercase tracking-wider text-primary font-semibold hover:text-secondary transition-colors"
-          >
-            <span>Xem Tất Cả Đồ Thuê</span>
-            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-          </Link>
-        </div>
+                  {/* Card 3 */}
+                  <div className="bg-white rounded-lg border border-[#E7E2DA] overflow-hidden flex flex-col group hover:border-[#1C1A18] transition-colors">
+                    <div className="relative aspect-[4/3] bg-[#F4F0EA] overflow-hidden">
+                      <img
+                        alt="Lều cắm trại 4 người Naturehike"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDorae55Q1x9PqMxjciZsPIVqeTCuY2RqxvBrpFtMHbkFZ4eT_zLtwKaQ2z5GGFFyFVcm0zaBGa43Zkf1EetDsNaW6mt0GqWd8Hth7ZbCNzv_9SLCsU-O5SNP_6fP0J1220ccO78J06cmYHXmL5CbeyfI2c9Iipsip2wxbgY93fKkH9J9lgcwTZfVwpHDS7u8UMmJZ_N7omH5OK0b6L-Qepx7pIC6CPtCeWL0zgJwGy"
+                      />
+                      <span className="absolute top-2.5 left-2.5 bg-[#1C1A18] text-white text-[10px] font-bold px-2 py-0.5 rounded tracking-wider uppercase">RENT</span>
+                      <Link
+                        className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm border border-[#E7E2DA] text-[#1C1A18] hover:bg-white flex items-center justify-center transition-colors"
+                        to={wishlistTarget}
+                        title="Lưu yêu thích"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">favorite_border</span>
+                      </Link>
+                    </div>
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between text-[11px] text-[#78736A] mb-1.5">
+                          <span>Dã ngoại &amp; Trekking</span>
+                          <span className="text-[#1C1A18] font-medium">Tình trạng 95%</span>
+                        </div>
+                        <h3 className="font-semibold text-sm text-[#1C1A18] line-clamp-1 group-hover:underline">
+                          Lều Cắm Trại 4 Người Pro Vintage
+                        </h3>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-[#E7E2DA]">
+                        <div className="flex items-baseline justify-between">
+                          <div>
+                            <span className="text-base font-bold text-[#1C1A18]">250.000đ</span>
+                            <span className="text-xs text-[#78736A]"> / ngày</span>
+                          </div>
+                          <span className="text-[11px] text-[#5E5A53]">Cọc: 1.000.000đ</span>
+                        </div>
+                        <Link
+                          className="w-full mt-3 py-2 rounded bg-[#1C1A18] hover:bg-[#292724] text-white text-xs font-semibold text-center block transition-colors tracking-wide uppercase"
+                          to="/rent"
+                        >
+                          Đặt lịch thuê
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
 
-        {/* Lưới sản phẩm cho thuê */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-          {/* Sản phẩm thuê 1 */}
-          <div className="group bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-            <div className="relative aspect-[4/5] bg-surface-container overflow-hidden">
-              <img
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                alt="Đầm dạ hội lụa satin ngọc lục bảo"
-                src="https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?q=80&w=800&auto=format&fit=crop"
-              />
-              <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
-                <span className="px-2 py-0.5 rounded bg-primary text-surface-container-low font-label-sm text-[10px] uppercase tracking-wider font-semibold">
-                  THUÊ
-                </span>
-                <span className="px-2 py-0.5 rounded bg-surface-bright/90 backdrop-blur font-label-sm text-[10px] text-on-surface-variant font-medium">
-                  Độ Mới 99%
-                </span>
-              </div>
-              <Link
-                to={wishlistTarget}
-                aria-label="Thêm vào danh sách yêu thích"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface-bright/85 backdrop-blur flex items-center justify-center text-on-surface hover:text-error transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </Link>
-              <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-primary/80 backdrop-blur text-surface-container-low font-label-sm text-[10px]">
-                Hub Đà Nẵng
-              </div>
-            </div>
-            <div className="p-space-md flex flex-col flex-1 justify-between gap-space-md">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Đầm Dạ Tiệc</span>
-                  <div className="flex items-center gap-1 font-label-sm text-label-sm text-primary">
-                    <span className="material-symbols-outlined text-[14px] text-amber-600" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                    <span>4.9</span>
-                    <span className="text-on-surface-variant">(38)</span>
+                  {/* Card 4 */}
+                  <div className="bg-white rounded-lg border border-[#E7E2DA] overflow-hidden flex flex-col group hover:border-[#1C1A18] transition-colors">
+                    <div className="relative aspect-[4/3] bg-[#F4F0EA] overflow-hidden">
+                      <img
+                        alt="Fujifilm X-T4 Mirrorless"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwkr37U0v5IOv6YU74MQsvydDzvfD-suNCtO9YNR5d08hIaSkHlvXwy4B7XBSjNdsGhsN53eF1B1cdAQucCykPGJMZpZkXm14wrgL6KrQGmg2x_2lKIs_z4C-B_lO6fGmWN8PT_lUS_dun4b_IBX5B9olFdoXiRRm1oUAiGrd_7DUzs1BwJ3lI-qojH0wbeVD2SoepcrustjNsT9yJCjvOEx2Kwf9DKwLMRZv0fKLc"
+                      />
+                      <span className="absolute top-2.5 left-2.5 bg-[#1C1A18] text-white text-[10px] font-bold px-2 py-0.5 rounded tracking-wider uppercase">RENT</span>
+                      <Link
+                        className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm border border-[#E7E2DA] text-[#1C1A18] hover:bg-white flex items-center justify-center transition-colors"
+                        to={wishlistTarget}
+                        title="Lưu yêu thích"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">favorite_border</span>
+                      </Link>
+                    </div>
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between text-[11px] text-[#78736A] mb-1.5">
+                          <span>Thiết bị quang học</span>
+                          <span className="text-[#1C1A18] font-medium">Tình trạng 98%</span>
+                        </div>
+                        <h3 className="font-semibold text-sm text-[#1C1A18] line-clamp-1 group-hover:underline">
+                          Fujifilm X-T4 + Kit 18-55mm
+                        </h3>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-[#E7E2DA]">
+                        <div className="flex items-baseline justify-between">
+                          <div>
+                            <span className="text-base font-bold text-[#1C1A18]">380.000đ</span>
+                            <span className="text-xs text-[#78736A]"> / ngày</span>
+                          </div>
+                          <span className="text-[11px] text-[#5E5A53]">Cọc: 1.800.000đ</span>
+                        </div>
+                        <Link
+                          className="w-full mt-3 py-2 rounded bg-[#1C1A18] hover:bg-[#292724] text-white text-xs font-semibold text-center block transition-colors tracking-wide uppercase"
+                          to="/rent"
+                        >
+                          Đặt lịch thuê
+                        </Link>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <Link to="/rent" className="font-title-lg text-title-lg text-primary hover:underline line-clamp-1 font-semibold">
-                  Đầm Satin Xanh Lục Bảo Xẻ Tà
-                </Link>
               </div>
-              <div className="pt-space-sm border-t border-outline-variant/30 flex items-end justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">
-                    150,000đ<span className="font-body-sm text-body-sm font-normal text-on-surface-variant"> / ngày</span>
-                  </span>
-                  <span className="font-label-sm text-[10px] text-on-surface-variant">Tiền Cọc Ký Quỹ: 800,000đ</span>
-                </div>
-                <Link to="/rent" className="p-2 rounded bg-surface-container hover:bg-primary hover:text-surface-container-low transition-colors" title="Đặt ngày thuê">
-                  <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-                </Link>
-              </div>
-            </div>
-          </div>
+            </section>
 
-          {/* Sản phẩm thuê 2 */}
-          <div className="group bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-            <div className="relative aspect-[4/5] bg-surface-container overflow-hidden">
-              <img
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                alt="Áo dài tơ tằm thêu hoa sen thủ công"
-                src="https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=800&auto=format&fit=crop"
-              />
-              <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
-                <span className="px-2 py-0.5 rounded bg-primary text-surface-container-low font-label-sm text-[10px] uppercase tracking-wider font-semibold">
-                  THUÊ
-                </span>
-                <span className="px-2 py-0.5 rounded bg-surface-bright/90 backdrop-blur font-label-sm text-[10px] text-on-surface-variant font-medium">
-                  Chuẩn Tơ Tằm Thật
-                </span>
+            {/* 4. THRIFT SECTION */}
+            <section className="py-16 px-6 lg:px-12 mx-auto max-w-7xl">
+              <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 pb-4 border-b border-[#E7E2DA]">
+                <div>
+                  <span className="text-[11px] font-bold tracking-widest text-[#78736A] uppercase">02 · BỘ SƯU TẬP TÁI SỬ DỤNG</span>
+                  <h2 className="font-serif text-2xl sm:text-3xl text-[#1C1A18] font-semibold mt-1">
+                    Cho những món đồ chất lượng một vòng đời mới
+                  </h2>
+                </div>
+                <Link
+                  className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-[#1C1A18] hover:opacity-60 transition-opacity"
+                  to="/thrift"
+                >
+                  <span>Xem tất cả sản phẩm THRIFT</span>
+                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                </Link>
               </div>
-              <Link
-                to={wishlistTarget}
-                aria-label="Thêm vào danh sách yêu thích"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface-bright/85 backdrop-blur flex items-center justify-center text-on-surface hover:text-error transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </Link>
-              <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-primary/80 backdrop-blur text-surface-container-low font-label-sm text-[10px]">
-                Hub Hà Nội
-              </div>
-            </div>
-            <div className="p-space-md flex flex-col flex-1 justify-between gap-space-md">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Áo Dài Truyền Thống</span>
-                  <div className="flex items-center gap-1 font-label-sm text-label-sm text-primary">
-                    <span className="material-symbols-outlined text-[14px] text-amber-600" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                    <span>4.98</span>
-                    <span className="text-on-surface-variant">(52)</span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Thrift 1 */}
+                <div className="bg-white rounded-lg border border-[#E7E2DA] overflow-hidden flex flex-col group hover:border-[#1C1A18] transition-colors">
+                  <div className="relative aspect-[4/3] bg-[#F4F0EA] overflow-hidden">
+                    <img
+                      alt="Áo khoác da thật cổ điển"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8dpFCRWWk7LW0bghdob3zWt4GE3Ev4OGoRAQ0ky5bTpFrisi3ix5NruyeQNZ8vyMKorWth4o2-Xc2la-xxnfRwyefE-vT1Z8Hi6boFFrZ70Wr8Zl4eX8FLs9ePWkX5_eyFgDH_xEUczYoKP6O1sSnV0xnMvK2qMvART-GOc8F4QEKY3ADOtyfCQcsE-dVfdmWfeCHbeJw5Kwoa9p139bi_49OYvuHf3i_c_S5tG37"
+                    />
+                    <span className="absolute top-2.5 left-2.5 bg-[#1C1A18] text-white text-[10px] font-bold px-2 py-0.5 rounded tracking-wider uppercase">THRIFT</span>
+                    <span className="absolute top-2.5 right-2.5 bg-white/90 backdrop-blur-sm border border-[#E7E2DA] text-[#1C1A18] text-[10px] font-medium px-2 py-0.5 rounded">
+                      Từ đồ RENT
+                    </span>
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] text-[#78736A] mb-1.5">
+                        <span>Trang phục cổ điển</span>
+                        <span className="text-[#1C1A18] font-medium">Tình trạng 92%</span>
+                      </div>
+                      <h3 className="font-semibold text-sm text-[#1C1A18] line-clamp-1 group-hover:underline">
+                        Áo Khoác Da Bò Nguyên Tấm Vintage
+                      </h3>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-[#E7E2DA]">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-base font-bold text-[#1C1A18]">850.000đ</span>
+                        <span className="text-[11px] text-[#78736A]">Mua đứt · Không cọc</span>
+                      </div>
+                      <Link
+                        className="w-full mt-3 py-2 rounded border border-[#1C1A18] bg-transparent hover:bg-[#1C1A18] hover:text-white text-[#1C1A18] text-xs font-semibold text-center block transition-colors tracking-wide uppercase"
+                        to="/thrift"
+                      >
+                        Mua sản phẩm
+                      </Link>
+                    </div>
                   </div>
                 </div>
-                <Link to="/rent" className="font-title-lg text-title-lg text-primary hover:underline line-clamp-1 font-semibold">
-                  Áo Dài Tơ Tằm Thêu Hoa Sen
-                </Link>
-              </div>
-              <div className="pt-space-sm border-t border-outline-variant/30 flex items-end justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">
-                    180,000đ<span className="font-body-sm text-body-sm font-normal text-on-surface-variant"> / ngày</span>
-                  </span>
-                  <span className="font-label-sm text-[10px] text-on-surface-variant">Tiền Cọc Ký Quỹ: 1,200,000đ</span>
-                </div>
-                <Link to="/rent" className="p-2 rounded bg-surface-container hover:bg-primary hover:text-surface-container-low transition-colors" title="Đặt ngày thuê">
-                  <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-                </Link>
-              </div>
-            </div>
-          </div>
 
-          {/* Sản phẩm thuê 3 */}
-          <div className="group bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-            <div className="relative aspect-[4/5] bg-surface-container overflow-hidden">
-              <img
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                alt="Bộ Suit may đo len lông cừu Charcoal chuẩn dáng Ý"
-                src="https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=800&auto=format&fit=crop"
-              />
-              <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
-                <span className="px-2 py-0.5 rounded bg-primary text-surface-container-low font-label-sm text-[10px] uppercase tracking-wider font-semibold">
-                  THUÊ
-                </span>
-                <span className="px-2 py-0.5 rounded bg-surface-bright/90 backdrop-blur font-label-sm text-[10px] text-on-surface-variant font-medium">
-                  Form Dáng Hoàn Hảo
-                </span>
-              </div>
-              <Link
-                to={wishlistTarget}
-                aria-label="Thêm vào danh sách yêu thích"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface-bright/85 backdrop-blur flex items-center justify-center text-on-surface hover:text-error transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </Link>
-              <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-primary/80 backdrop-blur text-surface-container-low font-label-sm text-[10px]">
-                Hub TP.HCM
-              </div>
-            </div>
-            <div className="p-space-md flex flex-col flex-1 justify-between gap-space-md">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Suit &amp; Tuxedo</span>
-                  <div className="flex items-center gap-1 font-label-sm text-label-sm text-primary">
-                    <span className="material-symbols-outlined text-[14px] text-amber-600" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                    <span>5.0</span>
-                    <span className="text-on-surface-variant">(29)</span>
+                {/* Thrift 2 */}
+                <div className="bg-white rounded-lg border border-[#E7E2DA] overflow-hidden flex flex-col group hover:border-[#1C1A18] transition-colors">
+                  <div className="relative aspect-[4/3] bg-[#F4F0EA] overflow-hidden">
+                    <img
+                      alt="Sneaker cổ điển da thật"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIgAZbqvrZaPR5qucKjf1Sg41cO-i0e5CWKTWJJaYqXw4XWJAu6vYs6Ya4ohySXpCwi5RjXTXcdE-LEdssQxBGlXGMnO7NFifZCjCsqg1pUXeJvzqVuGVKvh495ZYYTc_p2hn76sPqJElYkCpUL152em3xS6eFB3d7qKzanbfIgk_EGVBnDQ8znUN0cVkuD3_4clzT7igRxgZoW0M19YamYgseV09fgWbRxc6Pw8av"
+                    />
+                    <span className="absolute top-2.5 left-2.5 bg-[#1C1A18] text-white text-[10px] font-bold px-2 py-0.5 rounded tracking-wider uppercase">THRIFT</span>
+                    <span className="absolute top-2.5 right-2.5 bg-white/90 backdrop-blur-sm border border-[#E7E2DA] text-[#1C1A18] text-[10px] font-medium px-2 py-0.5 rounded">
+                      Đã phục hồi
+                    </span>
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] text-[#78736A] mb-1.5">
+                        <span>Giày &amp; Sneaker</span>
+                        <span className="text-[#1C1A18] font-medium">Tình trạng 90%</span>
+                      </div>
+                      <h3 className="font-semibold text-sm text-[#1C1A18] line-clamp-1 group-hover:underline">
+                        Giày Sneaker Minimal Da Thật
+                      </h3>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-[#E7E2DA]">
+                      <span className="text-base font-bold text-[#1C1A18]">1.200.000đ</span>
+                      <span className="text-[11px] text-[#78736A]">Mua đứt · Không cọc</span>
+                    </div>
+                    <Link
+                      className="w-full mt-3 py-2 rounded border border-[#1C1A18] bg-transparent hover:bg-[#1C1A18] hover:text-white text-[#1C1A18] text-xs font-semibold text-center block transition-colors tracking-wide uppercase"
+                      to="/thrift"
+                    >
+                      Mua sản phẩm
+                    </Link>
                   </div>
                 </div>
-                <Link to="/rent" className="font-title-lg text-title-lg text-primary hover:underline line-clamp-1 font-semibold">
-                  Bộ Suit May Đo Wool Charcoal
-                </Link>
-              </div>
-              <div className="pt-space-sm border-t border-outline-variant/30 flex items-end justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">
-                    190,000đ<span className="font-body-sm text-body-sm font-normal text-on-surface-variant"> / ngày</span>
-                  </span>
-                  <span className="font-label-sm text-[10px] text-on-surface-variant">Tiền Cọc Ký Quỹ: 1,500,000đ</span>
-                </div>
-                <Link to="/rent" className="p-2 rounded bg-surface-container hover:bg-primary hover:text-surface-container-low transition-colors" title="Đặt ngày thuê">
-                  <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-                </Link>
-              </div>
-            </div>
-          </div>
 
-          {/* Sản phẩm thuê 4 */}
-          <div className="group bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-            <div className="relative aspect-[4/5] bg-surface-container overflow-hidden">
-              <img
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                alt="Áo khoác dạ dáng dài thiết kế ấm áp thanh lịch"
-                src="https://images.unsplash.com/photo-1544441893-675973e31985?q=80&w=800&auto=format&fit=crop"
-              />
-              <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
-                <span className="px-2 py-0.5 rounded bg-primary text-surface-container-low font-label-sm text-[10px] uppercase tracking-wider font-semibold">
-                  THUÊ
-                </span>
-                <span className="px-2 py-0.5 rounded bg-surface-bright/90 backdrop-blur font-label-sm text-[10px] text-on-surface-variant font-medium">
-                  Hấp Sấy Khử Khuẩn
-                </span>
-              </div>
-              <Link
-                to={wishlistTarget}
-                aria-label="Thêm vào danh sách yêu thích"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface-bright/85 backdrop-blur flex items-center justify-center text-on-surface hover:text-error transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </Link>
-              <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-primary/80 backdrop-blur text-surface-container-low font-label-sm text-[10px]">
-                Hub Đà Nẵng
-              </div>
-            </div>
-            <div className="p-space-md flex flex-col flex-1 justify-between gap-space-md">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Áo Khoác Thu Đông</span>
-                  <div className="flex items-center gap-1 font-label-sm text-label-sm text-primary">
-                    <span className="material-symbols-outlined text-[14px] text-amber-600" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                    <span>4.92</span>
-                    <span className="text-on-surface-variant">(26)</span>
+                {/* Thrift 3 */}
+                <div className="bg-white rounded-lg border border-[#E7E2DA] overflow-hidden flex flex-col group hover:border-[#1C1A18] transition-colors">
+                  <div className="relative aspect-[4/3] bg-[#F4F0EA] overflow-hidden">
+                    <img
+                      alt="Máy ảnh Canon EOS"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRjzsIl1qmRAgLqnQ0pSrcRSu1dZjtF12pm3v3YGQjEcNP4Cuq-7DES4GQG9D_BnZViwP5uqcwGOBCm63b_3ElKaxgWnC1Bpnfv_B28L4L3VfSTicAu4zb4fq2UtmdTtMWhFGRL-7K02Z37ZyuTLIDNlgDnsMooRtHjQRAWEjhAPuEhzyrGmCIMvzQgGiW9jAEcUud8v1O48b4SY9SU3h5NLqWiJ7LMPEiNkMcw7u9"
+                    />
+                    <span className="absolute top-2.5 left-2.5 bg-[#1C1A18] text-white text-[10px] font-bold px-2 py-0.5 rounded tracking-wider uppercase">THRIFT</span>
+                    <span className="absolute top-2.5 right-2.5 bg-white/90 backdrop-blur-sm border border-[#E7E2DA] text-[#1C1A18] text-[10px] font-medium px-2 py-0.5 rounded">
+                      Từ đồ RENT
+                    </span>
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] text-[#78736A] mb-1.5">
+                        <span>Thiết bị hình ảnh</span>
+                        <span className="text-[#1C1A18] font-medium">Tình trạng 94%</span>
+                      </div>
+                      <h3 className="font-semibold text-sm text-[#1C1A18] line-clamp-1 group-hover:underline">
+                        Canon EOS Full-Frame Body
+                      </h3>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-[#E7E2DA]">
+                      <span className="text-base font-bold text-[#1C1A18]">6.500.000đ</span>
+                      <span className="text-[11px] text-[#78736A]">Mua đứt · Không cọc</span>
+                    </div>
+                    <Link
+                      className="w-full mt-3 py-2 rounded border border-[#1C1A18] bg-transparent hover:bg-[#1C1A18] hover:text-white text-[#1C1A18] text-xs font-semibold text-center block transition-colors tracking-wide uppercase"
+                      to="/thrift"
+                    >
+                      Mua sản phẩm
+                    </Link>
                   </div>
                 </div>
-                <Link to="/rent" className="font-title-lg text-title-lg text-primary hover:underline line-clamp-1 font-semibold">
-                  Áo Khoác Dạ Dáng Dài Camel Cao Cấp
-                </Link>
-              </div>
-              <div className="pt-space-sm border-t border-outline-variant/30 flex items-end justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">
-                    120,000đ<span className="font-body-sm text-body-sm font-normal text-on-surface-variant"> / ngày</span>
-                  </span>
-                  <span className="font-label-sm text-[10px] text-on-surface-variant">Tiền Cọc Ký Quỹ: 700,000đ</span>
+
+                {/* Thrift 4 */}
+                <div className="bg-white rounded-lg border border-[#E7E2DA] overflow-hidden flex flex-col group hover:border-[#1C1A18] transition-colors">
+                  <div className="relative aspect-[4/3] bg-[#F4F0EA] overflow-hidden">
+                    <img
+                      alt="Balo chống nước tối giản"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyZJ4YSl7Knaqrw7ONeMNcCyy5BPAKb29zJ2y1SArXq-2J4YUrbUZASDS7sTvUpbijQXfRDqrpEdXQVRC54WumTZ80TU3L9XtvO4N_frhnUbYzTLxtprGbDkpbpu05I1nEkbP6DJNnnEAQlvXywmw_-IAtXKMDG0qWGVFdG7fDu7nzHF0zXeqtdhCrTXI6RbuAkAyHvA2TzWvqmv5h-ajKeYVOAfHKpJfUT4G3JgHa"
+                    />
+                    <span className="absolute top-2.5 left-2.5 bg-[#1C1A18] text-white text-[10px] font-bold px-2 py-0.5 rounded tracking-wider uppercase">THRIFT</span>
+                    <span className="absolute top-2.5 right-2.5 bg-white/90 backdrop-blur-sm border border-[#E7E2DA] text-[#1C1A18] text-[10px] font-medium px-2 py-0.5 rounded">
+                      Tái sử dụng
+                    </span>
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] text-[#78736A] mb-1.5">
+                        <span>Phụ kiện đường phố</span>
+                        <span className="text-[#1C1A18] font-medium">Tình trạng 96%</span>
+                      </div>
+                      <h3 className="font-semibold text-sm text-[#1C1A18] line-clamp-1 group-hover:underline">
+                        Balo Chống Nước Archive Minimal
+                      </h3>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-[#E7E2DA]">
+                      <span className="text-base font-bold text-[#1C1A18]">650.000đ</span>
+                      <span className="text-[11px] text-[#78736A]">Mua đứt · Không cọc</span>
+                    </div>
+                    <Link
+                      className="w-full mt-3 py-2 rounded border border-[#1C1A18] bg-transparent hover:bg-[#1C1A18] hover:text-white text-[#1C1A18] text-xs font-semibold text-center block transition-colors tracking-wide uppercase"
+                      to="/thrift"
+                    >
+                      Mua sản phẩm
+                    </Link>
+                  </div>
                 </div>
-                <Link to="/rent" className="p-2 rounded bg-surface-container hover:bg-primary hover:text-surface-container-low transition-colors" title="Đặt ngày thuê">
-                  <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-                </Link>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
+            </section>
 
-      {/* 4. CIRCULAR FASHION PROTOCOL (GIAO THỨC THỜI TRANG TUẦN HOÀN) */}
-      <section className="w-full bg-[#EDE8DE] py-24 my-6">
-        <div className="max-w-[1440px] mx-auto px-gutter md:px-margin flex flex-col gap-space-xl">
-          {/* Thông điệp tuần hoàn */}
-          <div className="max-w-2xl flex flex-col gap-space-xs">
-            <span className="font-label-sm text-label-sm uppercase tracking-widest text-secondary font-bold">Giao Thức Tủ Đồ Tuần Hoàn</span>
-            <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight">Mỗi Bộ Trang Phục Đều Có Hơn Một Vòng Đời.</h2>
-            <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
-              Nhờ quy trình giặt hấp chuyên nghiệp và kiểm định cẩn trọng, trang phục không hề bị bỏ quên trong góc tủ. Sau các chu kỳ cho thuê, quần áo được phục hồi form dáng và chuyển tiếp mượt mà sang sàn thanh lý trao tay bền vững.
-            </p>
-          </div>
-
-          {/* Sơ đồ 6 bước vòng đời trang phục */}
-          <div className="w-full bg-surface-bright/70 rounded-xl p-space-lg md:p-space-xl shadow-sm">
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-gutter relative">
-              {/* Bước 1 */}
-              <div className="flex flex-col gap-2">
-                <span className="font-label-sm text-label-sm text-secondary font-bold">01 / TUYỂN CHỌN</span>
-                <span className="font-title-lg text-title-lg text-primary font-semibold">NHẬP KHO</span>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">Kiểm định chất lượng vải, đường may và đưa vào tủ đồ cho thuê.</p>
-              </div>
-              {/* Bước 2 */}
-              <div className="flex flex-col gap-2">
-                <span className="font-label-sm text-label-sm text-secondary font-bold">02 / TRẢI NGHIỆM</span>
-                <span className="font-title-lg text-title-lg text-primary font-semibold">TỎA SÁNG</span>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">Đồng hành cùng khách hàng trong sự kiện, tiệc cưới hay buổi chụp ảnh.</p>
-              </div>
-              {/* Bước 3 */}
-              <div className="flex flex-col gap-2">
-                <span className="font-label-sm text-label-sm text-secondary font-bold">03 / THU HỒI</span>
-                <span className="font-title-lg text-title-lg text-primary font-semibold">GỬI LẠI</span>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">Trả đồ tiện lợi qua shipper thu hồi tận nhà hoặc tại các Hub liên kết.</p>
-              </div>
-              {/* Bước 4 */}
-              <div className="flex flex-col gap-2">
-                <span className="font-label-sm text-label-sm text-secondary font-bold">04 / CHĂM SÓC</span>
-                <span className="font-title-lg text-title-lg text-primary font-semibold">GIẶT HẤP</span>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">Giặt khô sinh học, khử khuẩn tia UV và ủi form chuẩn dáng chuyên nghiệp.</p>
-              </div>
-              {/* Bước 5 */}
-              <div className="flex flex-col gap-2">
-                <span className="font-label-sm text-label-sm text-secondary font-bold">05 / XOAY VÒNG</span>
-                <span className="font-title-lg text-title-lg text-primary font-semibold">TÁI SỬ DỤNG</span>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">Tiếp tục phục vụ các lượt thuê tiếp theo với chất lượng nguyên vẹn.</p>
-              </div>
-              {/* Bước 6 */}
-              <div className="flex flex-col gap-2">
-                <span className="font-label-sm text-label-sm text-secondary font-bold">06 / CHUYỂN GIAO</span>
-                <span className="font-title-lg text-title-lg text-primary font-semibold">THANH LÝ</span>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">Chuyển sang gian hàng thanh lý (Thrift) trao lại cho người dùng mới gắn bó dài lâu.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Các chỉ số bảo vệ môi trường */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
-            <div className="p-space-lg bg-surface-bright/70 rounded-xl flex flex-col gap-1 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="font-display-lg text-headline-lg font-normal text-primary">99.4%</span>
-                <span className="material-symbols-outlined text-secondary text-[28px]">eco</span>
-              </div>
-              <span className="font-title-md text-title-md text-primary font-semibold">Giảm Thiểu Lãng Phí Trang Phục</span>
-              <p className="font-body-sm text-body-sm text-on-surface-variant">
-                Quần áo chất lượng được kéo dài tuổi thọ sử dụng gấp 6 lần thay vì vứt bỏ sau vài lần mặc.
-              </p>
-            </div>
-            <div className="p-space-lg bg-surface-bright/70 rounded-xl flex flex-col gap-1 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="font-display-lg text-headline-lg font-normal text-primary">18.5 Tấn</span>
-                <span className="material-symbols-outlined text-secondary text-[28px]">energy_savings_leaf</span>
-              </div>
-              <span className="font-title-md text-title-md text-primary font-semibold">Cắt Giảm Khí Thải Dệt May</span>
-              <p className="font-body-sm text-body-sm text-on-surface-variant">
-                Tiết kiệm hàng triệu lít nước và năng lượng so với sản xuất trang phục may mặc mới.
-              </p>
-            </div>
-            <div className="p-space-lg bg-surface-bright/70 rounded-xl flex flex-col gap-1 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="font-display-lg text-headline-lg font-normal text-primary">100%</span>
-                <span className="material-symbols-outlined text-secondary text-[28px]">verified_user</span>
-              </div>
-              <span className="font-title-md text-title-md text-primary font-semibold">Khử Khuẩn Chuẩn Tiệm Giặt</span>
-              <p className="font-body-sm text-body-sm text-on-surface-variant">
-                Mọi bộ trang phục đều được kiểm nghiệm vệ sinh, thơm tho và sạch sẽ tuyệt đối trước khi giao.
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <Link
-              to="/about"
-              className="inline-flex items-center gap-space-xs font-label-md text-label-md uppercase tracking-wider text-primary font-semibold hover:underline"
-            >
-              <span>Tìm Hiểu Mô Hình Thời Trang Tuần Hoàn</span>
-              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. THRIFT FEATURE SECTION (SÀN QUẦN ÁO THANH LÝ) */}
-      <section className="w-full max-w-[1440px] mx-auto px-gutter md:px-margin py-20 flex flex-col gap-space-xl">
-        {/* Tiêu đề & Nút Xem tất cả */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
-          <div>
-            <div className="inline-flex items-center gap-2 mb-space-xs">
-              <span className="w-2 h-2 rounded-full bg-secondary"></span>
-              <span className="font-label-sm text-label-sm uppercase tracking-widest text-secondary font-bold">Tủ Đồ Tuyển Chọn</span>
-            </div>
-            <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight">Trao Cơ Hội Thứ Hai Cho Trang Phục</h2>
-            <p className="font-body-md text-body-md text-on-surface-variant mt-1">
-              Khám phá đồ si, vintage và đồ hiệu thanh lý được tuyển chọn kỹ càng từ các tín đồ thời trang và boutique uy tín.
-            </p>
-          </div>
-          <Link
-            to="/thrift"
-            className="inline-flex items-center gap-1 font-label-md text-label-md uppercase tracking-wider text-primary font-semibold hover:text-secondary transition-colors"
-          >
-            <span>Xem Tất Cả Quần Áo Thanh Lý</span>
-            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-          </Link>
-        </div>
-
-        {/* Lưới sản phẩm thanh lý */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-          {/* Sản phẩm thanh lý 1 */}
-          <div className="group bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-            <div className="relative aspect-[4/5] bg-surface-container overflow-hidden">
-              <img
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                alt="Áo khoác Tweed cổ tròn thanh lịch nữ"
-                src="https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?q=80&w=800&auto=format&fit=crop"
-              />
-              <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
-                <span className="px-2 py-0.5 rounded bg-secondary text-surface-container-lowest font-label-sm text-[10px] uppercase tracking-wider font-semibold">
-                  THANH LÝ
-                </span>
-                <span className="px-2 py-0.5 rounded bg-surface-bright/90 backdrop-blur font-label-sm text-[10px] text-on-surface-variant font-medium">
-                  Độ Mới 95%
-                </span>
-              </div>
-              <Link
-                to={wishlistTarget}
-                aria-label="Thêm vào danh sách yêu thích"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface-bright/85 backdrop-blur flex items-center justify-center text-on-surface hover:text-error transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </Link>
-              <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-surface-container-highest/90 backdrop-blur text-primary font-label-sm text-[10px]">
-                Shop: Vintage Chic Closet
-              </div>
-            </div>
-            <div className="p-space-md flex flex-col flex-1 justify-between gap-space-md">
-              <div className="flex flex-col gap-1">
-                <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Áo Khoác Nữ</span>
-                <Link to="/thrift" className="font-title-lg text-title-lg text-primary hover:underline line-clamp-1 font-semibold">
-                  Áo Tweed Cổ Tròn Dáng Ngắn Cúc Mạ Vàng
-                </Link>
-              </div>
-              <div className="pt-space-sm border-t border-outline-variant/30 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">320,000đ</span>
-                  <span className="font-label-sm text-[10px] text-secondary font-medium">Đã Giặt Khô Sạch Sẽ</span>
+            {/* 5. CLOSED-LOOP PROTOCOL SECTION */}
+            <section className="py-16 bg-[#F4F0EA]/60 border-y border-[#E7E2DA] px-6 lg:px-12">
+              <div className="mx-auto max-w-7xl">
+                <div className="max-w-3xl mb-12">
+                  <span className="text-[11px] font-bold tracking-widest text-[#78736A] uppercase">MÔ HÌNH TUẦN HOÀN KHÉP KÍN</span>
+                  <h2 className="font-serif text-3xl sm:text-4xl text-[#1C1A18] font-semibold mt-1">
+                    Hành trình tuần hoàn của một sản phẩm
+                  </h2>
+                  <p className="text-[#5E5A53] text-sm sm:text-base mt-3 leading-relaxed">
+                    Mỗi sản phẩm khi đưa vào hệ thống đều được cấp mã định danh để giám sát vòng đời: từ cho thuê ngắn hạn, trả hàng kiểm định, cho đến sang nhượng THRIFT cho chủ nhân tiếp theo.
+                  </p>
                 </div>
-                <Link to="/thrift" className="p-2 rounded bg-surface-container hover:bg-primary hover:text-surface-container-low transition-colors" title="Mua ngay">
-                  <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
-                </Link>
-              </div>
-            </div>
-          </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="bg-white rounded-lg border border-[#E7E2DA] p-6 flex flex-col justify-between">
+                    <div>
+                      <span className="text-xs font-mono font-bold text-[#78736A]">01 / NHẬP HÀNG &amp; THẨM ĐỊNH</span>
+                      <h3 className="font-serif text-lg font-semibold text-[#1C1A18] mt-3">Kiểm tra đầu vào</h3>
+                      <p className="text-xs text-[#5E5A53] mt-2 leading-relaxed">
+                        Sản phẩm từ đối tác được đánh giá cảm quan, kiểm tra chức năng quang học/cơ học và khử trùng sinh học.
+                      </p>
+                    </div>
+                    <div className="pt-6 mt-6 border-t border-[#E7E2DA] text-[11px] font-semibold text-[#1C1A18]">
+                      Tiêu chuẩn chuẩn hóa 100%
+                    </div>
+                  </div>
 
-          {/* Sản phẩm thanh lý 2 */}
-          <div className="group bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-            <div className="relative aspect-[4/5] bg-surface-container overflow-hidden">
-              <img
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                alt="Đầm suông linen tự nhiên mềm mát"
-                src="https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?q=80&w=800&auto=format&fit=crop"
-              />
-              <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
-                <span className="px-2 py-0.5 rounded bg-secondary text-surface-container-lowest font-label-sm text-[10px] uppercase tracking-wider font-semibold">
-                  THANH LÝ
-                </span>
-                <span className="px-2 py-0.5 rounded bg-surface-bright/90 backdrop-blur font-label-sm text-[10px] text-on-surface-variant font-medium">
-                  Tình Trạng Xuất Sắc
-                </span>
-              </div>
-              <Link
-                to={wishlistTarget}
-                aria-label="Thêm vào danh sách yêu thích"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface-bright/85 backdrop-blur flex items-center justify-center text-on-surface hover:text-error transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </Link>
-              <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-surface-container-highest/90 backdrop-blur text-primary font-label-sm text-[10px]">
-                Shop: Tiệm Đồ Xưa Hà Nội
-              </div>
-            </div>
-            <div className="p-space-md flex flex-col flex-1 justify-between gap-space-md">
-              <div className="flex flex-col gap-1">
-                <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Đầm Thiết Kế</span>
-                <Link to="/thrift" className="font-title-lg text-title-lg text-primary hover:underline line-clamp-1 font-semibold">
-                  Đầm Suông Linen Thêu Hoa Thủ Công
-                </Link>
-              </div>
-              <div className="pt-space-sm border-t border-outline-variant/30 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">280,000đ</span>
-                  <span className="font-label-sm text-[10px] text-secondary font-medium">Chất Vải Mềm Mát Tự Nhiên</span>
+                  <div className="bg-white rounded-lg border border-[#E7E2DA] p-6 flex flex-col justify-between">
+                    <div>
+                      <span className="text-xs font-mono font-bold text-[#78736A]">02 / CHO THUÊ RENT</span>
+                      <h3 className="font-serif text-lg font-semibold text-[#1C1A18] mt-3">Tối đa vòng quay</h3>
+                      <p className="text-xs text-[#5E5A53] mt-2 leading-relaxed">
+                        Khách hàng đặt thuê theo nhu cầu thực tế với chính sách cọc minh bạch và hoàn tiền nhanh sau kiểm tra.
+                      </p>
+                    </div>
+                    <div className="pt-6 mt-6 border-t border-[#E7E2DA] text-[11px] font-semibold text-[#1C1A18]">
+                      Trung bình 8 – 15 chu kỳ thuê
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg border border-[#E7E2DA] p-6 flex flex-col justify-between">
+                    <div>
+                      <span className="text-xs font-mono font-bold text-[#78736A]">03 / BẢO DƯỠNG &amp; SPA</span>
+                      <h3 className="font-serif text-lg font-semibold text-[#1C1A18] mt-3">Phục hồi chuyên sâu</h3>
+                      <p className="text-xs text-[#5E5A53] mt-2 leading-relaxed">
+                        Sau mỗi lượt sử dụng, sản phẩm được làm sạch, hiệu chuẩn máy hoặc bảo dưỡng da để duy trì phẩm chất gốc.
+                      </p>
+                    </div>
+                    <div className="pt-6 mt-6 border-t border-[#E7E2DA] text-[11px] font-semibold text-[#1C1A18]">
+                      Bảo dưỡng sau mỗi lượt trả
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg border border-[#E7E2DA] p-6 flex flex-col justify-between">
+                    <div>
+                      <span className="text-xs font-mono font-bold text-[#78736A]">04 / CHUYỂN TIẾP THRIFT</span>
+                      <h3 className="font-serif text-lg font-semibold text-[#1C1A18] mt-3">Vòng đời mới</h3>
+                      <p className="text-xs text-[#5E5A53] mt-2 leading-relaxed">
+                        Khi kết thúc chu kỳ cho thuê, sản phẩm được bán đứt với mức giá ưu đãi, loại bỏ hoàn toàn việc thải bỏ.
+                      </p>
+                    </div>
+                    <div className="pt-6 mt-6 border-t border-[#E7E2DA] text-[11px] font-semibold text-[#1C1A18]">
+                      Giảm thiểu 100% rác thải rắn
+                    </div>
+                  </div>
                 </div>
-                <Link to="/thrift" className="p-2 rounded bg-surface-container hover:bg-primary hover:text-surface-container-low transition-colors" title="Mua ngay">
-                  <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
-                </Link>
               </div>
-            </div>
-          </div>
+            </section>
 
-          {/* Sản phẩm thanh lý 3 */}
-          <div className="group bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-            <div className="relative aspect-[4/5] bg-surface-container overflow-hidden">
-              <img
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                alt="Áo sơ mi lụa cổ điển phong cách thập niên 90"
-                src="https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?q=80&w=800&auto=format&fit=crop"
-              />
-              <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
-                <span className="px-2 py-0.5 rounded bg-secondary text-surface-container-lowest font-label-sm text-[10px] uppercase tracking-wider font-semibold">
-                  THANH LÝ
-                </span>
-                <span className="px-2 py-0.5 rounded bg-surface-bright/90 backdrop-blur font-label-sm text-[10px] text-on-surface-variant font-medium">
-                  Hàng Độc Bản Tuyển Chọn
-                </span>
+            {/* 6. SIMPLE PROTOCOL 4 STEPS */}
+            <section className="py-16 px-6 lg:px-12 mx-auto max-w-7xl">
+              <div className="max-w-2xl mb-12">
+                <span className="text-[11px] font-bold tracking-widest text-[#78736A] uppercase">QUY TRÌNH SỬ DỤNG</span>
+                <h2 className="font-serif text-3xl sm:text-4xl text-[#1C1A18] font-semibold mt-1">
+                  Trải nghiệm tinh giản trong 4 bước
+                </h2>
               </div>
-              <Link
-                to={wishlistTarget}
-                aria-label="Thêm vào danh sách yêu thích"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface-bright/85 backdrop-blur flex items-center justify-center text-on-surface hover:text-error transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </Link>
-              <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-surface-container-highest/90 backdrop-blur text-primary font-label-sm text-[10px]">
-                Shop: Sài Gòn Archive
-              </div>
-            </div>
-            <div className="p-space-md flex flex-col flex-1 justify-between gap-space-md">
-              <div className="flex flex-col gap-1">
-                <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Áo Vintage Nam/Nữ</span>
-                <Link to="/thrift" className="font-title-lg text-title-lg text-primary hover:underline line-clamp-1 font-semibold">
-                  Áo Sơ Mi Lụa Họa Tiết Retro 1990s
-                </Link>
-              </div>
-              <div className="pt-space-sm border-t border-outline-variant/30 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">220,000đ</span>
-                  <span className="font-label-sm text-[10px] text-secondary font-medium">Chất Lụa Nguyên Bản Mịn Đẹp</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="border-t border-[#1C1A18] pt-4">
+                  <span className="font-mono text-xs font-bold text-[#1C1A18]">01</span>
+                  <h4 className="font-semibold text-sm text-[#1C1A18] mt-2">Tìm &amp; Chọn món đồ</h4>
+                  <p className="text-xs text-[#5E5A53] mt-1.5 leading-relaxed">
+                    Lựa chọn giữa thuê theo ngày (RENT) hoặc mua đứt đồ đã qua sử dụng (THRIFT) trên hệ thống.
+                  </p>
                 </div>
-                <Link to="/thrift" className="p-2 rounded bg-surface-container hover:bg-primary hover:text-surface-container-low transition-colors" title="Mua ngay">
-                  <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Sản phẩm thanh lý 4 */}
-          <div className="group bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-            <div className="relative aspect-[4/5] bg-surface-container overflow-hidden">
-              <img
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                alt="Quần jean denim dáng ống suông cạp cao"
-                src="https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=800&auto=format&fit=crop"
-              />
-              <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
-                <span className="px-2 py-0.5 rounded bg-secondary text-surface-container-lowest font-label-sm text-[10px] uppercase tracking-wider font-semibold">
-                  THANH LÝ
-                </span>
-                <span className="px-2 py-0.5 rounded bg-surface-bright/90 backdrop-blur font-label-sm text-[10px] text-on-surface-variant font-medium">
-                  Form Chuẩn Đẹp
-                </span>
-              </div>
-              <Link
-                to={wishlistTarget}
-                aria-label="Thêm vào danh sách yêu thích"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface-bright/85 backdrop-blur flex items-center justify-center text-on-surface hover:text-error transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </Link>
-              <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-surface-container-highest/90 backdrop-blur text-primary font-label-sm text-[10px]">
-                Shop: Denim House Studio
-              </div>
-            </div>
-            <div className="p-space-md flex flex-col flex-1 justify-between gap-space-md">
-              <div className="flex flex-col gap-1">
-                <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Quần Jeans &amp; Denim</span>
-                <Link to="/thrift" className="font-title-lg text-title-lg text-primary hover:underline line-clamp-1 font-semibold">
-                  Quần Denim Ống Suông Cạp Cao Classic
-                </Link>
-              </div>
-              <div className="pt-space-sm border-t border-outline-variant/30 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">350,000đ</span>
-                  <span className="font-label-sm text-[10px] text-secondary font-medium">Chất Vải Dày Dặn Bền Đẹp</span>
+                <div className="border-t border-[#1C1A18] pt-4">
+                  <span className="font-mono text-xs font-bold text-[#1C1A18]">02</span>
+                  <h4 className="font-semibold text-sm text-[#1C1A18] mt-2">Xác nhận &amp; Nhận hàng</h4>
+                  <p className="text-xs text-[#5E5A53] mt-1.5 leading-relaxed">
+                    Chủ shop xác nhận tình trạng, giao hàng kèm biên bản niêm phong và tem kiểm định chất lượng.
+                  </p>
                 </div>
-                <Link to="/thrift" className="p-2 rounded bg-surface-container hover:bg-primary hover:text-surface-container-low transition-colors" title="Mua ngay">
-                  <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
-                </Link>
+                <div className="border-t border-[#1C1A18] pt-4">
+                  <span className="font-mono text-xs font-bold text-[#1C1A18]">03</span>
+                  <h4 className="font-semibold text-sm text-[#1C1A18] mt-2">Trải nghiệm &amp; Sử dụng</h4>
+                  <p className="text-xs text-[#5E5A53] mt-1.5 leading-relaxed">
+                    Tự do sử dụng cho sự kiện, chuyến đi hoặc công việc với sự hỗ trợ kỹ thuật trực tuyến liên tục.
+                  </p>
+                </div>
+                <div className="border-t border-[#1C1A18] pt-4">
+                  <span className="font-mono text-xs font-bold text-[#1C1A18]">04</span>
+                  <h4 className="font-semibold text-sm text-[#1C1A18] mt-2">Trả đồ hoặc Giữ lại</h4>
+                  <p className="text-xs text-[#5E5A53] mt-1.5 leading-relaxed">
+                    Trả đồ nhẹ nhàng qua bưu cục hoàn cọc trong 24h, hoặc mua lại trực tiếp nếu bạn muốn sở hữu lâu dài.
+                  </p>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
+            </section>
 
-      {/* 6. HOW REUSE HUB WORKS (QUY TRÌNH THUÊ & MUA THỜI TRANG) */}
-      <section className="w-full bg-surface-container py-24">
-        <div className="max-w-[1440px] mx-auto px-gutter md:px-margin flex flex-col gap-space-xl">
-          <div className="flex flex-col items-center text-center max-w-xl mx-auto gap-space-xs">
-            <span className="font-label-sm text-label-sm uppercase tracking-widest text-secondary font-semibold">Trải Nghiệm Tiện Lợi</span>
-            <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight">Quy Trình 4 Bước Đơn Giản</h2>
-            <p className="font-body-md text-body-md text-on-surface-variant">
-              Giao dịch ký quỹ minh bạch, an toàn tối đa cho cả người thuê đồ và chủ sở hữu trang phục.
-            </p>
-          </div>
-
-          {/* 4 Thẻ bước quy trình */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
-            {/* Bước 1 */}
-            <div className="bg-surface-container-lowest p-space-lg rounded-xl flex flex-col gap-space-md shadow-sm">
-              <div className="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-[24px]">explore</span>
-              </div>
-              <div className="flex flex-col gap-space-xs">
-                <span className="font-label-sm text-label-sm text-secondary font-bold">01 / CHỌN ĐỒ</span>
-                <span className="font-title-lg text-title-lg text-primary font-semibold">Tủ Đồ Đa Dạng</span>
-                <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
-                  Dễ dàng tìm kiếm váy đầm, áo dài, suit hoặc phụ kiện phù hợp đúng kích cỡ và phong cách bạn cần.
+            {/* 7. CALL TO ACTION */}
+            <section className="py-16 px-6 lg:px-12 mx-auto max-w-7xl">
+              <div className="bg-[#1C1A18] text-[#FBF9F5] rounded-xl p-8 sm:p-14 border border-[#1C1A18] flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center mb-6">
+                  <span className="material-symbols-outlined text-[20px] text-white">all_inclusive</span>
+                </div>
+                <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-semibold max-w-2xl leading-tight">
+                  Sẵn sàng gia nhập cộng đồng tiêu dùng bền vững?
+                </h2>
+                <p className="text-[#E7E2DA]/80 text-sm sm:text-base mt-4 max-w-xl leading-relaxed font-normal">
+                  Khám phá hàng ngàn sản phẩm được chia sẻ và tái sử dụng mỗi ngày. Tiết kiệm chi phí, giải phóng không gian sống và cùng giảm thiểu phát thải rác.
                 </p>
-              </div>
-            </div>
-
-            {/* Bước 2 */}
-            <div className="bg-surface-container-lowest p-space-lg rounded-xl flex flex-col gap-space-md shadow-sm">
-              <div className="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-[24px]">swap_horiz</span>
-              </div>
-              <div className="flex flex-col gap-space-xs">
-                <span className="font-label-sm text-label-sm text-secondary font-bold">02 / ĐẶT THUÊ HOẶC MUA</span>
-                <span className="font-title-lg text-title-lg text-primary font-semibold">Ký Quỹ An Toàn</span>
-                <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
-                  Thuê linh hoạt theo ngày với khoản cọc bảo hiểm hoàn trả 100%, hoặc mua sở hữu vĩnh viễn đồ thanh lý.
-                </p>
-              </div>
-            </div>
-
-            {/* Bước 3 */}
-            <div className="bg-surface-container-lowest p-space-lg rounded-xl flex flex-col gap-space-md shadow-sm">
-              <div className="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-[24px]">interests</span>
-              </div>
-              <div className="flex flex-col gap-space-xs">
-                <span className="font-label-sm text-label-sm text-secondary font-bold">03 / TRẢI NGHIỆM</span>
-                <span className="font-title-lg text-title-lg text-primary font-semibold">Tự Tin Tỏa Sáng</span>
-                <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
-                  Diện trang phục chỉn chu cho các sự kiện, chụp ảnh mà không lo tủ đồ chật chội hay tốn kém chi phí mua mới.
-                </p>
-              </div>
-            </div>
-
-            {/* Bước 4 */}
-            <div className="bg-surface-container-lowest p-space-lg rounded-xl flex flex-col gap-space-md shadow-sm">
-              <div className="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-[24px]">sync</span>
-              </div>
-              <div className="flex flex-col gap-space-xs">
-                <span className="font-label-sm text-label-sm text-secondary font-bold">04 / HOÀN TRẢ</span>
-                <span className="font-title-lg text-title-lg text-primary font-semibold">Trả Đồ &amp; Nhận Lại Cọc</span>
-                <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
-                  Gửi trả đồ nhanh chóng mà không cần giặt trước. Tiền ký quỹ được hoàn trả tự động sau bước kiểm tra nhanh.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-center">
-            <Link
-              to="/about"
-              className="inline-flex items-center gap-space-xs px-space-lg py-3 rounded-lg bg-primary-container text-surface-container-low font-label-md text-label-md uppercase tracking-wider hover:bg-on-surface transition-colors shadow-sm font-semibold"
-            >
-              <span>Xem Chi Tiết Quy Trình Thuê &amp; Mua</span>
-              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* 7. FEATURED PAIRINGS (GỢI Ý PHỐI ĐỒ & SẢN PHẨM NỔI BẬT) */}
-      <section className="w-full max-w-[1440px] mx-auto px-gutter md:px-margin py-20 flex flex-col gap-space-xl">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
-          <div>
-            <span className="font-label-sm text-label-sm uppercase tracking-widest text-secondary font-bold">Gợi Ý Phối Đồ</span>
-            <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight">Bộ Sưu Tập Nổi Bật</h2>
-            <p className="font-body-md text-body-md text-on-surface-variant mt-1">
-              Sự kết hợp tinh tế giữa thuê đồ sự kiện lộng lẫy và sở hữu phụ kiện vintage bền vững.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm font-semibold">
-              Tuyển Chọn Đặc Biệt
-            </span>
-          </div>
-        </div>
-
-        {/* Lưới sản phẩm phối hợp Thuê & Thanh lý */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-          {/* Item 1: THUÊ Váy Dạ Hội Lộng Lẫy */}
-          <div className="group bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-            <div className="relative aspect-[4/5] bg-surface-container overflow-hidden">
-              <img
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                alt="Đầm dạ hội đính đá cao cấp"
-                src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=800&auto=format&fit=crop"
-              />
-              <div className="absolute top-3 left-3">
-                <span className="px-2 py-0.5 rounded bg-primary text-surface-container-low font-label-sm text-[10px] uppercase tracking-wider font-semibold">
-                  THUÊ
-                </span>
-              </div>
-              <Link
-                to={wishlistTarget}
-                aria-label="Thêm vào danh sách yêu thích"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface-bright/85 backdrop-blur flex items-center justify-center text-on-surface hover:text-error transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </Link>
-            </div>
-            <div className="p-space-md flex flex-col flex-1 justify-between gap-space-md">
-              <div className="flex flex-col gap-1">
-                <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Đầm Sự Kiện</span>
-                <Link to="/rent" className="font-title-lg text-title-lg text-primary hover:underline line-clamp-1 font-semibold">
-                  Đầm Lụa Dạ Hội Cúp Ngực Đính Pha Lê
-                </Link>
-              </div>
-              <div className="pt-space-sm border-t border-outline-variant/30 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">
-                    220,000đ<span className="font-body-sm text-body-sm font-normal text-on-surface-variant"> / ngày</span>
-                  </span>
-                  <span className="font-label-sm text-[10px] text-on-surface-variant">Tiền Cọc: 1,200,000đ</span>
+                <div className="flex flex-wrap items-center justify-center gap-4 mt-8">
+                  <Link
+                    className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-white text-[#1C1A18] text-xs font-bold uppercase tracking-wider hover:bg-[#F4F0EA] transition-all shadow-sm"
+                    to="/rent"
+                  >
+                    <span>Bắt đầu thuê ngay</span>
+                    <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                  </Link>
+                  <Link
+                    className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full border border-white/40 text-white text-xs font-bold uppercase tracking-wider hover:bg-white/10 transition-all"
+                    to="/thrift"
+                  >
+                    <span>Xem kho hàng THRIFT</span>
+                  </Link>
                 </div>
-                <Link to="/rent" className="p-2 rounded bg-surface-container hover:bg-primary hover:text-surface-container-low transition-colors" title="Đặt thuê">
-                  <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-                </Link>
               </div>
-            </div>
-          </div>
-
-          {/* Item 2: THANH LÝ Túi Xách Da Vintage */}
-          <div className="group bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-            <div className="relative aspect-[4/5] bg-surface-container overflow-hidden">
-              <img
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                alt="Túi xách da bò cổ điển cao cấp"
-                src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?q=80&w=800&auto=format&fit=crop"
-              />
-              <div className="absolute top-3 left-3">
-                <span className="px-2 py-0.5 rounded bg-secondary text-surface-container-lowest font-label-sm text-[10px] uppercase tracking-wider font-semibold">
-                  THANH LÝ
-                </span>
-              </div>
-              <Link
-                to={wishlistTarget}
-                aria-label="Thêm vào danh sách yêu thích"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface-bright/85 backdrop-blur flex items-center justify-center text-on-surface hover:text-error transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </Link>
-            </div>
-            <div className="p-space-md flex flex-col flex-1 justify-between gap-space-md">
-              <div className="flex flex-col gap-1">
-                <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Túi Xách Da Thật</span>
-                <Link to="/thrift" className="font-title-lg text-title-lg text-primary hover:underline line-clamp-1 font-semibold">
-                  Túi Xách Da Đeo Chéo Cổ Điển Pháp
-                </Link>
-              </div>
-              <div className="pt-space-sm border-t border-outline-variant/30 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">450,000đ</span>
-                  <span className="font-label-sm text-[10px] text-secondary font-medium">Chất Da Bò Thật 100%</span>
-                </div>
-                <Link to="/thrift" className="p-2 rounded bg-surface-container hover:bg-primary hover:text-surface-container-low transition-colors" title="Mua ngay">
-                  <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Item 3: THUÊ Áo Dài Nhung Đỏ */}
-          <div className="group bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-            <div className="relative aspect-[4/5] bg-surface-container overflow-hidden">
-              <img
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                alt="Áo dài nhung đỏ đô thêu tay sang trọng"
-                src="https://images.unsplash.com/photo-1609357605129-26f69add5d6e?q=80&w=800&auto=format&fit=crop"
-              />
-              <div className="absolute top-3 left-3">
-                <span className="px-2 py-0.5 rounded bg-primary text-surface-container-low font-label-sm text-[10px] uppercase tracking-wider font-semibold">
-                  THUÊ
-                </span>
-              </div>
-              <Link
-                to={wishlistTarget}
-                aria-label="Thêm vào danh sách yêu thích"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface-bright/85 backdrop-blur flex items-center justify-center text-on-surface hover:text-error transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </Link>
-            </div>
-            <div className="p-space-md flex flex-col flex-1 justify-between gap-space-md">
-              <div className="flex flex-col gap-1">
-                <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Áo Dài Cưới &amp; Tết</span>
-                <Link to="/rent" className="font-title-lg text-title-lg text-primary hover:underline line-clamp-1 font-semibold">
-                  Áo Dài Nhung Đỏ Đô Đính Kết Thủ Công
-                </Link>
-              </div>
-              <div className="pt-space-sm border-t border-outline-variant/30 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">
-                    250,000đ<span className="font-body-sm text-body-sm font-normal text-on-surface-variant"> / ngày</span>
-                  </span>
-                  <span className="font-label-sm text-[10px] text-on-surface-variant">Tiền Cọc: 1,500,000đ</span>
-                </div>
-                <Link to="/rent" className="p-2 rounded bg-surface-container hover:bg-primary hover:text-surface-container-low transition-colors" title="Đặt thuê">
-                  <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Item 4: THANH LÝ Khăn Lụa & Áo Len Vintage */}
-          <div className="group bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-            <div className="relative aspect-[4/5] bg-surface-container overflow-hidden">
-              <img
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                alt="Áo khoác len dệt kim vintage nhẹ nhàng"
-                src="https://images.unsplash.com/photo-1434389677669-e08b4cac3105?q=80&w=800&auto=format&fit=crop"
-              />
-              <div className="absolute top-3 left-3">
-                <span className="px-2 py-0.5 rounded bg-secondary text-surface-container-lowest font-label-sm text-[10px] uppercase tracking-wider font-semibold">
-                  THANH LÝ
-                </span>
-              </div>
-              <Link
-                to={wishlistTarget}
-                aria-label="Thêm vào danh sách yêu thích"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface-bright/85 backdrop-blur flex items-center justify-center text-on-surface hover:text-error transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </Link>
-            </div>
-            <div className="p-space-md flex flex-col flex-1 justify-between gap-space-md">
-              <div className="flex flex-col gap-1">
-                <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Len &amp; Dệt Kim</span>
-                <Link to="/thrift" className="font-title-lg text-title-lg text-primary hover:underline line-clamp-1 font-semibold">
-                  Áo Khoác Cardigan Len Mỏng Vintage
-                </Link>
-              </div>
-              <div className="pt-space-sm border-t border-outline-variant/30 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-primary font-bold">190,000đ</span>
-                  <span className="font-label-sm text-[10px] text-secondary font-medium">Chất Len Mềm Không Xù</span>
-                </div>
-                <Link to="/thrift" className="p-2 rounded bg-surface-container hover:bg-primary hover:text-surface-container-low transition-colors" title="Mua ngay">
-                  <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
-                </Link>
-              </div>
-            </div>
-          </div>
+            </section>
+          </main>
         </div>
-      </section>
-
-      {/* 8. TRUST & PEACE OF MIND SECTION (CAM KẾT AN TÂM) */}
-      <section className="w-full bg-surface-container-high py-20">
-        <div className="max-w-[1440px] mx-auto px-gutter md:px-margin flex flex-col gap-space-xl">
-          <div className="flex flex-col max-w-lg gap-space-xs">
-            <span className="font-label-sm text-label-sm uppercase tracking-widest text-secondary font-bold">Hệ Thống Uy Tín</span>
-            <h2 className="font-headline-md text-headline-md text-primary tracking-tight">Trải Nghiệm Thời Trang Không Lo Âu</h2>
-            <p className="font-body-md text-body-md text-on-surface-variant">
-              Được thiết kế để bạn an tâm tuyệt đối khi thuê hay mua đồ cũ với quy trình kiểm định chất lượng và ký quỹ minh bạch.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-            {/* 1. Ký quỹ an toàn */}
-            <div className="p-space-lg bg-surface-bright rounded-xl flex flex-col gap-space-sm shadow-sm">
-              <span className="material-symbols-outlined text-primary text-[28px]">lock</span>
-              <span className="font-title-md text-title-md text-primary font-semibold">Ký Quỹ Trung Gian An Toàn</span>
-              <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-                Tiền cọc và thanh toán được hệ thống giữ an toàn cho đến khi bạn nhận đồ và xác nhận đúng mô tả kích thước.
-              </p>
-            </div>
-
-            {/* 2. Thẩm định kỹ lưỡng */}
-            <div className="p-space-lg bg-surface-bright rounded-xl flex flex-col gap-space-sm shadow-sm">
-              <span className="material-symbols-outlined text-primary text-[28px]">verified</span>
-              <span className="font-title-md text-title-md text-primary font-semibold">Kiểm Định &amp; Giặt Sấy Chuẩn</span>
-              <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-                Trang phục được kiểm tra từng đường may, khóa kéo và xử lý giặt hấp khử khuẩn trước khi gửi tới tay người thuê.
-              </p>
-            </div>
-
-            {/* 3. Hoàn cọc tức thì */}
-            <div className="p-space-lg bg-surface-bright rounded-xl flex flex-col gap-space-sm shadow-sm">
-              <span className="material-symbols-outlined text-primary text-[28px]">published_with_changes</span>
-              <span className="font-title-md text-title-md text-primary font-semibold">Hoàn Tiền Cọc Nhanh Chóng</span>
-              <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-                Tiền ký quỹ trang phục được hoàn trả tự động vào tài khoản ngay sau khi đơn hàng được trả lại và đối soát xong.
-              </p>
-            </div>
-
-            {/* 4. Minh bạch thông số */}
-            <div className="p-space-lg bg-surface-bright rounded-xl flex flex-col gap-space-sm shadow-sm">
-              <span className="material-symbols-outlined text-primary text-[28px]">visibility</span>
-              <span className="font-title-md text-title-md text-primary font-semibold">Bảng Số Đo &amp; Ảnh Thật 100%</span>
-              <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-                Cung cấp chi tiết số đo (ngực, eo, mông, chiều dài) cùng ảnh chụp thực tế giúp bạn dễ dàng chọn đúng size đồ.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 9. EDITORIAL CLOSING HERO CALLOUT (KÊU GỌI HÀNH ĐỘNG) */}
-      <section className="w-full max-w-[1440px] mx-auto px-gutter md:px-margin py-24">
-        <div className="relative w-full rounded-2xl bg-primary-container text-surface-container-low p-space-xl md:p-24 overflow-hidden shadow-xl">
-          {/* Lớp nền mờ chuyển màu tinh tế */}
-          <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-surface-bright via-transparent to-transparent"></div>
-          <div className="relative z-10 max-w-2xl flex flex-col gap-space-md">
-            <span className="font-label-sm text-label-sm uppercase tracking-widest text-secondary-fixed">Gia Nhập Cộng Đồng Thời Trang Tuần Hoàn</span>
-            <h2 className="font-headline-lg text-headline-lg font-normal tracking-tight text-surface-bright leading-tight">
-              Sẵn sàng làm mới phong cách cùng tủ đồ vô tận?
-            </h2>
-            <p className="font-body-lg text-body-lg text-inverse-on-surface/80 leading-relaxed">
-              Đăng ký tài khoản ngay hôm nay để thuê những bộ cánh lộng lẫy, thử nghiệm phong cách mới mà không lo tốn kém, hoặc kiếm thêm thu nhập từ việc chia sẻ tủ đồ của chính bạn.
-            </p>
-            <div className="flex flex-wrap items-center gap-space-md pt-space-sm">
-              <Link
-                to="/register"
-                className="px-space-xl py-3.5 bg-surface-bright text-primary font-label-md text-label-md uppercase tracking-wider rounded-lg shadow hover:bg-surface-container-high transition-colors font-semibold"
-              >
-                Tạo Tài Khoản Miễn Phí
-              </Link>
-              <Link
-                to="/about"
-                className="px-space-lg py-3.5 bg-transparent border border-outline-variant text-surface-bright font-label-md text-label-md uppercase tracking-wider rounded-lg hover:bg-surface-bright/10 transition-colors font-semibold"
-              >
-                Tìm Hiểu Về ReUse Hub
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      </div>
     </div>
   );
 };
