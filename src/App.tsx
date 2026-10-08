@@ -5,6 +5,8 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Unauthorized from "./pages/errors/Unauthorized";
 import Home from "./pages/home/Home";
+import HowItWorks from "./pages/home/HowItWorks";
+import AboutPage from "./pages/home/About";
 
 import PublicRoutes from "./routes/PublicRoutes";
 import ProtectedRoutes from "./routes/ProtectedRoutes";
@@ -84,6 +86,29 @@ const MyOrdersPage = () => (
   </div>
 );
 
+
+const FaqPage = () => (
+  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+    <h1 className="text-2xl font-bold text-gray-800">Câu Hỏi Thường Gặp (FAQ)</h1>
+    <p className="mt-4 text-gray-600">Giải đáp mọi thắc mắc của bạn về dịch vụ ReUse.</p>
+  </div>
+);
+
+const ContactPage = () => (
+  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+    <h1 className="text-2xl font-bold text-gray-800">Liên Hệ Hỗ Trợ</h1>
+    <p className="mt-4 text-gray-600">Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7.</p>
+  </div>
+);
+
+// ── Danh mục Pages ──
+const CategoryDetailPage = ({ name }: { name: string }) => (
+  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+    <h1 className="text-2xl font-bold text-gray-800">Danh Mục: {name}</h1>
+    <p className="mt-4 text-gray-600">Khám phá sản phẩm trong danh mục {name}.</p>
+  </div>
+);
+
 const UserDashboard = () => (
   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
     <h1 className="text-2xl font-bold text-gray-800">User Dashboard</h1>
@@ -124,6 +149,20 @@ const App = () => {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/account-settings" element={<AccountSettingsPage />} />
         <Route path="/my-orders" element={<MyOrdersPage />} />
+
+        {/* Routes Hệ sinh thái */}
+        <Route path="/how-it-works" element={<HowItWorks />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/faq" element={<FaqPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+
+        {/* Routes Danh mục tuần hoàn */}
+        <Route path="/categories/cameras" element={<CategoryDetailPage name="Camera & Lens" />} />
+        <Route path="/categories/fashion" element={<CategoryDetailPage name="Trang phục sự kiện" />} />
+        <Route path="/categories/camping" element={<CategoryDetailPage name="Đồ cắm trại" />} />
+        <Route path="/categories/shoes" element={<CategoryDetailPage name="Giày dép & Da" />} />
+        <Route path="/categories/electronics" element={<CategoryDetailPage name="Thiết bị âm thanh" />} />
+        <Route path="/categories/lifestyle" element={<CategoryDetailPage name="Đồ trang trí & Setup" />} />
       </Route>
 
       {/* 3. User Protected Routes */}
