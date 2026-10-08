@@ -27,7 +27,7 @@ export const MasterLayout: React.FC<MasterLayoutProps> = ({
         {showSidebar && (
           <Sidebar role={userRole === 'ADMIN' ? 'ADMIN' : 'SHOP'} />
         )}
-        <main className="flex-1 w-full pt-28 px-4 lg:px-8">
+        <main className={`flex-1 w-full pt-28 ${showSidebar ? 'px-4 lg:px-8' : ''}`}>
           {children}
         </main>
       </div>
