@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, Outlet } from "react-router-dom";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Unauthorized from "./pages/errors/Unauthorized";
+import Home from "./pages/home/Home";
 
 import PublicRoutes from "./routes/PublicRoutes";
 import ProtectedRoutes from "./routes/ProtectedRoutes";
@@ -34,12 +35,6 @@ const AppLayout = ({ role }: { role?: 'GUEST' | 'USER' | 'SHOP' | 'ADMIN' }) => 
 };
 
 // --- [FE-S1-07-h] Placeholder Pages phục vụ cho Header & Navigation Demo ---
-const Home = () => (
-  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-    <h1 className="text-2xl font-bold text-gray-800">Trang chủ ReUse Hub</h1>
-    <p className="text-gray-600 mt-2">Chào mừng bạn đến với hệ thống cho thuê và thanh lý món đồ cũ.</p>
-  </div>
-);
 
 const RentPage = () => (
   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
