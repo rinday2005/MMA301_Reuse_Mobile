@@ -11,6 +11,8 @@ import FaqPage from "./pages/home/FAQ";
 import ContactPage from "./pages/home/Contact";
 import RentMarketplace from "./pages/rent/marketplace/RentMarketplace";
 import RentOrderDetail from "./pages/rent/orders/RentOrderDetail";
+import ThriftMarketplace from "./pages/thrift/marketplace/ThriftMarketplace";
+import ThriftDetail from "./pages/thrift/detail/ThriftDetail";
 
 import PublicRoutes from "./routes/PublicRoutes";
 import ProtectedRoutes from "./routes/ProtectedRoutes";
@@ -43,12 +45,6 @@ const AppLayout = ({ role }: { role?: 'GUEST' | 'USER' | 'SHOP' | 'ADMIN' }) => 
 };
 
 // --- [FE-S1-07-h] Placeholder Pages phục vụ cho Header & Navigation Demo ---
-
-const ThriftPage = () => (
-  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-    <h1 className="text-2xl font-bold text-gray-800">Sàn Thanh Lý (THRIFT)</h1>
-  </div>
-);
 
 const CategoriesPage = () => (
   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -134,7 +130,11 @@ const App = () => {
           <Route path="/rent/orders/:id" element={<RentOrderDetail />} />
           <Route path="/rent/orders" element={<RentOrderDetail />} />
           <Route path="/rent/detail/:id" element={<RentOrderDetail />} />
-          <Route path="/thrift" element={<ThriftPage />} />
+          <Route path="/thrift" element={<ThriftMarketplace />} />
+          <Route path="/thrift/marketplace" element={<ThriftMarketplace />} />
+          <Route path="/thrift/:id" element={<ThriftDetail />} />
+          <Route path="/thrift/products/:id" element={<ThriftDetail />} />
+          <Route path="/thrift/detail/:id" element={<ThriftDetail />} />
           <Route path="/categories" element={<CategoriesPage />} />
 
           {/* Routes cho các Icon trên Header & Profile Dropdown */}
