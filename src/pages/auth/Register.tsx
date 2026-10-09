@@ -388,50 +388,6 @@ const Register = () => {
 
                 {/* Role */}
                 <div className="space-y-2">
-                  <label className="block text-[13px] font-semibold text-[#1c1c18]">
-                    Loại Tài Khoản <span className="text-[#ba1a1a]">*</span>
-                  </label>
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <label className="flex cursor-pointer items-center gap-3 rounded bg-[#f7f3ec] p-3 transition hover:bg-[#ebe8e1]">
-                      <input
-                        type="radio"
-                        value="USER"
-                        {...register("role")}
-                        className="h-4 w-4 accent-black"
-                      />
-
-                      <div>
-                        <p className="text-sm font-semibold">
-                          Khách hàng
-                        </p>
-
-                        <p className="text-xs text-[#7b766f]">
-                          Thuê và sử dụng sản phẩm
-                        </p>
-                      </div>
-                    </label>
-
-                    <label className="flex cursor-pointer items-center gap-3 rounded bg-[#f7f3ec] p-3 transition hover:bg-[#ebe8e1]">
-                      <input
-                        type="radio"
-                        value="SHOP_OWNER"
-                        {...register("role")}
-                        className="h-4 w-4 accent-black"
-                      />
-
-                      <div>
-                        <p className="text-sm font-semibold">
-                          Chủ shop
-                        </p>
-
-                        <p className="text-xs text-[#7b766f]">
-                          Đăng và quản lý sản phẩm
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-
                   {errors.role && (
                     <p className="text-xs text-[#ba1a1a]">
                       {errors.role.message}

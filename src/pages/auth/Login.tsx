@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   ArrowRight,
@@ -32,6 +32,10 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 const Login = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectUrl = searchParams.get("redirect") || "/";
+  const redirectMessage = searchParams.get("message");
+
   const { login } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -60,12 +64,13 @@ const Login = () => {
       } else if (user.role === "SHOP_OWNER") {
         navigate("/shop/dashboard");
       } else {
-        navigate("/");
+        navigate(redirectUrl);
       }
     } catch {
       setApiError("Email hoặc mật khẩu không chính xác.");
     }
   };
+
 
   return (
     <main className="min-h-screen bg-[#fdf9f2] px-6 py-12 text-[#1c1c18]">
@@ -173,6 +178,17 @@ const Login = () => {
                  Vui lòng nhập thông tin đăng nhập để truy cập tài khoản và tủ đồ tuần hoàn của bạn.
                 </p>
               </div>
+
+              {/* Redirect Notice */}
+              {redirectMessage && (
+                <div className="mb-6 flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 p-4 text-amber-900 shadow-xs">
+                  <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                  <div>
+                    <p className="font-semibold text-xs uppercase tracking-wider text-amber-800">Yêu cầu đăng nhập</p>
+                    <p className="mt-0.5 text-xs text-amber-900 leading-relaxed">{redirectMessage}</p>
+                  </div>
+                </div>
+              )}
 
               {/* API error */}
               {apiError && (

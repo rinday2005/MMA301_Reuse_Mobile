@@ -50,12 +50,11 @@ export const Header: React.FC<HeaderProps> = ({
 
     const handleLogout = () => {
         setIsProfileDropdownOpen(false);
+        setIsMobileMenuOpen(false);
         if (onLogout) {
             onLogout();
-        } else {
-            // Logic Logout default
-            navigate('/login');
         }
+        navigate('/login');
     };
 
     return (
@@ -270,9 +269,44 @@ export const Header: React.FC<HeaderProps> = ({
                         className="w-full px-3 py-2 text-xs bg-gray-100 border border-gray-300 rounded-sm"
                     />
                     <div className="flex flex-col space-y-2 pt-2">
-                        <Link to="/rent" className="text-xs uppercase font-bold text-gray-700 hover:text-black py-1">RENT</Link>
-                        <Link to="/thrift" className="text-xs uppercase font-bold text-black py-1">THRIFT</Link>
-                        <Link to="/categories" className="text-xs uppercase font-bold text-gray-700 hover:text-black py-1">CATEGORIES</Link>
+                        <Link to="/rent" onClick={() => setIsMobileMenuOpen(false)} className="text-xs uppercase font-bold text-gray-700 hover:text-black py-1">RENT</Link>
+                        <Link to="/thrift" onClick={() => setIsMobileMenuOpen(false)} className="text-xs uppercase font-bold text-black py-1">THRIFT</Link>
+                        <Link to="/categories" onClick={() => setIsMobileMenuOpen(false)} className="text-xs uppercase font-bold text-gray-700 hover:text-black py-1">CATEGORIES</Link>
+
+                        {userRole !== 'GUEST' ? (
+                            <div className="pt-2 border-t border-gray-100 flex flex-col space-y-2">
+                                <Link to="/account-settings" onClick={() => setIsMobileMenuOpen(false)} className="text-xs font-medium text-gray-700 hover:text-black py-1">
+                                    Hồ sơ cá nhân
+                                </Link>
+                                <Link to="/my-orders" onClick={() => setIsMobileMenuOpen(false)} className="text-xs font-medium text-gray-700 hover:text-black py-1">
+                                    Đơn hàng của tôi
+                                </Link>
+                                <button
+                                    onClick={handleLogout}
+                                    className="flex items-center gap-2 text-xs font-bold text-red-600 hover:text-red-700 py-1 text-left cursor-pointer"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    Đăng xuất
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="pt-2 border-t border-gray-100 flex items-center gap-3">
+                                <Link
+                                    to="/login"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className="text-xs font-bold text-gray-700 hover:text-black py-1"
+                                >
+                                    Đăng nhập
+                                </Link>
+                                <Link
+                                    to="/register"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className="text-xs font-bold text-emerald-600 hover:text-emerald-700 py-1"
+                                >
+                                    Đăng ký
+                                </Link>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
