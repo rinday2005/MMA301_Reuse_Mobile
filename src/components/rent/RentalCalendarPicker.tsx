@@ -59,11 +59,13 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Sync internal state when external props change
-  useEffect(() => {
+  // Sync internal state when external props change (React recommended pattern)
+  const [prevDates, setPrevDates] = useState({ startDate, endDate });
+  if (prevDates.startDate !== startDate || prevDates.endDate !== endDate) {
+    setPrevDates({ startDate, endDate });
     setTempStart(startDate);
     setTempEnd(endDate);
-  }, [startDate, endDate]);
+  }
 
   // Close popover when clicking outside
   useEffect(() => {

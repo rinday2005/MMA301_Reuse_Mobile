@@ -1,54 +1,35 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-export const NavigationLoader: React.FC = () => {
-  const location = useLocation();
-  const [progress, setProgress] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
+const ProgressBarView: React.FC = () => {
+  const [progress, setProgress] = useState(25);
+  const [isVisible, setIsVisible] = useState(true);
   const [showSlowNotice, setShowSlowNotice] = useState(false);
 
-  const timerRef = useRef<number | null>(null);
-  const slowTimerRef = useRef<number | null>(null);
-  const hideTimerRef = useRef<number | null>(null);
-
   useEffect(() => {
-    // Clear any existing timers
-    if (timerRef.current) window.clearTimeout(timerRef.current);
-    if (slowTimerRef.current) window.clearTimeout(slowTimerRef.current);
-    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
-
-    // Start progress
-    setIsVisible(true);
-    setProgress(25);
-    setShowSlowNotice(false);
-
-    // Simulate progressive loading steps
+    // Progressive steps
     const step1 = window.setTimeout(() => setProgress(60), 80);
     const step2 = window.setTimeout(() => setProgress(85), 180);
 
-    // If still in progress after 250ms, show "Đang tải trang..." notice
-    slowTimerRef.current = window.setTimeout(() => {
-      setShowSlowNotice(true);
-    }, 250);
+    // If still loading after 250ms, show slow loading pill
+    const slowTimer = window.setTimeout(() => setShowSlowNotice(true), 250);
 
-    // Complete progress
+    // Complete loading animation
     const completeTimer = window.setTimeout(() => {
       setProgress(100);
-      hideTimerRef.current = window.setTimeout(() => {
+      window.setTimeout(() => {
         setIsVisible(false);
         setShowSlowNotice(false);
-        setProgress(0);
       }, 250);
     }, 380);
 
     return () => {
       window.clearTimeout(step1);
       window.clearTimeout(step2);
+      window.clearTimeout(slowTimer);
       window.clearTimeout(completeTimer);
-      if (slowTimerRef.current) window.clearTimeout(slowTimerRef.current);
-      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
     };
-  }, [location.pathname, location.search]);
+  }, []);
 
   if (!isVisible && !showSlowNotice) return null;
 
@@ -62,7 +43,10 @@ export const NavigationLoader: React.FC = () => {
             style={{
               width: `${progress}%`,
               opacity: progress === 100 ? 0 : 1,
-              transition: progress === 100 ? 'width 0.15s ease-out, opacity 0.25s 0.1s ease-in' : 'width 0.2s ease-out',
+              transition:
+                progress === 100
+                  ? 'width 0.15s ease-out, opacity 0.25s 0.1s ease-in'
+                  : 'width 0.2s ease-out',
             }}
           />
         </div>
@@ -77,4 +61,9 @@ export const NavigationLoader: React.FC = () => {
       )}
     </>
   );
+};
+
+export const NavigationLoader: React.FC = () => {
+  const location = useLocation();
+  return <ProgressBarView key={location.pathname + location.search} />;
 };

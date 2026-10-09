@@ -24,8 +24,10 @@ export const RentOrderDetail: React.FC = () => {
     return getRentProductDetail(id);
   }, [id]);
 
-  // Gallery active thumbnail
-  const [activeThumb, setActiveThumb] = useState(0);
+  // Gallery active thumbnail (auto-resets to 0 when id changes without effect setState)
+  const [thumbState, setThumbState] = useState<{ id?: string; index: number }>({ id, index: 0 });
+  const activeThumb = thumbState.id === id ? thumbState.index : 0;
+  const setActiveThumb = (index: number) => setThumbState({ id, index });
 
   // Rental duration & quantities
   const [startDate, setStartDate] = useState('2026-11-15');
@@ -50,7 +52,6 @@ export const RentOrderDetail: React.FC = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    setActiveThumb(0);
   }, [id]);
 
   // Calculate rental days
