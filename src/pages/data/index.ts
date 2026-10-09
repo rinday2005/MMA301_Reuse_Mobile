@@ -4,3 +4,5 @@ export * from './rent/rentOrderDetailData';
 export * from './home/faqData';
 export * from './home/howItWorksData';
 export * from './home/aboutData';
+export * from './thrift/thriftMarketplaceData';
+export * from './thrift/thriftDetailData';

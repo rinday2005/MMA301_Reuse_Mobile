@@ -268,19 +268,17 @@ const RentMarketplace: React.FC = () => {
       <section className="w-full px-6 lg:px-12 pt-10 pb-8 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8">
           <div className="max-w-2xl space-y-3">
-            <div className="flex items-center gap-2.5">
-              <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-[#78736A] font-semibold">
-                01 · RENT ARCHIVE
-              </span>
+            <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#79716B] mb-2">
+              <span>01 · RENT ARCHIVE</span>
               <span className="w-8 h-px bg-[#E7E2DA]" />
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-[#F4F0EA] text-[#1C1A18]">
-                Đã Thẩm Định
+              <span className="bg-[#F0ECE1] text-[#1C1A18] px-2 py-0.5 rounded text-[10px] font-semibold">
+                ĐÃ THẨM ĐỊNH
               </span>
             </div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1C1A18] tracking-tight leading-[1.15]">
+            <h1 className="text-3xl sm:text-4xl text-[#1C1A18] font-bold tracking-tight mb-2">
               Thuê thay vì sở hữu
             </h1>
-            <p className="text-[#5E5A53] text-sm sm:text-base leading-relaxed font-light max-w-xl">
+            <p className="text-xs sm:text-sm text-[#79716B] max-w-xl leading-relaxed">
               Chọn những món đồ bạn cần, sử dụng trong thời gian phù hợp và hoàn trả để
               sản phẩm tiếp tục chu kỳ tuần hoàn. Không áp lực lưu trữ, không lãng phí tài nguyên.
             </p>
@@ -306,7 +304,7 @@ const RentMarketplace: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 text-[#5E5A53] text-[11px]">
             <span className="material-symbols-outlined text-[16px]">payments</span>
-            <span>Hoàn cọ tự động trong vòng 2 giờ sau kiểm định hoàn trả</span>
+            <span>Hoàn cọc tự động trong vòng 2 giờ sau kiểm định hoàn trả</span>
           </div>
         </div>
       </section>
@@ -411,11 +409,10 @@ const RentMarketplace: React.FC = () => {
                   key={opt.key}
                   type="button"
                   onClick={() => setSort(opt.key)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                    sort === opt.key
-                      ? 'bg-[#1C1A18] text-white'
-                      : 'bg-[#F4F0EA] text-[#5E5A53] hover:text-[#1C1A18]'
-                  }`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${sort === opt.key
+                    ? 'bg-[#1C1A18] text-white'
+                    : 'bg-[#F4F0EA] text-[#5E5A53] hover:text-[#1C1A18]'
+                    }`}
                 >
                   {opt.label}
                 </button>
@@ -469,11 +466,10 @@ const RentMarketplace: React.FC = () => {
               <button
                 key={page}
                 type="button"
-                className={`w-8 h-8 rounded-lg font-medium ${
-                  page === 1
-                    ? 'bg-[#1C1A18] text-white'
-                    : 'bg-white text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors shadow-sm'
-                }`}
+                className={`w-8 h-8 rounded-lg font-medium ${page === 1
+                  ? 'bg-[#1C1A18] text-white'
+                  : 'bg-white text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors shadow-sm'
+                  }`}
               >
                 {page}
               </button>
