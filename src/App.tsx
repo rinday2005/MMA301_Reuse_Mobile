@@ -13,6 +13,8 @@ import RentMarketplace from "./pages/rent/marketplace/RentMarketplace";
 import RentOrderDetail from "./pages/rent/orders/RentOrderDetail";
 import ThriftMarketplace from "./pages/thrift/marketplace/ThriftMarketplace";
 import ThriftDetail from "./pages/thrift/detail/ThriftDetail";
+import CategoriesMarketplace from "./pages/categories/marketplace/CategoriesMarketplace";
+import CategoryDetail from "./pages/categories/detail/CategoryDetail";
 
 import PublicRoutes from "./routes/PublicRoutes";
 import ProtectedRoutes from "./routes/ProtectedRoutes";
@@ -46,11 +48,6 @@ const AppLayout = ({ role }: { role?: 'GUEST' | 'USER' | 'SHOP' | 'ADMIN' }) => 
 
 // --- [FE-S1-07-h] Placeholder Pages phục vụ cho Header & Navigation Demo ---
 
-const CategoriesPage = () => (
-  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-    <h1 className="text-2xl font-bold text-gray-800">Danh Mục Sản Phẩm</h1>
-  </div>
-);
 
 const SavedItemsPage = () => (
   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -83,13 +80,6 @@ const MyOrdersPage = () => (
 );
 
 
-// ── Danh mục Pages ──
-const CategoryDetailPage = ({ name }: { name: string }) => (
-  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-    <h1 className="text-2xl font-bold text-gray-800">Danh Mục: {name}</h1>
-    <p className="mt-4 text-gray-600">Khám phá sản phẩm trong danh mục {name}.</p>
-  </div>
-);
 
 const UserDashboard = () => (
   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -134,8 +124,10 @@ const App = () => {
           <Route path="/thrift/marketplace" element={<ThriftMarketplace />} />
           <Route path="/thrift/:id" element={<ThriftDetail />} />
           <Route path="/thrift/products/:id" element={<ThriftDetail />} />
-          <Route path="/thrift/detail/:id" element={<ThriftDetail />} />
-          <Route path="/categories" element={<CategoriesPage />} />
+          <Route path="/categories" element={<CategoriesMarketplace />} />
+          <Route path="/categories/marketplace" element={<CategoriesMarketplace />} />
+          <Route path="/categories/:slug" element={<CategoryDetail />} />
+          <Route path="/categories/detail/:slug" element={<CategoryDetail />} />
 
           {/* Routes cho các Icon trên Header & Profile Dropdown */}
           <Route path="/saved-items" element={<SavedItemsPage />} />
@@ -149,14 +141,6 @@ const App = () => {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/faq" element={<FaqPage />} />
           <Route path="/contact" element={<ContactPage />} />
-
-          {/* Routes Danh mục tuần hoàn */}
-          <Route path="/categories/cameras" element={<CategoryDetailPage name="Camera & Lens" />} />
-          <Route path="/categories/fashion" element={<CategoryDetailPage name="Trang phục sự kiện" />} />
-          <Route path="/categories/camping" element={<CategoryDetailPage name="Đồ cắm trại" />} />
-          <Route path="/categories/shoes" element={<CategoryDetailPage name="Giày dép & Da" />} />
-          <Route path="/categories/electronics" element={<CategoryDetailPage name="Thiết bị âm thanh" />} />
-          <Route path="/categories/lifestyle" element={<CategoryDetailPage name="Đồ trang trí & Setup" />} />
         </Route>
 
         {/* 3. User Protected Routes */}

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
+import { useCartWishlist } from '../../../context/CartWishlistContext';
 import { RentalCalendarPicker } from '../../../components/rent/RentalCalendarPicker';
 import {
   getRentProductDetail,
@@ -42,13 +43,12 @@ export const RentOrderDetail: React.FC = () => {
   // Tabs
   const [activeTab, setActiveTab] = useState<TabKey>('desc');
 
-  // Wishlist toggle
-  const [isWishlist, setIsWishlist] = useState(false);
+  const { isWishlisted, toggleWishlist, addToCart } = useCartWishlist();
+  const isWishlist = isWishlisted(product.id);
 
-  // Guest auth requirement modal & toast
+  // Guest auth requirement modal
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authActionName, setAuthActionName] = useState('');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -82,13 +82,6 @@ export const RentOrderDetail: React.FC = () => {
     }
   };
 
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3500);
-  };
-
   // Actions requiring customer account
   const handleProtectedAction = (actionTitle: string, onSuccess: () => void) => {
     if (!user) {
@@ -106,8 +99,14 @@ export const RentOrderDetail: React.FC = () => {
   };
 
   const handleAddToCart = () => {
-    handleProtectedAction('thêm vào giỏ hàng', () => {
-      triggerToast(`Đã thêm thành công ${quantity} × ${product.title} (${days} ngày) vào giỏ hàng thuê!`);
+    addToCart({
+      id: product.id,
+      title: product.title,
+      price: product.pricePerDay,
+      image: product.images[0]?.src || '',
+      mode: 'rent',
+      location: product.location,
+      quantity,
     });
   };
 
@@ -118,30 +117,13 @@ export const RentOrderDetail: React.FC = () => {
   };
 
   const handleToggleWishlist = () => {
-    handleProtectedAction('lưu sản phẩm vào danh sách yêu thích', () => {
-      setIsWishlist((prev) => !prev);
-      triggerToast(!isWishlist ? 'Đã lưu vào danh sách yêu thích!' : 'Đã xóa khỏi danh sách yêu thích.');
-    });
+    toggleWishlist(product.id);
   };
 
   const currentPreview = product.images[activeThumb] || product.images[0];
 
   return (
     <div className="w-full min-h-screen bg-[#FBF9F5] text-[#1C1A18] antialiased">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 flex items-center gap-2.5 bg-[#1C1A18] text-white px-5 py-3 rounded-xl shadow-xl animate-fade-in text-xs font-medium">
-          <span className="material-symbols-outlined text-[18px] text-emerald-400">check_circle</span>
-          <span>{toastMessage}</span>
-          <button
-            type="button"
-            onClick={() => setToastMessage(null)}
-            className="ml-2 text-white/60 hover:text-white"
-          >
-            <span className="material-symbols-outlined text-[14px]">close</span>
-          </button>
-        </div>
-      )}
 
       {/* Guest Auth Required Modal */}
       {showAuthModal && (
@@ -343,7 +325,7 @@ export const RentOrderDetail: React.FC = () => {
                 </div>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl text-[#1C1A18] font-bold tracking-tight leading-snug">
+              <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl text-[#1C1A18] font-bold tracking-tight leading-snug">
                 {product.title}
               </h1>
               <p className="text-sm text-[#5E5A53] font-medium leading-relaxed">
@@ -365,15 +347,15 @@ export const RentOrderDetail: React.FC = () => {
                 <div className="space-y-0.5">
                   <span className="text-[11px] font-bold tracking-wider uppercase text-[#78736A]">Giá thuê theo ngày</span>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl sm:text-3xl font-bold text-[#1C1A18]">
+                    <span className="font-serif text-2xl sm:text-3xl font-bold text-[#1C1A18]">
                       {formatVND(product.pricePerDay)}
                     </span>
-                    <span className="text-xs text-[#5E5A53] font-medium">/ ngày</span>
+                    <span className="text-xs font-sans text-[#5E5A53] font-medium">/ ngày</span>
                   </div>
                 </div>
                 <div className="text-right space-y-0.5">
                   <span className="text-[11px] font-bold tracking-wider uppercase text-[#78736A]">Tiền cọc bảo đảm</span>
-                  <p className="text-base sm:text-lg font-bold text-[#1C1A18]">{product.depositFormatted}</p>
+                  <p className="font-serif text-base sm:text-lg font-bold text-[#1C1A18]">{product.depositFormatted}</p>
                   <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-medium">
                     <span className="material-symbols-outlined text-[12px]">lock</span> Escrow an toàn
                   </span>
@@ -602,7 +584,7 @@ export const RentOrderDetail: React.FC = () => {
             <div className="space-y-6 pt-2">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-2 space-y-4">
-                  <h3 className="font-bold text-lg text-[#1C1A18]">Tổng quan thiết bị chuyên nghiệp</h3>
+                  <h3 className="font-serif font-bold text-lg text-[#1C1A18]">Tổng quan thiết bị chuyên nghiệp</h3>
                   {product.overview.map((para, i) => (
                     <p key={i} className="text-xs sm:text-sm text-[#5E5A53] leading-relaxed">
                       {para}
@@ -631,7 +613,7 @@ export const RentOrderDetail: React.FC = () => {
           {/* Tab Content 2: Điều khoản & Bảo quản */}
           {activeTab === 'terms' && (
             <div className="space-y-4 pt-2">
-              <h3 className="font-bold text-lg text-[#1C1A18]">Quy chuẩn sử dụng &amp; Trách nhiệm bảo quản</h3>
+              <h3 className="font-serif font-bold text-lg text-[#1C1A18]">Quy chuẩn sử dụng &amp; Trách nhiệm bảo quản</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-[#5E5A53]">
                 <div className="p-4 bg-[#F4F0EA]/30 rounded-xl space-y-2">
                   <p className="font-bold text-[#1C1A18]">✓ Môi trường hoạt động cho phép:</p>
@@ -648,7 +630,7 @@ export const RentOrderDetail: React.FC = () => {
           {/* Tab Content 3: Tình trạng thực tế (Audit Report) */}
           {activeTab === 'audit' && (
             <div className="space-y-4 pt-2">
-              <h3 className="font-bold text-lg text-[#1C1A18]">Biên bản nghiệm thu kỹ thuật (Audit Log)</h3>
+              <h3 className="font-serif font-bold text-lg text-[#1C1A18]">Biên bản nghiệm thu kỹ thuật (Audit Log)</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                 {product.auditItems.map((item) => (
                   <div key={item.label} className="p-4 bg-[#F4F0EA]/40 rounded-xl space-y-1">
@@ -663,7 +645,7 @@ export const RentOrderDetail: React.FC = () => {
           {/* Tab Content 4: Chính sách Cọc & Hoàn tiền */}
           {activeTab === 'deposit' && (
             <div className="space-y-4 pt-2 text-xs text-[#5E5A53] leading-relaxed">
-              <h3 className="font-bold text-lg text-[#1C1A18]">Cơ chế Ký quỹ Smart Escrow</h3>
+              <h3 className="font-serif font-bold text-lg text-[#1C1A18]">Cơ chế Ký quỹ Smart Escrow</h3>
               <p>
                 Khoản tiền cọc <strong>{product.depositFormatted}</strong> không chuyển trực tiếp cho người cho thuê mà được hệ thống ReUse Hub giữ trung gian an toàn. Ngay sau khi đơn vị vận chuyển bàn giao thiết bị hoàn trả lại trạm trung tâm và kỹ thuật viên quét mã kiểm tra tình trạng trong 2 giờ, số tiền cọc sẽ được hoàn trả tự động 100% về tài khoản ngân hàng hoặc ví đã thanh toán của bạn mà không phát sinh thêm chi phí trung gian.
               </p>
@@ -673,7 +655,7 @@ export const RentOrderDetail: React.FC = () => {
           {/* Tab Content 5: Vận chuyển & Giao nhận */}
           {activeTab === 'shipping' && (
             <div className="space-y-4 pt-2 text-xs text-[#5E5A53] leading-relaxed">
-              <h3 className="font-bold text-lg text-[#1C1A18]">Quy trình đóng gói &amp; Vận chuyển chống sốc</h3>
+              <h3 className="font-serif font-bold text-lg text-[#1C1A18]">Quy trình đóng gói &amp; Vận chuyển chống sốc</h3>
               <p>
                 Thiết bị được vận chuyển bằng thùng chống sốc tiêu chuẩn có khóa niêm phong dây rút kèm tem an ninh một chiều. Khi nhận hàng, khách hàng đồng kiểm mã QR tem với tài xế trước khi mở hộp. Sau khi kết thúc thời gian thuê, nhân viên chuyển phát sẽ đến tận địa chỉ của bạn để thu hồi thiết bị với biên bản điện tử tức thì.
               </p>
@@ -688,7 +670,7 @@ export const RentOrderDetail: React.FC = () => {
               <span className="text-[11px] font-bold uppercase tracking-widest text-[#78736A]">
                 Hành trình tuần hoàn
               </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-[#1C1A18]">
+              <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1C1A18]">
                 Quy trình thuê bảo đảm 8 bước tại ReUse Hub
               </h2>
             </div>
@@ -735,7 +717,7 @@ export const RentOrderDetail: React.FC = () => {
               <span className="text-[11px] font-bold uppercase tracking-widest text-[#78736A]">
                 Gợi ý thiết bị RENT
               </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-[#1C1A18]">Có thể bạn cũng thích</h2>
+              <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1C1A18]">Có thể bạn cũng thích</h2>
             </div>
             <Link
               to="/rent"
@@ -768,7 +750,7 @@ export const RentOrderDetail: React.FC = () => {
                     <p className="text-[10px] font-bold text-[#78736A] uppercase tracking-wider">
                       {item.categoryTag}
                     </p>
-                    <h3 className="font-bold text-sm text-[#1C1A18] group-hover:text-[#5E5A53] transition-colors line-clamp-1">
+                    <h3 className="font-serif font-bold text-base text-[#1C1A18] group-hover:text-amber-800 transition-colors line-clamp-1">
                       {item.title}
                     </h3>
                   </div>
@@ -776,9 +758,9 @@ export const RentOrderDetail: React.FC = () => {
                   <div className="pt-2 bg-[#F4F0EA]/30 p-2.5 rounded-xl space-y-1">
                     <div className="flex items-baseline justify-between">
                       <span className="text-[10px] text-[#78736A] uppercase font-medium">Giá thuê:</span>
-                      <span className="font-bold text-[#1C1A18] text-sm">
+                      <span className="font-serif font-bold text-[#1C1A18] text-sm">
                         {formatVND(item.price)}{' '}
-                        <span className="text-[10px] font-normal text-[#78736A]">/ngày</span>
+                        <span className="font-sans text-[10px] font-normal text-[#78736A]">/ngày</span>
                       </span>
                     </div>
                     <div className="flex items-baseline justify-between text-[11px]">
