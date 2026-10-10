@@ -15,6 +15,7 @@ import ThriftMarketplace from "./pages/thrift/marketplace/ThriftMarketplace";
 import ThriftDetail from "./pages/thrift/detail/ThriftDetail";
 import CategoriesMarketplace from "./pages/categories/marketplace/CategoriesMarketplace";
 import CategoryDetail from "./pages/categories/detail/CategoryDetail";
+import UserDashboard from "./pages/home/User/UserDashboard";
 
 import PublicRoutes from "./routes/PublicRoutes";
 import ProtectedRoutes from "./routes/ProtectedRoutes";
@@ -81,11 +82,6 @@ const MyOrdersPage = () => (
 
 
 
-const UserDashboard = () => (
-  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-    <h1 className="text-2xl font-bold text-gray-800">User Dashboard</h1>
-  </div>
-);
 
 const ShopDashboard = () => (
   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -131,6 +127,7 @@ const App = () => {
 
           {/* Routes cho các Icon trên Header & Profile Dropdown */}
           <Route path="/saved-items" element={<SavedItemsPage />} />
+          <Route path="/wishlist" element={<SavedItemsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/account-settings" element={<AccountSettingsPage />} />
@@ -147,6 +144,7 @@ const App = () => {
         <Route element={<ProtectedRoutes allowedRoles={["USER"]} />}>
           <Route element={<AppLayout role="USER" />}>
             <Route path="/user/dashboard" element={<UserDashboard />} />
+            <Route path="/dashboard" element={<UserDashboard />} />
           </Route>
         </Route>
 

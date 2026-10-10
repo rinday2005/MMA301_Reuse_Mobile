@@ -64,7 +64,8 @@ const Login = () => {
       } else if (user.role === "SHOP_OWNER") {
         navigate("/shop/dashboard");
       } else {
-        navigate(redirectUrl);
+        const dest = redirectUrl && redirectUrl !== "/" ? redirectUrl : "/user/dashboard";
+        navigate(dest);
       }
     } catch {
       setApiError("Email hoặc mật khẩu không chính xác.");
