@@ -10,6 +10,7 @@ const navMain = [
   { to: '/rent', icon: 'cached', label: 'Thuê đồ RENT', badge: 'HOT' },
   { to: '/thrift', icon: 'shopping_bag', label: 'Mua đồ THRIFT', badge: 'NEW' },
   { to: '/categories', icon: 'grid_view', label: 'Danh mục sản phẩm' },
+  { to: '/cart', icon: 'local_mall', label: 'Giỏ hàng tuần hoàn' },
 ];
 
 const navEcosystem = [

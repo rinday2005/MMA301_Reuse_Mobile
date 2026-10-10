@@ -62,9 +62,20 @@ export const ThriftMarketplace: React.FC = () => {
     const handleBuyNow = (product: ThriftProduct) => {
         handleProtectedAction(
             `mua ngay "${product.title}"`,
-            `/cart?checkout=thrift&productId=${product.id}`,
+            '/cart',
             () => {
-                navigate(`/cart?checkout=thrift&productId=${product.id}`);
+                addToCart({
+                    id: product.id,
+                    title: product.title,
+                    price: product.price,
+                    image: product.image,
+                    mode: 'thrift',
+                    location: product.location,
+                    categoryLabel: product.category,
+                    gradeBadge: product.condition,
+                    quantity: 1,
+                });
+                navigate('/cart');
             }
         );
     };
@@ -77,6 +88,9 @@ export const ThriftMarketplace: React.FC = () => {
             image: product.image,
             mode: 'thrift',
             location: product.location,
+            categoryLabel: product.category,
+            gradeBadge: product.condition,
+            quantity: 1,
         });
     };
 

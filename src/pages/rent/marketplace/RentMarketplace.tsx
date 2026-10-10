@@ -27,10 +27,22 @@ const ProductCard: React.FC<{
   const handleRentClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!user) {
-      onRequireAuth(`thuê "${title}"`, href);
+      onRequireAuth(`thuê "${title}"`, '/cart');
       return;
     }
-    navigate(href);
+    addToCart({
+      id,
+      title,
+      price,
+      image,
+      mode: 'rent',
+      location,
+      deposit,
+      categoryLabel,
+      gradeBadge: conditionLabel,
+      quantity: 1,
+    });
+    navigate('/cart');
   };
 
   const handleCartClick = (e: React.MouseEvent) => {
@@ -42,6 +54,10 @@ const ProductCard: React.FC<{
       image,
       mode: 'rent',
       location,
+      deposit,
+      categoryLabel,
+      gradeBadge: conditionLabel,
+      quantity: 1,
     });
   };
 

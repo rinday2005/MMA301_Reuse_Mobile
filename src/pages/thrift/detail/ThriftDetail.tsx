@@ -38,8 +38,21 @@ export const ThriftDetail: React.FC = () => {
   };
 
   const handleBuyNow = () =>
-    handleProtected(`mua ngay "${product.title}"`, `/thrift/checkout?productId=${product.id}`,
-      () => navigate(`/thrift/checkout?productId=${product.id}`));
+    handleProtected(`mua ngay "${product.title}"`, '/cart',
+      () => {
+        addToCart({
+          id: product.id,
+          title: product.title,
+          price: product.price,
+          image: product.mainImage,
+          mode: 'thrift',
+          location: product.location,
+          categoryLabel: product.categoryLabel,
+          gradeBadge: product.conditionLabel,
+          quantity: 1,
+        });
+        navigate('/cart');
+      });
 
   const handleAddToCart = () => {
     addToCart({
@@ -49,6 +62,9 @@ export const ThriftDetail: React.FC = () => {
       image: product.mainImage,
       mode: 'thrift',
       location: product.location,
+      categoryLabel: product.categoryLabel,
+      gradeBadge: product.conditionLabel,
+      quantity: 1,
     });
   };
 
