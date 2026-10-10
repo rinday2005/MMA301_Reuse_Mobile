@@ -86,14 +86,38 @@ export const CategoryDetail: React.FC = () => {
   };
 
   const handleRentNow = (product: CategoryDetailProduct) => {
-    handleProtectedAction(`thuê thiết bị "${product.title}"`, product.href, () => {
-      navigate(product.href);
+    handleProtectedAction(`thuê thiết bị "${product.title}"`, '/cart', () => {
+      addToCart({
+        id: product.id,
+        title: product.title,
+        price: product.price,
+        image: product.image,
+        mode: 'rent',
+        deposit: product.deposit,
+        location: product.locationBadge,
+        gradeBadge: product.gradeBadge,
+        categoryLabel: category.title,
+        quantity: 1,
+      });
+      navigate('/cart');
     });
   };
 
   const handleBuyNow = (product: CategoryDetailProduct) => {
-    handleProtectedAction(`mua sản phẩm "${product.title}"`, product.href, () => {
-      navigate(product.href);
+    handleProtectedAction(`mua sản phẩm "${product.title}"`, '/cart', () => {
+      addToCart({
+        id: product.id,
+        title: product.title,
+        price: product.price,
+        image: product.image,
+        mode: 'thrift',
+        deposit: product.deposit,
+        location: product.locationBadge,
+        gradeBadge: product.gradeBadge,
+        categoryLabel: category.title,
+        quantity: 1,
+      });
+      navigate('/cart');
     });
   };
 
@@ -106,6 +130,9 @@ export const CategoryDetail: React.FC = () => {
       mode: product.mode,
       deposit: product.deposit,
       location: product.locationBadge,
+      gradeBadge: product.gradeBadge,
+      categoryLabel: category.title,
+      quantity: 1,
     });
   };
 

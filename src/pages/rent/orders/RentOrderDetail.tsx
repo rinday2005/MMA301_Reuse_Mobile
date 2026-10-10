@@ -94,7 +94,21 @@ export const RentOrderDetail: React.FC = () => {
 
   const handleRentNow = () => {
     handleProtectedAction('thuê thiết bị này', () => {
-      navigate(`/cart?checkout=rent&productId=${product.id}&days=${days}&qty=${quantity}`);
+      addToCart({
+        id: product.id,
+        title: product.title,
+        price: product.pricePerDay,
+        image: product.images[0]?.src || '',
+        mode: 'rent',
+        location: product.location,
+        quantity,
+        deposit: product.deposit,
+        rentalDays: days,
+        startDate: startDate,
+        endDate: endDate,
+        gradeBadge: product.grade,
+      });
+      navigate('/cart');
     });
   };
 
@@ -107,6 +121,11 @@ export const RentOrderDetail: React.FC = () => {
       mode: 'rent',
       location: product.location,
       quantity,
+      deposit: product.deposit,
+      rentalDays: days,
+      startDate: startDate,
+      endDate: endDate,
+      gradeBadge: product.grade,
     });
   };
 

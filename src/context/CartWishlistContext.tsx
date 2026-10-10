@@ -9,6 +9,15 @@ export interface CartItem {
   mode?: 'rent' | 'thrift';
   deposit?: number | string;
   location?: string;
+  categoryLabel?: string;
+  gradeBadge?: string;
+  rentalDays?: number;
+  startDate?: string;
+  endDate?: string;
+  sourceOrigin?: string;
+  sizeOrSpec?: string;
+  material?: string;
+  warranty?: string;
 }
 
 interface CartWishlistContextType {
@@ -23,7 +32,10 @@ interface CartWishlistContextType {
   cartCount: number;
   addToCart: (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => void;
   removeFromCart: (id: string) => void;
+  removeMultipleFromCart: (ids: string[]) => void;
   updateCartQuantity: (id: string, delta: number) => void;
+  updateCartItem: (id: string, updates: Partial<CartItem>) => void;
+  setCartItems: (items: CartItem[]) => void;
   clearCart: () => void;
 }
 
@@ -122,6 +134,10 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setCart((prev) => prev.filter((c) => c.id !== id));
   };
 
+  const removeMultipleFromCart = (ids: string[]) => {
+    setCart((prev) => prev.filter((c) => !ids.includes(c.id)));
+  };
+
   const updateCartQuantity = (id: string, delta: number) => {
     setCart((prev) =>
       prev
@@ -134,6 +150,16 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
         })
         .filter((c): c is CartItem => c !== null)
     );
+  };
+
+  const updateCartItem = (id: string, updates: Partial<CartItem>) => {
+    setCart((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
+    );
+  };
+
+  const setCartItems = (items: CartItem[]) => {
+    setCart(items);
   };
 
   const clearCart = () => {
@@ -157,7 +183,10 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
       cartCount,
       addToCart,
       removeFromCart,
+      removeMultipleFromCart,
       updateCartQuantity,
+      updateCartItem,
+      setCartItems,
       clearCart,
     }),
     [wishlist, wishlistCount, isWishlisted, cart, cartCount]

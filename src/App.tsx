@@ -16,6 +16,7 @@ import ThriftDetail from "./pages/thrift/detail/ThriftDetail";
 import CategoriesMarketplace from "./pages/categories/marketplace/CategoriesMarketplace";
 import CategoryDetail from "./pages/categories/detail/CategoryDetail";
 import UserDashboard from "./pages/home/User/UserDashboard";
+import Cart from "./pages/cart/Cart";
 
 import PublicRoutes from "./routes/PublicRoutes";
 import ProtectedRoutes from "./routes/ProtectedRoutes";
@@ -59,12 +60,6 @@ const SavedItemsPage = () => (
 const NotificationsPage = () => (
   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
     <h1 className="text-2xl font-bold text-gray-800">Thông Báo Của Tôi</h1>
-  </div>
-);
-
-const CartPage = () => (
-  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-    <h1 className="text-2xl font-bold text-gray-800">Giỏ Hàng (Cart)</h1>
   </div>
 );
 
@@ -129,7 +124,7 @@ const App = () => {
           <Route path="/saved-items" element={<SavedItemsPage />} />
           <Route path="/wishlist" element={<SavedItemsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/cart" element={<CartPage />} />
+          <Route path="/cart" element={<Cart />} />
           <Route path="/account-settings" element={<AccountSettingsPage />} />
           <Route path="/my-orders" element={<MyOrdersPage />} />
 
