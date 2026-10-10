@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -60,26 +62,44 @@
   --spacing-space-xs: 0.25rem;
 
   --font-sans: "Plus Jakarta Sans", "Manrope", system-ui, -apple-system, sans-serif;
-  --font-serif: "Plus Jakarta Sans", "Manrope", sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
   --font-manrope: "Manrope", sans-serif;
-  --font-playfair: "Plus Jakarta Sans", "Manrope", sans-serif;
+  --font-playfair: "Playfair Display", Georgia, serif;
   --font-body-md: "Plus Jakarta Sans", "Manrope", sans-serif;
-  --font-headline-sm: "Plus Jakarta Sans", "Manrope", sans-serif;
+  --font-headline-sm: "Playfair Display", Georgia, serif;
   --font-label-sm: "Plus Jakarta Sans", "Manrope", sans-serif;
-  --font-title-lg: "Plus Jakarta Sans", "Manrope", sans-serif;
-  --font-headline-md: "Plus Jakarta Sans", "Manrope", sans-serif;
-  --font-headline-lg: "Plus Jakarta Sans", "Manrope", sans-serif;
-  --font-headline-lg-mobile: "Plus Jakarta Sans", "Manrope", sans-serif;
+  --font-title-lg: "Playfair Display", Georgia, serif;
+  --font-headline-md: "Playfair Display", Georgia, serif;
+  --font-headline-lg: "Playfair Display", Georgia, serif;
+  --font-headline-lg-mobile: "Playfair Display", Georgia, serif;
   --font-body-sm: "Plus Jakarta Sans", "Manrope", sans-serif;
   --font-label-md: "Plus Jakarta Sans", "Manrope", sans-serif;
-  --font-title-md: "Plus Jakarta Sans", "Manrope", sans-serif;
+  --font-title-md: "Playfair Display", Georgia, serif;
   --font-body-lg: "Plus Jakarta Sans", "Manrope", sans-serif;
-  --font-display-lg-mobile: "Plus Jakarta Sans", "Manrope", sans-serif;
-  --font-display-lg: "Plus Jakarta Sans", "Manrope", sans-serif;
+  --font-display-lg-mobile: "Playfair Display", Georgia, serif;
+  --font-display-lg: "Playfair Display", Georgia, serif;
 }
 
 body {
   font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4, .font-serif {
+  font-family: var(--font-serif);
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined' !important;
+  font-weight: normal;
+  font-style: normal;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
 }
 
 

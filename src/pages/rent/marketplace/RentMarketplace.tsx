@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
+import { useCartWishlist } from '../../../context/CartWishlistContext';
 import {
   RENT_PRODUCTS,
   RENT_SORT_OPTIONS,
@@ -16,10 +17,12 @@ const ProductCard: React.FC<{
 }> = ({ product, onRequireAuth }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { isWishlisted, toggleWishlist, addToCart } = useCartWishlist();
   const {
-    title, categoryLabel, price, rating, reviewCount,
+    id, title, categoryLabel, price, rating, reviewCount,
     conditionLabel, location, deposit, available, href, image,
   } = product;
+  const isSaved = isWishlisted(id);
 
   const handleRentClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -32,24 +35,55 @@ const ProductCard: React.FC<{
 
   const handleCartClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!user) {
-      onRequireAuth(`thêm "${title}" vào giỏ hàng`, href);
-      return;
-    }
-    navigate(`${href}?action=cart`);
+    addToCart({
+      id,
+      title,
+      price,
+      image,
+      mode: 'rent',
+      location,
+    });
   };
 
   return (
     <article
       className={`group flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 ${!available ? 'opacity-90' : ''}`}
     >
-      <Link to={href} className="relative aspect-[4/3] w-full overflow-hidden bg-[#F4F0EA] block">
-        <img
-          src={image}
-          alt={title}
-          className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${!available ? 'grayscale-[30%]' : ''}`}
-        />
-        <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#F4F0EA]">
+        {/* Wishlist Button */}
+        <button
+          type="button"
+          onClick={() => toggleWishlist(id)}
+          className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center shadow-xs transition-transform active:scale-90 cursor-pointer ${
+            isSaved
+              ? 'bg-[#1C1A18] text-rose-400'
+              : 'bg-white/90 hover:bg-white text-[#1C1A18]'
+          }`}
+          title={isSaved ? 'Đã lưu yêu thích' : 'Lưu yêu thích'}
+        >
+          <svg
+            className="w-4 h-4"
+            fill={isSaved ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="1.8"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+
+        <Link to={href} className="block w-full h-full">
+          <img
+            src={image}
+            alt={title}
+            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${!available ? 'grayscale-[30%]' : ''}`}
+          />
+        </Link>
+        <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 pointer-events-none">
           <span className="px-2.5 py-1 text-[10px] font-semibold tracking-wide rounded-full bg-white/90 backdrop-blur-md text-[#1C1A18] shadow-sm">
             {conditionLabel}
           </span>
@@ -59,7 +93,7 @@ const ProductCard: React.FC<{
             {available ? 'Có thể thuê' : 'Không khả dụng'}
           </span>
         </div>
-      </Link>
+      </div>
 
       <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
         <div className="space-y-1.5">
@@ -70,12 +104,14 @@ const ProductCard: React.FC<{
               {location}
             </span>
           </div>
-          <Link
-            to={href}
-            className="block text-base font-bold text-[#1C1A18] hover:opacity-80 transition-opacity line-clamp-1"
-          >
-            {title}
-          </Link>
+          <h2 className="font-serif text-base font-bold text-[#1C1A18] group-hover:text-amber-800 transition-colors line-clamp-1">
+            <Link
+              to={href}
+              className="block"
+            >
+              {title}
+            </Link>
+          </h2>
           <div className="flex items-center gap-1.5 text-xs text-[#1C1A18] pt-0.5">
             <span
               className="material-symbols-outlined text-[15px] text-amber-600"
@@ -92,9 +128,9 @@ const ProductCard: React.FC<{
           <div className="flex items-baseline justify-between">
             <div>
               <span className="text-[10px] uppercase font-bold text-[#78736A]">Giá thuê</span>
-              <p className="text-sm font-bold text-[#1C1A18]">
+              <p className="font-serif text-base font-bold text-[#1C1A18]">
                 {price.toLocaleString('vi-VN')}đ
-                <span className="text-xs font-normal text-[#5E5A53]"> / ngày</span>
+                <span className="text-xs font-sans font-normal text-[#5E5A53]"> / ngày</span>
               </p>
             </div>
             <div className="text-right">
@@ -150,6 +186,9 @@ const ProductCard: React.FC<{
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 const RentMarketplace: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const urlCategory = searchParams.get('category');
+
   const [authModal, setAuthModal] = useState<{ open: boolean; action: string; targetHref: string }>({
     open: false,
     action: '',
@@ -157,7 +196,8 @@ const RentMarketplace: React.FC = () => {
   });
 
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('all');
+  const [userCategory, setUserCategory] = useState<string | null>(null);
+  const category = userCategory ?? (urlCategory || 'all');
   const [priceRange, setPriceRange] = useState('all');
   const [condition, setCondition] = useState('all');
   const [location, setLocation] = useState('all');
@@ -191,7 +231,7 @@ const RentMarketplace: React.FC = () => {
 
   const resetAll = () => {
     setQuery('');
-    setCategory('all');
+    setUserCategory('all');
     setPriceRange('all');
     setCondition('all');
     setLocation('all');
@@ -275,7 +315,7 @@ const RentMarketplace: React.FC = () => {
                 ĐÃ THẨM ĐỊNH
               </span>
             </div>
-            <h1 className="text-3xl sm:text-4xl text-[#1C1A18] font-bold tracking-tight mb-2">
+            <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl text-[#1C1A18] font-bold tracking-tight mb-2">
               Thuê thay vì sở hữu
             </h1>
             <p className="text-xs sm:text-sm text-[#79716B] max-w-xl leading-relaxed">
@@ -287,12 +327,12 @@ const RentMarketplace: React.FC = () => {
           <div className="flex items-center gap-4 bg-[#F4F0EA]/60 px-5 py-3.5 rounded-xl self-start md:self-auto shadow-sm">
             <div className="flex flex-col">
               <span className="text-[10px] font-mono uppercase tracking-wider text-[#78736A]">Kho đồ trực tuyến</span>
-              <span className="text-xl font-bold text-[#1C1A18]">148 thiết bị</span>
+              <span className="font-serif text-2xl font-bold text-[#1C1A18]">148 thiết bị</span>
             </div>
             <div className="h-8 w-px bg-[#E7E2DA]" />
             <div className="flex flex-col">
               <span className="text-[10px] font-mono uppercase tracking-wider text-[#78736A]">Tỷ lệ hoàn cọc</span>
-              <span className="text-xl font-bold text-[#1C1A18]">100%</span>
+              <span className="font-serif text-2xl font-bold text-[#1C1A18]">100%</span>
             </div>
           </div>
         </div>
@@ -337,7 +377,7 @@ const RentMarketplace: React.FC = () => {
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Danh mục</label>
               <div className="relative">
-                <select value={category} onChange={(e) => setCategory(e.target.value)} className={sel}>
+                <select value={category} onChange={(e) => setUserCategory(e.target.value)} className={sel}>
                   <option value="all">Tất cả danh mục</option>
                   <option value="Camera">Camera &amp; Ống kính</option>
                   <option value="Fashion">Thời trang &amp; Dạ hội</option>
@@ -493,7 +533,7 @@ const RentMarketplace: React.FC = () => {
               <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#78736A] font-bold">
                 QUY TRÌNH THUÊ BẢO ĐẢM
               </span>
-              <h2 className="text-2xl font-bold text-[#1C1A18] mt-1">
+              <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#1C1A18] mt-1">
                 Đơn giản, minh bạch và hoàn toàn an tâm
               </h2>
             </div>
@@ -507,7 +547,7 @@ const RentMarketplace: React.FC = () => {
             {RENT_HOW_IT_WORKS_STEPS.map((item) => (
               <div key={item.step} className="p-5 bg-white rounded-2xl shadow-sm space-y-3">
                 <span className="text-xs font-mono font-bold text-[#78736A]">{item.step}</span>
-                <h3 className="font-bold text-[#1C1A18] text-sm">{item.title}</h3>
+                <h3 className="font-serif font-bold text-[#1C1A18] text-base">{item.title}</h3>
                 <p className="text-xs text-[#5E5A53] leading-relaxed">{item.desc}</p>
               </div>
             ))}

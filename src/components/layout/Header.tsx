@@ -14,6 +14,7 @@ import {
     LayoutDashboard,
     Store
 } from 'lucide-react';
+import { useCartWishlist } from '../../context/CartWishlistContext';
 
 export type UserRole = 'GUEST' | 'USER' | 'SHOP' | 'ADMIN';
 
@@ -27,11 +28,15 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
     userRole = 'GUEST',
-    wishlistCount = 0,
+    wishlistCount,
     notificationCount = 2,
-    cartCount = 0,
+    cartCount,
     onLogout
 }) => {
+    const { wishlistCount: ctxWishlistCount, cartCount: ctxCartCount } = useCartWishlist();
+    const effectiveWishlistCount = wishlistCount !== undefined ? wishlistCount : ctxWishlistCount;
+    const effectiveCartCount = cartCount !== undefined ? cartCount : ctxCartCount;
+
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -129,34 +134,51 @@ export const Header: React.FC<HeaderProps> = ({
                             />
                         </div>
 
-                        {/* User Logged In Icons */}
-                        {userRole !== 'GUEST' && (
-                            <>
-                                {/* Wishlist Icon */}
-                                <Link aria-label="Wishlist" className="relative p-1 text-gray-600 hover:text-black transition-colors" to="/saved-items">
-                                    <Heart className="w-5 h-5" />
-                                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gray-200 border border-gray-300 text-[10px] leading-tight flex items-center justify-center text-gray-800 font-semibold">
-                                        {wishlistCount}
-                                    </span>
-                                </Link>
+                        {/* Action Icons: Wishlist, Notification (if logged in), Cart */}
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                            {/* Wishlist Icon */}
+                            <Link
+                                aria-label="Wishlist"
+                                className="relative p-2 text-stone-700 hover:text-black hover:bg-stone-100 rounded-full transition-colors"
+                                to="/saved-items"
+                                title="Danh sách yêu thích"
+                            >
+                                <Heart className="w-5 h-5" />
+                                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-[#1C1A18] text-white text-[9px] font-bold leading-tight flex items-center justify-center shadow-xs">
+                                    {effectiveWishlistCount}
+                                </span>
+                            </Link>
 
-                                {/* Notifications Icon (Cập nhật từ <button> sang <Link>) */}
-                                <Link aria-label="Notifications" className="relative p-1 text-gray-600 hover:text-black transition-colors" to="/notifications">
+                            {/* Notifications Icon (hiện khi đã login) */}
+                            {userRole !== 'GUEST' && (
+                                <Link
+                                    aria-label="Notifications"
+                                    className="relative p-2 text-stone-700 hover:text-black hover:bg-stone-100 rounded-full transition-colors"
+                                    to="/notifications"
+                                    title="Thông báo"
+                                >
                                     <Bell className="w-5 h-5" />
-                                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black text-white text-[10px] leading-tight flex items-center justify-center font-semibold">
+                                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-black text-white text-[9px] font-bold leading-tight flex items-center justify-center shadow-xs">
                                         {notificationCount}
                                     </span>
                                 </Link>
+                            )}
 
-                                {/* Shopping Bag Icon */}
-                                <Link aria-label="Shopping Bag" className="relative p-1 text-gray-600 hover:text-black transition-colors" to="/cart">
-                                    <ShoppingBag className="w-5 h-5" />
-                                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gray-200 border border-gray-300 text-[10px] leading-tight flex items-center justify-center text-gray-800 font-semibold">
-                                        {cartCount}
-                                    </span>
-                                </Link>
-                            </>
-                        )}
+                            {/* Shopping Bag Icon */}
+                            <Link
+                                aria-label="Shopping Bag"
+                                className="relative p-2 text-stone-700 hover:text-black hover:bg-stone-100 rounded-full transition-colors"
+                                to="/cart"
+                                title="Giỏ hàng"
+                            >
+                                <ShoppingBag className="w-5 h-5" />
+                                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-[#1C1A18] text-white text-[9px] font-bold leading-tight flex items-center justify-center shadow-xs">
+                                    {effectiveCartCount}
+                                </span>
+                            </Link>
+                        </div>
+
+                        <div className="h-4 w-[1px] bg-stone-300 hidden sm:block" />
 
                         {/* Member Profile Avatar Dropdown HOẶC Nút Login cho GUEST */}
                         {userRole === 'GUEST' ? (
@@ -169,7 +191,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 </Link>
                                 <Link
                                     to="/register"
-                                    className="text-xs font-semibold uppercase tracking-wider bg-black text-white px-3 py-2 rounded-sm hover:bg-gray-800 transition-colors"
+                                    className="text-xs font-semibold uppercase tracking-wider bg-black text-white px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors"
                                 >
                                     Đăng ký
                                 </Link>
@@ -272,6 +294,17 @@ export const Header: React.FC<HeaderProps> = ({
                         <Link to="/rent" onClick={() => setIsMobileMenuOpen(false)} className="text-xs uppercase font-bold text-gray-700 hover:text-black py-1">RENT</Link>
                         <Link to="/thrift" onClick={() => setIsMobileMenuOpen(false)} className="text-xs uppercase font-bold text-black py-1">THRIFT</Link>
                         <Link to="/categories" onClick={() => setIsMobileMenuOpen(false)} className="text-xs uppercase font-bold text-gray-700 hover:text-black py-1">CATEGORIES</Link>
+
+                        <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-700 py-1">
+                            <Link to="/saved-items" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-1.5 hover:text-black font-medium">
+                                <Heart className="w-4 h-4" />
+                                <span>Yêu thích ({effectiveWishlistCount})</span>
+                            </Link>
+                            <Link to="/cart" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-1.5 hover:text-black font-medium">
+                                <ShoppingBag className="w-4 h-4" />
+                                <span>Giỏ hàng ({effectiveCartCount})</span>
+                            </Link>
+                        </div>
 
                         {userRole !== 'GUEST' ? (
                             <div className="pt-2 border-t border-gray-100 flex flex-col space-y-2">

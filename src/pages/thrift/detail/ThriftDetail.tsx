@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
+import { useCartWishlist } from '../../../context/CartWishlistContext';
 import {
   getThriftProductDetail,
   THRIFT_RELATED_PRODUCTS,
@@ -13,6 +14,7 @@ export const ThriftDetail: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isWishlisted, toggleWishlist, addToCart } = useCartWishlist();
 
   const product: ThriftProductDetail = useMemo(() => getThriftProductDetail(id), [id]);
 
@@ -21,8 +23,7 @@ export const ThriftDetail: React.FC = () => {
   const setActiveThumb = (index: number) => setThumbState({ id, index });
 
   const [activeTab, setActiveTab] = useState<InfoTab>('desc');
-  const [isWishlist, setIsWishlist] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const isWishlist = isWishlisted(product.id);
   const [authModal, setAuthModal] = useState<{ open: boolean; actionName: string; targetUrl: string }>({
     open: false, actionName: '', targetUrl: '',
   });
@@ -30,11 +31,6 @@ export const ThriftDetail: React.FC = () => {
   useEffect(() => { window.scrollTo(0, 0); }, [id]);
 
   const formatVND = (amount: number) => new Intl.NumberFormat('vi-VN').format(amount) + '₫';
-
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
 
   const handleProtected = (actionName: string, targetUrl: string, onSuccess: () => void) => {
     if (!user) { setAuthModal({ open: true, actionName, targetUrl }); return; }
@@ -45,22 +41,24 @@ export const ThriftDetail: React.FC = () => {
     handleProtected(`mua ngay "${product.title}"`, `/thrift/checkout?productId=${product.id}`,
       () => navigate(`/thrift/checkout?productId=${product.id}`));
 
-  const handleAddToCart = () =>
-    handleProtected(`thêm "${product.title}" vào giỏ hàng`, `/cart`,
-      () => triggerToast(`✓ Đã thêm "${product.title}" vào giỏ hàng!`));
-
-  const handleWishlist = () =>
-    handleProtected(`lưu "${product.title}" vào yêu thích`, `/thrift/${product.slug}`, () => {
-      setIsWishlist((prev) => {
-        const next = !prev;
-        triggerToast(next ? `♥ Đã lưu "${product.title}" vào yêu thích!` : `Đã bỏ lưu "${product.title}".`);
-        return next;
-      });
+  const handleAddToCart = () => {
+    addToCart({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      image: product.mainImage,
+      mode: 'thrift',
+      location: product.location,
     });
+  };
+
+  const handleWishlist = () => {
+    toggleWishlist(product.id);
+  };
 
   const handleChat = () =>
     handleProtected(`chat với Shop Owner về "${product.title}"`, `/thrift/${product.slug}`,
-      () => triggerToast(`💬 Đang kết nối với ${product.verifiedBy}...`));
+      () => { /* chat action */ });
 
   const closeAuthModal = () => setAuthModal({ open: false, actionName: '', targetUrl: '' });
 
@@ -75,15 +73,6 @@ export const ThriftDetail: React.FC = () => {
 
   return (
     <div className="w-full min-h-screen bg-[#FBF9F5] text-[#1C1A18] antialiased">
-      {/* ── Toast ── */}
-      {toastMessage && (
-        <div className="fixed top-24 right-6 z-50 flex items-center gap-2.5 bg-[#1C1A18] text-white px-5 py-3 rounded-xl shadow-xl animate-fade-in text-xs font-medium max-w-xs">
-          <span>{toastMessage}</span>
-          <button type="button" onClick={() => setToastMessage(null)} className="ml-2 text-white/60 hover:text-white cursor-pointer">
-            <span className="material-symbols-outlined text-[14px]">close</span>
-          </button>
-        </div>
-      )}
 
       {/* ── Auth Modal ── */}
       {authModal.open && (
