@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { mockRentProducts } from '../../data/shop/rentProductsData';
-import { mockInventoryUnits } from '../../data/shop/inventoryData';
 
 export const RentProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,9 +21,6 @@ export const RentProductDetail: React.FC = () => {
   const [selectedAngleIndex, setSelectedAngleIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-
-  // Lấy các thân máy cụ thể của sản phẩm này từ inventory data
-  const units = mockInventoryUnits.filter((u) => u.sku === product.sku || u.sku === 'HBL-907X-50C');
 
   const handlePauseToggle = () => {
     const confirmed = window.confirm(

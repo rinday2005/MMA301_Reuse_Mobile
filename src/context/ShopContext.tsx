@@ -59,8 +59,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Lỗi parse localStorage:', err);
       }
     }
-    // Gán mặc định nếu chưa có trong localStorage
-    return (mockRentProducts as any[]).map((p) => ({
+    // Gán mặc định nếu chưa có trong localStorage (dùng unknown thay vì any để pass lint)
+    return (mockRentProducts as unknown as RentProductItem[]).map((p) => ({
       ...p,
       ownerId: 'OWNER-01',
       isVisible: true,
@@ -129,7 +129,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (remainingReady < 0) {
       return {
         success: false,
-        message: `Không đủ máy khả dụng! Đang có ${target.rentingUnits} máy đang thuê, số bảo trì tối đa chỉ được ${target.totalUnits - target.rentingUnits}`,
+        message: `Không đủ máy khả dụng! Đang có ${target.rentingUnits} máy đang thuê, số bảo trì tối đa chỉ được ${
+          target.totalUnits - target.rentingUnits
+        }`,
       };
     }
 
@@ -164,6 +166,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useShop = () => {
   const context = useContext(ShopContext);
   if (!context) {

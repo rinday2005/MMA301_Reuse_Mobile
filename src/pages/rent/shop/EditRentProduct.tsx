@@ -29,7 +29,16 @@ export const EditRentProduct: React.FC = () => {
   const [handoverBatteryCheck, setHandoverBatteryCheck] = useState<boolean>(true);
   const [damagePolicy, setDamagePolicy] = useState<string>('');
   const [listingStatus, setListingStatus] = useState<'active' | 'hidden' | 'draft'>('active');
-
+/* eslint-disable react-hooks/set-state-in-effect */
+useEffect(() => {
+  if (currentProduct) {
+    setProdName(currentProduct.name || '');
+    setCategory(currentProduct.category || 'Máy ảnh Medium Format Digital');
+    setBrand(currentProduct.brand || '');
+    // Nếu có setMountSensor, truyền đúng giá trị hoặc xóa nếu không dùng:
+    // setMountSensor(currentProduct.mountSensor || '');
+  }
+}, [currentProduct]);
   // Đổ dữ liệu của sản phẩm vào form khi mở trang
   useEffect(() => {
     if (currentProduct) {

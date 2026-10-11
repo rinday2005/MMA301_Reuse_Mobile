@@ -52,7 +52,6 @@ export const CreateRentProduct: React.FC = () => {
 
   // Watch các trường để live preview
   const watchedName = watch('name');
-  const watchedCategory = watch('category');
   const watchedPrice = watch('pricePerDay');
   const watchedDeposit = watch('deposit');
   const watchedUnits = watch('totalUnits');
