@@ -27,7 +27,7 @@ export const MyRentOrders: React.FC = () => {
   const paymentTxnNo = queryParams.get('transactionNo') || queryParams.get('vnp_TransactionNo');
 
   // Dynamic user profile details
-  const [profileData, setProfileData] = useState(() => {
+  const [profileData] = useState<{ fullName?: string; email?: string; avatarUrl?: string }>(() => {
     try {
       const raw = localStorage.getItem('user_profile_data');
       return raw ? JSON.parse(raw) : {};
@@ -35,15 +35,6 @@ export const MyRentOrders: React.FC = () => {
       return {};
     }
   });
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('user_profile_data');
-      if (raw) setProfileData(JSON.parse(raw));
-    } catch {
-      // ignore
-    }
-  }, []);
 
   const displayName = profileData.fullName || user?.fullName || 'Elena Rostova';
   const displayEmail = profileData.email || user?.email || 'elena.rostova@circular.vn';
