@@ -83,12 +83,6 @@ export const UserDashboard: React.FC = () => {
 
   return (
     <div className="w-full min-h-screen bg-[#FBF9F5] text-[#1C1A18] antialiased">
-      {/* ── TOP BANNER (Circular Escrow Commitment) ── */}
-      <div className="bg-[#1C1A18] text-[#EBE6DD] text-[11px] sm:text-xs font-medium tracking-wide py-1.5 px-4 text-center border-b border-[#36322D]">
-        <span>
-          THUÊ NHỮNG GÌ BẠN CẦN · TÁI SỬ DỤNG NHỮNG GÌ ĐÃ CÓ · BẢO HIỂM HÀNG HÓA MINH BẠCH 100% VỚI SMART ESCROW
-        </span>
-      </div>
 
       {/* ── MAIN APP CONTAINER (Sidebar + Dashboard Content) ── */}
       <div className="max-w-[1520px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 flex gap-8">
