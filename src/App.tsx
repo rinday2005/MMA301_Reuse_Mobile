@@ -18,9 +18,11 @@ import ContactPage from "./pages/home/Contact";
 
 import RentMarketplace from "./pages/rent/marketplace/RentMarketplace";
 import RentOrderDetail from "./pages/rent/orders/RentOrderDetail";
+import RentCheckout from "./pages/rent/checkout/RentCheckout";
 
 import ThriftMarketplace from "./pages/thrift/marketplace/ThriftMarketplace";
 import ThriftDetail from "./pages/thrift/detail/ThriftDetail";
+import ThriftCheckout from "./pages/thrift/checkout/ThriftCheckout";
 
 import CategoriesMarketplace from "./pages/categories/marketplace/CategoriesMarketplace";
 import CategoryDetail from "./pages/categories/detail/CategoryDetail";
@@ -180,6 +182,16 @@ const App = () => {
           />
 
           <Route
+            path="/rent/checkout"
+            element={<RentCheckout />}
+          />
+
+          <Route
+            path="/rent/checkout/:id"
+            element={<RentCheckout />}
+          />
+
+          <Route
             path="/thrift"
             element={<ThriftMarketplace />}
           />
@@ -197,6 +209,16 @@ const App = () => {
           <Route
             path="/thrift/products/:id"
             element={<ThriftDetail />}
+          />
+
+          <Route
+            path="/thrift/checkout"
+            element={<ThriftCheckout />}
+          />
+
+          <Route
+            path="/thrift/checkout/:id"
+            element={<ThriftCheckout />}
           />
 
           <Route
