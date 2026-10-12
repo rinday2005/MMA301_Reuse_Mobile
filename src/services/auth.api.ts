@@ -10,6 +10,8 @@ export interface User {
   email: string;
   fullName: string;
   role: "USER" | "SHOP_OWNER" | "ADMIN";
+  avatar?: string;
+  avatarUrl?: string;
 }
 
 export interface LoginResponse {

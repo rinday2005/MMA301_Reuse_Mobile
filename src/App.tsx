@@ -97,13 +97,6 @@ const NotificationsPage = () => (
   </div>
 );
 
-const AccountSettingsPage = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-    <h1 className="text-2xl font-bold text-gray-800">
-      Hồ Sơ Cá Nhân & Cài Đặt
-    </h1>
-  </div>
-);
 
 const MyOrdersPage = () => (
   <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -298,7 +291,7 @@ const App = () => {
 
             <Route
               path="/account-settings"
-              element={<AccountSettingsPage />}
+              element={<Profile />}
             />
 
             <Route
