@@ -39,8 +39,54 @@ export const Header: React.FC<HeaderProps> = ({
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+    const [headerAvatar, setHeaderAvatar] = useState<string>(() => {
+        try {
+            const p = localStorage.getItem('user_profile_data');
+            if (p) {
+                const parsed = JSON.parse(p);
+                if (parsed.avatarUrl) return parsed.avatarUrl;
+            }
+            const u = localStorage.getItem('user');
+            if (u) {
+                const parsed = JSON.parse(u);
+                if (parsed.avatarUrl || parsed.avatar) return parsed.avatarUrl || parsed.avatar;
+            }
+        } catch {
+            // ignore
+        }
+        return '';
+    });
     const dropdownRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
+
+    // Đồng bộ avatar từ hồ sơ cá nhân
+    useEffect(() => {
+        const handleAvatarSync = (e: Event) => {
+            const customEvent = e as CustomEvent<{ avatarUrl?: string }>;
+            if (customEvent.detail?.avatarUrl !== undefined) {
+                setHeaderAvatar(customEvent.detail.avatarUrl);
+            } else {
+                try {
+                    const p = localStorage.getItem('user_profile_data');
+                    if (p) {
+                        const parsed = JSON.parse(p);
+                        setHeaderAvatar(parsed.avatarUrl || '');
+                    }
+                } catch {
+                    // ignore
+                }
+            }
+        };
+
+        window.addEventListener('profile_updated', handleAvatarSync);
+        window.addEventListener('user_profile_updated', handleAvatarSync);
+        window.addEventListener('storage', handleAvatarSync);
+        return () => {
+            window.removeEventListener('profile_updated', handleAvatarSync);
+            window.removeEventListener('user_profile_updated', handleAvatarSync);
+            window.removeEventListener('storage', handleAvatarSync);
+        };
+    }, []);
 
     // Đóng dropdown khi click ra ngoài
     useEffect(() => {
@@ -201,19 +247,37 @@ export const Header: React.FC<HeaderProps> = ({
                                 <button
                                     aria-label="Member Profile Menu"
                                     onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                                    className="flex items-center focus:outline-none group"
+                                    className="flex items-center focus:outline-none group cursor-pointer"
                                 >
-                                    <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center transition-transform group-hover:scale-105">
-                                        <User className="w-4 h-4 text-white" />
-                                    </div>
+                                    {headerAvatar ? (
+                                        <img
+                                            src={headerAvatar}
+                                            alt="Ảnh hồ sơ"
+                                            className="w-8 h-8 rounded-full object-cover border border-gray-300 transition-transform group-hover:scale-105"
+                                            onError={() => setHeaderAvatar('')}
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center transition-transform group-hover:scale-105">
+                                            <User className="w-4 h-4 text-white" />
+                                        </div>
+                                    )}
                                 </button>
 
                                 {/* Avatar Dropdown Menu */}
                                 {isProfileDropdownOpen && (
                                     <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg py-2 z-50">
-                                        <div className="px-4 py-2 border-b border-gray-100">
-                                            <p className="text-xs font-semibold text-gray-900">Tài khoản của tôi</p>
-                                            <p className="text-[11px] text-gray-500 uppercase font-medium mt-0.5">Role: {userRole}</p>
+                                        <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-2.5">
+                                            {headerAvatar && (
+                                                <img
+                                                    src={headerAvatar}
+                                                    alt="Ảnh đại diện"
+                                                    className="w-8 h-8 rounded-full object-cover border border-gray-200 shrink-0"
+                                                />
+                                            )}
+                                            <div className="overflow-hidden">
+                                                <p className="text-xs font-semibold text-gray-900 truncate">Tài khoản của tôi</p>
+                                                <p className="text-[11px] text-gray-500 uppercase font-medium mt-0.5">Role: {userRole}</p>
+                                            </div>
                                         </div>
 
                                         <Link

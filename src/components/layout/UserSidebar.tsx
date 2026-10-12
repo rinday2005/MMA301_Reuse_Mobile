@@ -7,6 +7,9 @@ export interface UserSidebarProps {
   className?: string;
   activeKey?: string;
   mode?: 'static' | 'drawer';
+  avatarUrl?: string;
+  displayName?: string;
+  displayEmail?: string;
 }
 
 const HEADER_H = 112;
@@ -15,11 +18,90 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   className = '',
   activeKey,
   mode = 'static',
+  avatarUrl: propAvatarUrl,
+  displayName: propDisplayName,
+  displayEmail: propDisplayEmail,
 }) => {
   const { user } = useAuth();
   const { cartCount, wishlistCount } = useCartWishlist();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [avatarImgError, setAvatarImgError] = useState(false);
+
+  // Dynamic Local Avatar State (updated via external events)
+  const [localAvatar, setLocalAvatar] = useState<string>(() => {
+    try {
+      const p = localStorage.getItem('user_profile_data');
+      if (p) {
+        const parsed = JSON.parse(p);
+        if (parsed.avatarUrl) return parsed.avatarUrl;
+      }
+    } catch {
+      // ignore
+    }
+    return user?.avatarUrl || user?.avatar || '';
+  });
+
+  // Dynamic Local Name State (updated via external events)
+  const [localName, setLocalName] = useState<string>(() => {
+    try {
+      const p = localStorage.getItem('user_profile_data');
+      if (p) {
+        const parsed = JSON.parse(p);
+        if (parsed.fullName) return parsed.fullName;
+      }
+    } catch {
+      // ignore
+    }
+    return user?.fullName || 'Khách hàng';
+  });
+
+  // Derived effective values (props take precedence when supplied)
+  const currentAvatar = propAvatarUrl !== undefined ? propAvatarUrl : localAvatar;
+  const currentName = propDisplayName || localName;
+  const effectiveEmail = propDisplayEmail || user?.email || 'customer@circular.vn';
+
+  // Listen to profile updates from Profile.tsx or storage
+  React.useEffect(() => {
+    const handleProfileSync = (e: Event) => {
+      const customEvent = e as CustomEvent<{ avatarUrl?: string; fullName?: string }>;
+      if (customEvent.detail) {
+        if (customEvent.detail.avatarUrl !== undefined) {
+          setLocalAvatar(customEvent.detail.avatarUrl);
+          setAvatarImgError(false);
+        }
+        if (customEvent.detail.fullName) {
+          setLocalName(customEvent.detail.fullName);
+        }
+      } else {
+        try {
+          const p = localStorage.getItem('user_profile_data');
+          if (p) {
+            const parsed = JSON.parse(p);
+            if (parsed.avatarUrl !== undefined) {
+              setLocalAvatar(parsed.avatarUrl);
+              setAvatarImgError(false);
+            }
+            if (parsed.fullName) {
+              setLocalName(parsed.fullName);
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    window.addEventListener('profile_updated', handleProfileSync);
+    window.addEventListener('user_profile_updated', handleProfileSync);
+    window.addEventListener('storage', handleProfileSync);
+
+    return () => {
+      window.removeEventListener('profile_updated', handleProfileSync);
+      window.removeEventListener('user_profile_updated', handleProfileSync);
+      window.removeEventListener('storage', handleProfileSync);
+    };
+  }, []);
 
   const currentPath = location.pathname;
   const isDashboard = currentPath.startsWith('/user/dashboard') || currentPath === '/dashboard';
@@ -35,22 +117,37 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
     }
   };
 
-  const displayName = user?.fullName || 'Khách hàng';
-  const displayEmail = user?.email || 'customer@circular.vn';
+  // Initials computation
+  const initials = React.useMemo(() => {
+    const name = currentName.trim();
+    if (!name) return 'KH';
+    const parts = name.split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  }, [currentName]);
 
   const sidebarContent = (
     <div className="space-y-6">
       {/* User Badge Card */}
       <div className="p-4 rounded-2xl bg-white border border-[#E8E4DC]/80 shadow-2xs">
         <div className="flex items-center gap-3">
-          <img
-            alt={displayName}
-            className="w-11 h-11 rounded-full object-cover border border-[#E8E4DC] shadow-2xs"
-            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
-          />
+          {currentAvatar && !avatarImgError ? (
+            <img
+              alt={currentName}
+              className="w-11 h-11 rounded-full object-cover border border-[#E8E4DC] shadow-2xs shrink-0"
+              src={currentAvatar}
+              onError={() => setAvatarImgError(true)}
+            />
+          ) : (
+            <div className="w-11 h-11 rounded-full bg-[#EFEEEB] border border-[#E8E4DC] shadow-2xs shrink-0 flex items-center justify-center font-serif text-xs sm:text-sm font-bold text-[#141310] select-none">
+              {initials}
+            </div>
+          )}
           <div className="overflow-hidden">
-            <h4 className="text-xs font-bold text-[#1C1A18] truncate">{displayName}</h4>
-            <p className="text-[10px] text-[#76726B] truncate">{displayEmail}</p>
+            <h4 className="text-xs font-bold text-[#1C1A18] truncate">{currentName}</h4>
+            <p className="text-[10px] text-[#76726B] truncate">{effectiveEmail}</p>
             <div className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full bg-[#EEF2EC] text-[#5E6D5B] text-[9px] font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-[#5E6D5B]" />
               <span>Khách hàng uy tín</span>
