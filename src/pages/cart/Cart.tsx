@@ -890,7 +890,13 @@ export const Cart: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        navigate('/rent/checkout');
+                        if (!user) {
+                          navigate('/login', { state: { from: '/rent/checkout' } });
+                          return;
+                        }
+                        navigate('/rent/checkout', {
+                          state: { selectedItemIds: selectedRentItems.map((i) => i.id) },
+                        });
                       }}
                       className="w-full mt-1.5 py-3 px-4 rounded-xl bg-[#141310] text-white hover:bg-[#292724] text-xs font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer"
                     >
@@ -957,7 +963,13 @@ export const Cart: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        navigate('/thrift/checkout');
+                        if (!user) {
+                          navigate('/login', { state: { from: '/thrift/checkout' } });
+                          return;
+                        }
+                        navigate('/thrift/checkout', {
+                          state: { selectedItemIds: selectedThriftItems.map((i) => i.id) },
+                        });
                       }}
                       className="w-full mt-1.5 py-3 px-4 rounded-xl bg-[#31302C] text-white hover:bg-[#141310] text-xs font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer"
                     >
