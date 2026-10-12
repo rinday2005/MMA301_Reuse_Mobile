@@ -7,6 +7,7 @@ import {
   DEFAULT_CHECKOUT_RENT_ITEMS,
   NANUK_SHIPPING_FEE,
 } from '../../data/rent/rentCheckoutData';
+import { redirectToVnPayGateway } from '../../../services/payment.api';
 
 export const RentCheckout: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -218,65 +219,70 @@ export const RentCheckout: React.FC = () => {
   const [agreedTerms, setAgreedTerms] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStep, setSubmitStep] = useState('');
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [createdOrderCode, setCreatedOrderCode] = useState('');
 
-  // Handle Order Placement
-  const handleProcessCheckout = () => {
+  // Handle Order Placement & Direct VNPay Sandbox Redirect
+  const handleProcessCheckout = async () => {
     if (!agreedTerms) {
       alert('Vui lòng đồng ý với Quy ước Lưu giữ Bền vững và Điều khoản Ký quỹ Escrow để tiếp tục.');
       return;
     }
 
     setIsSubmitting(true);
-    setSubmitStep('Khởi tạo Hợp đồng Ký quỹ Smart Escrow...');
+    setSubmitStep('Đang kết nối Cổng thanh toán VNPay Sandbox...');
 
-    setTimeout(() => {
-      setSubmitStep('Khóa lịch giữ chỗ tại kho bảo chứng Nanuk...');
-    }, 1000);
+    // Clear checked rent items from cart
+    rentItems.forEach((ri) => {
+      removeFromCart(ri.id);
+    });
 
-    setTimeout(() => {
-      setSubmitStep('Kết nối Cổng thanh toán VNPay (Mã hóa 256-bit HSM)...');
-    }, 2000);
+    // Save Pending Order Record to localStorage
+    const newOrder = {
+      orderCode: contractId,
+      type: 'RENT',
+      createdAt: new Date().toISOString(),
+      custodyHolder,
+      phone,
+      shippingAddress,
+      startDate,
+      endDate,
+      rentalDays,
+      items: itemizedCalculations,
+      totalRentFee,
+      totalDeposit,
+      shippingFee: NANUK_SHIPPING_FEE,
+      totalPayment: totalDueToday,
+      paymentMethod: 'VNPAY',
+      status: 'PENDING_PAYMENT',
+      nanukSealId: `NNK-SEAL-${Math.floor(100000 + Math.random() * 900000)}`,
+    };
 
-    setTimeout(() => {
-      // Clear checked rent items from cart
-      rentItems.forEach((ri) => {
-        removeFromCart(ri.id);
-      });
+    try {
+      const existingOrders = JSON.parse(localStorage.getItem('user_rental_orders') || '[]');
+      localStorage.setItem('user_rental_orders', JSON.stringify([newOrder, ...existingOrders]));
+    } catch {
+      // ignore
+    }
 
-      // Save Order Record to localStorage
-      const newOrder = {
-        orderCode: contractId,
+    // Direct redirect to VNPay Sandbox via Backend API
+    try {
+      const targetOrderId = id || (location.state as { orderId?: string })?.orderId || '';
+
+      await redirectToVnPayGateway({
+        orderId: targetOrderId,
+        orderCode: contractId.replace('#', ''),
+        amount: totalDueToday,
         type: 'RENT',
-        createdAt: new Date().toISOString(),
-        custodyHolder,
-        phone,
-        shippingAddress,
-        startDate,
-        endDate,
-        rentalDays,
-        items: itemizedCalculations,
-        totalRentFee,
-        totalDeposit,
-        shippingFee: NANUK_SHIPPING_FEE,
-        totalPayment: totalDueToday,
-        paymentMethod: paymentMethod === 'vnpay' ? 'VNPay QR / ATM / Visa' : 'Chuyển khoản Ký quỹ',
-        status: 'CONFIRMED_ESCROW_LOCKED',
-        nanukSealId: `NNK-SEAL-${Math.floor(100000 + Math.random() * 900000)}`,
-      };
-
-      try {
-        const existingOrders = JSON.parse(localStorage.getItem('user_rental_orders') || '[]');
-        localStorage.setItem('user_rental_orders', JSON.stringify([newOrder, ...existingOrders]));
-      } catch {
-        // ignore
-      }
-
-      setCreatedOrderCode(contractId);
+      });
+    } catch (error: unknown) {
+      console.error('Error redirecting to VNPay:', error);
       setIsSubmitting(false);
-      setIsSuccessModalOpen(true);
-    }, 3200);
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      const errMsg =
+        err.response?.data?.message ||
+        err.message ||
+        'Có lỗi khi tạo liên kết thanh toán VNPay. Vui lòng thử lại!';
+      navigate(`/payment-failed?orderCode=${encodeURIComponent(contractId)}&message=${encodeURIComponent(errMsg)}`);
+    }
   };
 
   return (
@@ -1091,71 +1097,6 @@ export const RentCheckout: React.FC = () => {
                 className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#1E1E1E] hover:bg-black shadow-xs"
               >
                 Lưu địa chỉ
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL: CHECKOUT SUCCESS CONFIRMATION ── */}
-      {isSuccessModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 border border-[#E5E0D8] text-center">
-            <div className="w-16 h-16 rounded-full bg-[#E8EFE9] text-[#2D5A43] flex items-center justify-center mx-auto shadow-xs">
-              <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
-              </svg>
-            </div>
-
-            <div className="space-y-1.5">
-              <span className="text-[10px] uppercase tracking-widest font-extrabold text-[#2D5A43] bg-[#E8EFE9] px-2.5 py-1 rounded">
-                GIAO DỊCH THÀNH CÔNG · SMART ESCROW LOCKED
-              </span>
-              <h2 className="font-serif text-2xl font-bold text-[#1E1E1E]">
-                Hợp đồng Đơn thuê đã được xác lập!
-              </h2>
-              <p className="text-xs text-stone-600 max-w-md mx-auto">
-                Mã hợp đồng: <strong className="text-[#1E1E1E] font-mono">{createdOrderCode}</strong>. Thiết bị đang được đóng gói trong thùng Nanuk bọc thép và niêm phong số.
-              </p>
-            </div>
-
-            <div className="p-4 bg-[#F5F2EB]/60 rounded-2xl border border-[#E5E0D8] text-xs text-left space-y-2">
-              <div className="flex justify-between">
-                <span className="text-stone-600">Tổng thanh toán:</span>
-                <span className="font-bold text-[#1E1E1E]">{formatCurrency(totalDueToday)}</span>
-              </div>
-              <div className="flex justify-between text-[#2D5A43]">
-                <span>Tiền cọc Escrow hoàn lại:</span>
-                <span className="font-bold">{formatCurrency(totalDeposit)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-stone-600">Khung kỳ bàn giao:</span>
-                <span className="font-medium text-[#1E1E1E]">
-                  {formatDateDisplay(startDate)} → {formatDateDisplay(endDate)} ({rentalDays} ngày)
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-stone-600">Địa chỉ nhận kiện:</span>
-                <span className="font-medium text-[#1E1E1E] truncate max-w-[220px]">
-                  {shippingAddress}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => navigate('/user/dashboard')}
-                className="flex-1 py-3 px-4 rounded-xl bg-[#F5F2EB] text-[#1E1E1E] hover:bg-[#EFECE6] text-xs font-bold uppercase tracking-wider transition-all"
-              >
-                Về Dashboard
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/rent')}
-                className="flex-1 py-3 px-4 rounded-xl bg-[#1E1E1E] text-white hover:bg-black text-xs font-bold uppercase tracking-wider transition-all shadow-xs"
-              >
-                Khám phá thêm RENT
               </button>
             </div>
           </div>

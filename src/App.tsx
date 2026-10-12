@@ -18,6 +18,7 @@ import ContactPage from "./pages/home/Contact";
 
 import RentMarketplace from "./pages/rent/marketplace/RentMarketplace";
 import RentOrderDetail from "./pages/rent/orders/RentOrderDetail";
+import MyRentOrders from "./pages/rent/orders/MyRentOrders";
 import RentCheckout from "./pages/rent/checkout/RentCheckout";
 
 import ThriftMarketplace from "./pages/thrift/marketplace/ThriftMarketplace";
@@ -30,6 +31,9 @@ import CategoryDetail from "./pages/categories/detail/CategoryDetail";
 import UserDashboard from "./pages/home/User/UserDashboard";
 import Cart from "./pages/cart/Cart";
 import Profile from "./pages/profile/Profile";
+import PaymentReturn from "./pages/payment/PaymentReturn";
+import PaymentSuccess from "./pages/payment/PaymentSuccess";
+import PaymentFailed from "./pages/payment/PaymentFailed";
 
 import PublicRoutes from "./routes/PublicRoutes";
 import ProtectedRoutes from "./routes/ProtectedRoutes";
@@ -173,7 +177,11 @@ const App = () => {
 
           <Route
             path="/rent/orders"
-            element={<RentOrderDetail />}
+            element={<MyRentOrders />}
+          />
+          <Route
+            path="/my-rent-orders"
+            element={<MyRentOrders />}
           />
 
           <Route
@@ -244,6 +252,26 @@ const App = () => {
           <Route
             path="/cart"
             element={<Cart />}
+          />
+
+          <Route
+            path="/payment/vnpay-return"
+            element={<PaymentReturn />}
+          />
+
+          <Route
+            path="/payments/vnpay-return"
+            element={<PaymentReturn />}
+          />
+
+          <Route
+            path="/payment-success"
+            element={<PaymentSuccess />}
+          />
+
+          <Route
+            path="/payment-failed"
+            element={<PaymentFailed />}
           />
 
           <Route
