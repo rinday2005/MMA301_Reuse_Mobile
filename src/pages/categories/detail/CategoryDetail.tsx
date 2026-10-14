@@ -574,12 +574,14 @@ export const CategoryDetail: React.FC = () => {
                     <div>
                       {/* Media container */}
                       <div className="relative aspect-[4/3] bg-[#EFEBE4] overflow-hidden">
-                        <img
-                          src={product.image}
-                          alt={product.alt}
-                          loading="lazy"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
+                        <Link to={product.href} className="block w-full h-full">
+                          <img
+                            src={product.image}
+                            alt={product.alt}
+                            loading="lazy"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        </Link>
                         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
                           {product.sourceLabel ? (
                             <span className="px-2 py-1 bg-stone-900 text-white text-[10px] font-semibold rounded-md backdrop-blur-sm">

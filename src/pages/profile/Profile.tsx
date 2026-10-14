@@ -6,21 +6,53 @@ import { UserSidebar } from '../../components/layout/UserSidebar';
 import AddressSelector, { type AddressValue } from '../../components/form/AddressSelector';
 import { uploadAvatarApi } from '../../services/user.api';
 
+interface SavedProfileData {
+  fullName?: string;
+  phone?: string;
+  avatarUrl?: string;
+  deliveryNote?: string;
+  address?: AddressValue;
+}
+
 export const Profile: React.FC = () => {
+  const auth = useContext(AuthContext);
+  const currentUserId = auth?.user?._id || auth?.user?.id || 'guest';
+
+  // Remounting ProfileContent with key={currentUserId} ensures a clean state
+  // whenever a different user logs in or logs out, avoiding stale profile caches.
+  return <ProfileContent key={currentUserId} />;
+};
+
+const ProfileContent: React.FC = () => {
   const auth = useContext(AuthContext);
   const navigate = useNavigate();
   const { cart, cartCount, wishlist, wishlistCount } = useCartWishlist();
 
-  // ── Saved Profile Data (Persisted to localStorage) ──
-  const [address, setAddress] = useState<AddressValue>(() => {
+  const currentUserId = auth?.user?._id || auth?.user?.id || '';
+  const profileStorageKey = currentUserId ? `user_profile_${currentUserId}` : '';
+
+  // Helper to load profile data scoped strictly to the currently logged in user
+  const initialSaved = useMemo<SavedProfileData | null>(() => {
+    if (!profileStorageKey) return null;
     try {
-      const saved = localStorage.getItem('user_profile_data');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.address) return parsed.address;
-      }
+      const saved = localStorage.getItem(profileStorageKey);
+      if (saved) return JSON.parse(saved);
     } catch {
-      // fallback
+      // ignore
+    }
+    return null;
+  }, [profileStorageKey]);
+
+  // ── Saved Profile Data (Persisted to localStorage scoped to current user) ──
+  const [address, setAddress] = useState<AddressValue>(() => {
+    if (initialSaved?.address) return initialSaved.address;
+    if (auth?.user?.address && typeof auth.user.address === 'object') {
+      return {
+        province: auth.user.address.province || 'Thành phố Đà Nẵng',
+        district: auth.user.address.district || 'Quận Hải Châu',
+        ward: auth.user.address.ward || 'Phường Hải Châu 1',
+        detail: auth.user.address.detail || '48 Bạch Đằng',
+      };
     }
     return {
       province: 'Thành phố Đà Nẵng',
@@ -31,57 +63,21 @@ export const Profile: React.FC = () => {
   });
 
   const [fullName, setFullName] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('user_profile_data');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.fullName) return parsed.fullName;
-      }
-    } catch {
-      // fallback
-    }
-    return auth?.user?.fullName || 'Elena Rostova';
+    return initialSaved?.fullName || auth?.user?.fullName || '';
   });
 
   const [phone, setPhone] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('user_profile_data');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.phone) return parsed.phone;
-      }
-    } catch {
-      // fallback
-    }
-    return '+84 908 421 892';
+    return initialSaved?.phone || auth?.user?.phoneNumber || auth?.user?.phone || '';
   });
 
   const [deliveryNote, setDeliveryNote] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('user_profile_data');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.deliveryNote) return parsed.deliveryNote;
-      }
-    } catch {
-      // fallback
-    }
-    return 'Vui lòng gọi trước 30 phút, kiểm tra niêm phong thùng bảo quản Nanuk';
+    return initialSaved?.deliveryNote || 'Vui lòng gọi trước 30 phút, kiểm tra niêm phong thùng bảo quản Nanuk';
   });
 
   // Avatar Image & Upload States (Cloudinary Integration)
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('user_profile_data');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.avatarUrl) return parsed.avatarUrl;
-      }
-    } catch {
-      // fallback
-    }
-    return auth?.user?.avatarUrl || auth?.user?.avatar || '';
+    return initialSaved?.avatarUrl || auth?.user?.avatarUrl || auth?.user?.avatar || '';
   });
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
@@ -94,9 +90,11 @@ export const Profile: React.FC = () => {
   const [passwordToastMessage, setPasswordToastMessage] = useState('');
 
   // ── Dynamic User Identification ──
-  const emailDisplay = auth?.user?.email || 'elena.rostova@circular.vn';
+  const emailDisplay = auth?.user?.email || '';
   const roleDisplay = auth?.user?.role || 'CUSTOMER';
-  const userIdDisplay = auth?.user?.id ? `#KYC-VN-${auth.user.id.slice(0, 6).toUpperCase()}` : '#KYC-VN-884192';
+  const userIdDisplay = (auth?.user?._id || auth?.user?.id)
+    ? `#KYC-VN-${(auth.user._id || auth.user.id).slice(0, 6).toUpperCase()}`
+    : '#KYC-VN-884192';
 
   // Compute Avatar Initials
   const avatarInitials = useMemo(() => {
@@ -184,20 +182,22 @@ export const Profile: React.FC = () => {
         );
       }
 
-      // Persist to user_profile_data and auth user in localStorage
+      // Persist to user_profile_${userId} and auth user in localStorage
       const savedProfile = (() => {
         try {
-          const raw = localStorage.getItem('user_profile_data');
+          const raw = profileStorageKey ? localStorage.getItem(profileStorageKey) : null;
           return raw ? JSON.parse(raw) : {};
         } catch {
           return {};
         }
       })();
 
-      localStorage.setItem(
-        'user_profile_data',
-        JSON.stringify({ ...savedProfile, avatarUrl: finalUrl })
-      );
+      if (profileStorageKey) {
+        localStorage.setItem(
+          profileStorageKey,
+          JSON.stringify({ ...savedProfile, avatarUrl: finalUrl })
+        );
+      }
 
       if (auth?.user) {
         const updatedUser = { ...auth.user, avatarUrl: finalUrl, avatar: finalUrl };
@@ -212,11 +212,20 @@ export const Profile: React.FC = () => {
         const localData = reader.result as string;
         if (localData) {
           try {
-            const savedProfile = JSON.parse(localStorage.getItem('user_profile_data') || '{}');
-            localStorage.setItem(
-              'user_profile_data',
-              JSON.stringify({ ...savedProfile, avatarUrl: localData })
-            );
+            const savedProfile = (() => {
+              try {
+                const raw = profileStorageKey ? localStorage.getItem(profileStorageKey) : null;
+                return raw ? JSON.parse(raw) : {};
+              } catch {
+                return {};
+              }
+            })();
+            if (profileStorageKey) {
+              localStorage.setItem(
+                profileStorageKey,
+                JSON.stringify({ ...savedProfile, avatarUrl: localData })
+              );
+            }
             window.dispatchEvent(
               new CustomEvent('profile_updated', {
                 detail: { avatarUrl: localData, fullName },
@@ -242,9 +251,18 @@ export const Profile: React.FC = () => {
   const handleRemoveAvatar = () => {
     setAvatarUrl('');
     try {
-      const savedProfile = JSON.parse(localStorage.getItem('user_profile_data') || '{}');
+      const savedProfile = (() => {
+        try {
+          const raw = profileStorageKey ? localStorage.getItem(profileStorageKey) : null;
+          return raw ? JSON.parse(raw) : {};
+        } catch {
+          return {};
+        }
+      })();
       delete savedProfile.avatarUrl;
-      localStorage.setItem('user_profile_data', JSON.stringify(savedProfile));
+      if (profileStorageKey) {
+        localStorage.setItem(profileStorageKey, JSON.stringify(savedProfile));
+      }
 
       if (auth?.user) {
         const updatedUser = { ...auth.user, avatarUrl: '', avatar: '' };
@@ -277,10 +295,12 @@ export const Profile: React.FC = () => {
         avatarUrl,
         updatedAt: new Date().toISOString(),
       };
-      localStorage.setItem('user_profile_data', JSON.stringify(profileData));
+      if (profileStorageKey) {
+        localStorage.setItem(profileStorageKey, JSON.stringify(profileData));
+      }
 
       if (auth?.user) {
-        const updatedUser = { ...auth.user, fullName, avatarUrl };
+        const updatedUser = { ...auth.user, fullName, avatarUrl, phoneNumber: phone, address };
         localStorage.setItem('user', JSON.stringify(updatedUser));
       }
 
@@ -300,14 +320,23 @@ export const Profile: React.FC = () => {
   };
 
   const handleCancelForm = () => {
-    setFullName(auth?.user?.fullName || 'Elena Rostova');
-    setPhone('+84 908 421 892');
-    setAddress({
-      province: 'Thành phố Đà Nẵng',
-      district: 'Quận Hải Châu',
-      ward: 'Phường Hải Châu 1',
-      detail: '48 Bạch Đằng',
-    });
+    setFullName(auth?.user?.fullName || '');
+    setPhone(auth?.user?.phoneNumber || auth?.user?.phone || '');
+    if (auth?.user?.address && typeof auth.user.address === 'object') {
+      setAddress({
+        province: auth.user.address.province || 'Thành phố Đà Nẵng',
+        district: auth.user.address.district || 'Quận Hải Châu',
+        ward: auth.user.address.ward || 'Phường Hải Châu 1',
+        detail: auth.user.address.detail || '48 Bạch Đằng',
+      });
+    } else {
+      setAddress({
+        province: 'Thành phố Đà Nẵng',
+        district: 'Quận Hải Châu',
+        ward: 'Phường Hải Châu 1',
+        detail: '48 Bạch Đằng',
+      });
+    }
   };
 
   // Handle Change Password submit

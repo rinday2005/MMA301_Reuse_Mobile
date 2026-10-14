@@ -1,4 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  getCartApi,
+  addCartItemApi,
+  updateCartItemQuantityApi,
+  removeCartItemApi,
+} from '../services/cart.api';
+import { AuthContext } from './auth-context';
 
 export interface CartItem {
   id: string;
@@ -39,12 +46,25 @@ interface CartWishlistContextType {
   clearCart: () => void;
 }
 
-const WISHLIST_KEY = 'reuse_hub_wishlist';
-const CART_KEY = 'reuse_hub_cart';
-
 const CartWishlistContext = createContext<CartWishlistContextType | undefined>(undefined);
 
 export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const auth = useContext(AuthContext);
+  const currentUserId = auth?.user?._id || auth?.user?.id || 'guest';
+
+  return (
+    <CartWishlistProviderInner key={currentUserId} currentUserId={currentUserId}>
+      {children}
+    </CartWishlistProviderInner>
+  );
+};
+
+const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUserId: string }> = ({
+  children,
+  currentUserId,
+}) => {
+  const WISHLIST_KEY = `reuse_hub_wishlist_${currentUserId}`;
+  const CART_KEY = `reuse_hub_cart_${currentUserId}`;
   // ── Wishlist State ──
   const [wishlist, setWishlist] = useState<string[]>(() => {
     try {
@@ -72,7 +92,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } catch {
       // ignore storage errors
     }
-  }, [wishlist]);
+  }, [wishlist, WISHLIST_KEY]);
 
   // Persist Cart
   useEffect(() => {
@@ -81,7 +101,79 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } catch {
       // ignore storage errors
     }
-  }, [cart]);
+  }, [cart, CART_KEY]);
+
+  // ── Đồng bộ giỏ hàng từ MongoDB khi người dùng đã đăng nhập ──
+  useEffect(() => {
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+    if (!token) return;
+
+    let isMounted = true;
+    getCartApi()
+      .then((serverCart) => {
+        if (!isMounted || !serverCart) return;
+        const serverItems: CartItem[] = [];
+
+        // RENT items từ MongoDB
+        if (Array.isArray(serverCart.rentItems)) {
+          for (const item of serverCart.rentItems) {
+            const p = item.productId;
+            if (!p) continue;
+            const pId = typeof p === 'object' && p._id ? p._id : String(p);
+            const pName = typeof p === 'object' && p.name ? p.name : 'Sản phẩm thuê';
+            const pPrice = typeof p === 'object' && p.pricePerDay ? p.pricePerDay : 0;
+            const pDeposit = typeof p === 'object' && p.depositAmount ? p.depositAmount : 0;
+            const pImages = typeof p === 'object' && Array.isArray(p.images) ? p.images : [];
+            const pImage = pImages[0] || '';
+
+            serverItems.push({
+              id: pId,
+              title: pName,
+              price: pPrice,
+              deposit: pDeposit,
+              quantity: item.quantity || 1,
+              mode: 'rent',
+              image: pImage,
+              categoryLabel: 'Sản phẩm thuê',
+              gradeBadge: 'Standard',
+            });
+          }
+        }
+
+        // THRIFT items từ MongoDB
+        if (Array.isArray(serverCart.thriftItems)) {
+          for (const item of serverCart.thriftItems) {
+            const p = item.productId;
+            if (!p) continue;
+            const pId = typeof p === 'object' && p._id ? p._id : String(p);
+            const pTitle = typeof p === 'object' && p.name ? p.name : 'Sản phẩm thanh lý';
+            const pPrice = typeof p === 'object' && p.pricePerDay ? p.pricePerDay : 0;
+            const pImages = typeof p === 'object' && Array.isArray(p.images) ? p.images : [];
+
+            serverItems.push({
+              id: pId,
+              title: pTitle,
+              price: pPrice,
+              quantity: item.quantity || 1,
+              mode: 'thrift',
+              image: pImages[0] || '',
+              categoryLabel: 'Thanh lý',
+            });
+          }
+        }
+
+        if (serverItems.length > 0) {
+          setCart(serverItems);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not sync cart from MongoDB:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // ── Wishlist Operations ──
   const isWishlisted = useCallback(
@@ -113,7 +205,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setWishlist((prev) => prev.filter((item) => item !== id));
   };
 
-  // ── Cart Operations ──
+  // ── Cart Operations (Local State + MongoDB API Sync) ──
   const addToCart = (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
     const qty = item.quantity && item.quantity > 0 ? item.quantity : 1;
     setCart((prev) => {
@@ -128,28 +220,74 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
       return [...prev, { ...item, quantity: qty }];
     });
+
+    // Tự động gọi API Backend lưu vào MongoDB collection carts nếu người dùng đã đăng nhập
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(item.id);
+    if (token && isMongoId) {
+      addCartItemApi({
+        type: item.mode === 'thrift' ? 'THRIFT' : 'RENT',
+        productId: item.id,
+        quantity: qty,
+      }).catch((err) => {
+        console.warn('Could not save item to MongoDB Cart collection:', err);
+      });
+    }
   };
 
   const removeFromCart = (id: string) => {
+    const target = cart.find((c) => c.id === id);
     setCart((prev) => prev.filter((c) => c.id !== id));
+
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(id);
+    if (token && isMongoId) {
+      removeCartItemApi(id, target?.mode === 'thrift' ? 'THRIFT' : 'RENT').catch((err) => {
+        console.warn('Could not remove item from MongoDB Cart collection:', err);
+      });
+    }
   };
 
   const removeMultipleFromCart = (ids: string[]) => {
     setCart((prev) => prev.filter((c) => !ids.includes(c.id)));
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+    if (token) {
+      for (const id of ids) {
+        if (/^[0-9a-fA-F]{24}$/.test(id)) {
+          removeCartItemApi(id).catch(() => {});
+        }
+      }
+    }
   };
 
   const updateCartQuantity = (id: string, delta: number) => {
+    let targetNewQty = 1;
     setCart((prev) =>
       prev
         .map((c) => {
           if (c.id === id) {
             const nextQty = c.quantity + delta;
+            targetNewQty = nextQty;
             return nextQty > 0 ? { ...c, quantity: nextQty } : null;
           }
           return c;
         })
         .filter((c): c is CartItem => c !== null)
     );
+
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(id);
+    if (token && isMongoId) {
+      if (targetNewQty > 0) {
+        updateCartItemQuantityApi(id, targetNewQty).catch((err) => {
+          console.warn('Could not update quantity in MongoDB Cart collection:', err);
+        });
+      } else {
+        removeCartItemApi(id).catch((err) => {
+          console.warn('Could not remove item from MongoDB Cart collection:', err);
+        });
+      }
+    }
   };
 
   const updateCartItem = (id: string, updates: Partial<CartItem>) => {
@@ -189,6 +327,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setCartItems,
       clearCart,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [wishlist, wishlistCount, isWishlisted, cart, cartCount]
   );
 

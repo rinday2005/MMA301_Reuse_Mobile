@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useCartWishlist } from '../../context/CartWishlistContext';
@@ -28,67 +28,98 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [avatarImgError, setAvatarImgError] = useState(false);
 
-  // Dynamic Local Avatar State (updated via external events)
-  const [localAvatar, setLocalAvatar] = useState<string>(() => {
+  // Scoped profile data from current user in localStorage
+  const userProfileKey = (user?._id || user?.id) ? `user_profile_${user?._id || user?.id}` : '';
+  const savedProfile = React.useMemo(() => {
+    if (!userProfileKey) return null;
     try {
-      const p = localStorage.getItem('user_profile_data');
-      if (p) {
-        const parsed = JSON.parse(p);
-        if (parsed.avatarUrl) return parsed.avatarUrl;
-      }
+      const p = localStorage.getItem(userProfileKey);
+      return p ? JSON.parse(p) : null;
     } catch {
-      // ignore
+      return null;
     }
-    return user?.avatarUrl || user?.avatar || '';
-  });
+  }, [userProfileKey]);
 
-  // Dynamic Local Name State (updated via external events)
-  const [localName, setLocalName] = useState<string>(() => {
-    try {
-      const p = localStorage.getItem('user_profile_data');
-      if (p) {
-        const parsed = JSON.parse(p);
-        if (parsed.fullName) return parsed.fullName;
-      }
-    } catch {
-      // ignore
-    }
-    return user?.fullName || 'Khách hàng';
-  });
+  // Dynamic overrides from window events (e.g. avatar upload or profile save)
+  const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
+  const [nameOverride, setNameOverride] = useState<string | null>(null);
 
   // Derived effective values (props take precedence when supplied)
-  const currentAvatar = propAvatarUrl !== undefined ? propAvatarUrl : localAvatar;
-  const currentName = propDisplayName || localName;
-  const effectiveEmail = propDisplayEmail || user?.email || 'customer@circular.vn';
+  const currentAvatar =
+    propAvatarUrl !== undefined
+      ? propAvatarUrl
+      : (avatarOverride !== null
+          ? avatarOverride
+          : (savedProfile?.avatarUrl || user?.avatarUrl || user?.avatar || ''));
 
-  // Listen to profile updates from Profile.tsx or storage
+  const currentName =
+    propDisplayName ||
+    (nameOverride !== null
+      ? nameOverride
+      : (savedProfile?.fullName || user?.fullName || 'Khách hàng'));
+
+  const effectiveEmail = propDisplayEmail || user?.email || '';
+
+  // Dynamic order counts scoped to current user account
+  const uId = user?._id || user?.id || '';
+  const [syncVersion, setSyncVersion] = useState<number>(0);
+
+  const { rentalOrdersCount, thriftOrdersCount } = useMemo(() => {
+    try {
+      let rCount = 0;
+      let tCount = 0;
+
+      // 1. Rental orders count
+      const rKey = uId ? `user_rental_orders_${uId}` : null;
+      const rRaw = (rKey && localStorage.getItem(rKey)) || localStorage.getItem('user_rental_orders');
+      if (rRaw) {
+        const arr = JSON.parse(rRaw);
+        if (Array.isArray(arr)) {
+          const active = arr.filter((o: { status?: string }) =>
+            ['PAID', 'RENTING', 'READY_FOR_HANDOVER', 'HANDED_OVER', 'SHIPPING', 'DELIVERED'].includes(o.status || '')
+          );
+          rCount = active.length;
+        }
+      }
+
+      // 2. Thrift orders count
+      const tKey = uId ? `user_thrift_orders_${uId}` : null;
+      const tRaw = (tKey && localStorage.getItem(tKey)) || localStorage.getItem('user_thrift_orders');
+      if (tRaw) {
+        const arr = JSON.parse(tRaw);
+        if (Array.isArray(arr)) {
+          const valid = arr.filter((o: { status?: string }) => o.status !== 'CANCELLED');
+          tCount = valid.length;
+        }
+      }
+
+      // Trigger recalculation on route navigation or event sync
+      if (syncVersion < 0 || !location.pathname) {
+        return { rentalOrdersCount: 0, thriftOrdersCount: 0 };
+      }
+
+      return { rentalOrdersCount: rCount, thriftOrdersCount: tCount };
+    } catch {
+      return { rentalOrdersCount: 0, thriftOrdersCount: 0 };
+    }
+  }, [uId, syncVersion, location.pathname]);
+
+  // Listen to profile & order updates
   React.useEffect(() => {
     const handleProfileSync = (e: Event) => {
-      const customEvent = e as CustomEvent<{ avatarUrl?: string; fullName?: string }>;
-      if (customEvent.detail) {
-        if (customEvent.detail.avatarUrl !== undefined) {
-          setLocalAvatar(customEvent.detail.avatarUrl);
-          setAvatarImgError(false);
-        }
-        if (customEvent.detail.fullName) {
-          setLocalName(customEvent.detail.fullName);
-        }
-      } else {
-        try {
-          const p = localStorage.getItem('user_profile_data');
-          if (p) {
-            const parsed = JSON.parse(p);
-            if (parsed.avatarUrl !== undefined) {
-              setLocalAvatar(parsed.avatarUrl);
-              setAvatarImgError(false);
-            }
-            if (parsed.fullName) {
-              setLocalName(parsed.fullName);
-            }
-          }
-        } catch {
-          // ignore
-        }
+      setSyncVersion((v) => v + 1);
+      const customEvent = e as CustomEvent<{ avatarUrl?: string; fullName?: string } | null>;
+      if (customEvent.detail === null) {
+        setAvatarOverride(null);
+        setNameOverride(null);
+        return;
+      }
+      if (customEvent.detail?.avatarUrl !== undefined) {
+        setAvatarOverride(customEvent.detail.avatarUrl);
+        setAvatarImgError(false);
+      }
+      if (customEvent.detail?.fullName) {
+        setNameOverride(customEvent.detail.fullName);
       }
     };
 
@@ -314,7 +345,9 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             </svg>
             <span>Đơn thuê (My Rentals)</span>
           </div>
-          <span className="text-[10px] text-[#5E6D5B] font-bold">1 Đang giữ</span>
+          <span className="text-[10px] text-[#5E6D5B] font-bold">
+            {rentalOrdersCount > 0 ? `${rentalOrdersCount} Đang giữ` : 'Chưa có'}
+          </span>
         </Link>
 
         {/* My Thrift Orders */}
@@ -343,7 +376,9 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             </svg>
             <span>Đơn mua THRIFT</span>
           </div>
-          <span className="text-[10px] text-[#76726B] font-semibold">3 Đơn</span>
+          <span className="text-[10px] text-[#76726B] font-semibold">
+            {thriftOrdersCount > 0 ? `${thriftOrdersCount} Đơn` : 'Chưa có'}
+          </span>
         </Link>
 
         {/* Wishlist */}

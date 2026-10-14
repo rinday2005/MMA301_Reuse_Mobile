@@ -7,11 +7,20 @@ export interface LoginRequest {
 
 export interface User {
   id: string;
+  _id?: string;
   email: string;
   fullName: string;
   role: "USER" | "SHOP_OWNER" | "ADMIN";
   avatar?: string;
   avatarUrl?: string;
+  phoneNumber?: string;
+  phone?: string;
+  address?: {
+    province?: string;
+    district?: string;
+    ward?: string;
+    detail?: string;
+  };
 }
 
 export interface LoginResponse {

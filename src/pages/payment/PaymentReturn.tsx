@@ -58,32 +58,64 @@ interface StoredOrder {
   useEffect(() => {
     if (isSuccess && orderCode) {
       try {
-        // Check rental orders
-        const rentalOrders: StoredOrder[] = JSON.parse(localStorage.getItem('user_rental_orders') || '[]');
-        let rentalUpdated = false;
-        const newRentals = rentalOrders.map((o: StoredOrder) => {
-          if (o.orderCode?.includes(orderCode) || orderCode.includes(o.orderCode?.replace('#', '') || '')) {
-            rentalUpdated = true;
-            return { ...o, status: 'PAID', paymentStatus: 'PAID', transactionNo, bankCode };
-          }
-          return o;
-        });
-        if (rentalUpdated) {
-          localStorage.setItem('user_rental_orders', JSON.stringify(newRentals));
-        }
+        const cleanTarget = orderCode.replace('#', '').trim().toLowerCase();
 
-        // Check thrift orders
-        const thriftOrders: StoredOrder[] = JSON.parse(localStorage.getItem('user_thrift_orders') || '[]');
-        let thriftUpdated = false;
-        const newThrifts = thriftOrders.map((o: StoredOrder) => {
-          if (o.orderCode?.includes(orderCode) || orderCode.includes(o.orderCode?.replace('#', '') || '')) {
-            thriftUpdated = true;
-            return { ...o, status: 'PAID', paymentStatus: 'PAID', transactionNo, bankCode };
+        // Update all rental and thrift orders storage keys
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('user_rental_orders')) {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const orders: StoredOrder[] = JSON.parse(raw);
+              if (Array.isArray(orders)) {
+                let updated = false;
+                const newOrders = orders.map((o: StoredOrder, idx: number) => {
+                  const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
+                  const isMatch =
+                    oCode === cleanTarget ||
+                    oCode.includes(cleanTarget) ||
+                    cleanTarget.includes(oCode) ||
+                    (idx === 0 && o.status === 'PENDING_PAYMENT');
+
+                  if (isMatch) {
+                    updated = true;
+                    return { ...o, status: 'PAID', paymentStatus: 'PAID', transactionNo, bankCode };
+                  }
+                  return o;
+                });
+                if (updated) {
+                  localStorage.setItem(key, JSON.stringify(newOrders));
+                }
+              }
+            }
           }
-          return o;
-        });
-        if (thriftUpdated) {
-          localStorage.setItem('user_thrift_orders', JSON.stringify(newThrifts));
+
+          if (key && key.startsWith('user_thrift_orders')) {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const orders: StoredOrder[] = JSON.parse(raw);
+              if (Array.isArray(orders)) {
+                let updated = false;
+                const newOrders = orders.map((o: StoredOrder, idx: number) => {
+                  const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
+                  const isMatch =
+                    oCode === cleanTarget ||
+                    oCode.includes(cleanTarget) ||
+                    cleanTarget.includes(oCode) ||
+                    (idx === 0 && o.status === 'PENDING_PAYMENT');
+
+                  if (isMatch) {
+                    updated = true;
+                    return { ...o, status: 'PAID', paymentStatus: 'PAID', transactionNo, bankCode };
+                  }
+                  return o;
+                });
+                if (updated) {
+                  localStorage.setItem(key, JSON.stringify(newOrders));
+                }
+              }
+            }
+          }
         }
       } catch (e) {
         console.error('Error updating order status in localStorage:', e);

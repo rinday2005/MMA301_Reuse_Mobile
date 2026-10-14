@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCartWishlist, type CartItem } from '../../context/CartWishlistContext';
 import { AuthContext } from '../../context/auth-context';
 import { DEFAULT_DEMO_CART_ITEMS } from '../data/cart/defaultCartData';
+import { RentalCalendarPicker } from '../../components/rent/RentalCalendarPicker';
+import { getProductBookedDates } from '../data/rent/rentOrderDetailData';
 
 export const Cart: React.FC = () => {
   const navigate = useNavigate();
@@ -42,9 +44,17 @@ export const Cart: React.FC = () => {
   // Countdown timer simulation for THRIFT hold (43m 20s)
   const [thriftSeconds, setThriftSeconds] = useState(43 * 60 + 20);
 
-  // Modal to edit rental duration
+  // Modal to edit rental duration via Calendar
   const [editingRentItem, setEditingRentItem] = useState<CartItem | null>(null);
-  const [tempDays, setTempDays] = useState<number>(3);
+  const [editStartDate, setEditStartDate] = useState<string>('2026-11-18');
+  const [editEndDate, setEditEndDate] = useState<string>('2026-11-21');
+  const [editDays, setEditDays] = useState<number>(3);
+
+  // Booked dates for the item being edited in cart
+  const editingBookedDates = useMemo(() => {
+    if (!editingRentItem) return [];
+    return getProductBookedDates({ id: editingRentItem.id, title: editingRentItem.title });
+  }, [editingRentItem]);
 
   // Countdown timer tick
   useEffect(() => {
@@ -192,11 +202,8 @@ export const Cart: React.FC = () => {
     }
 
     // If current cart is empty, populate with default demo items
-    let currentCart = cart;
-    if (cart.length === 0) {
-      currentCart = DEFAULT_DEMO_CART_ITEMS;
-      setCartItems(DEFAULT_DEMO_CART_ITEMS);
-    }
+    const currentCart = cart;
+    // Không tự nạp demo data
 
     if (state === 'both') {
       setDeselectedIds([]);
@@ -220,13 +227,16 @@ export const Cart: React.FC = () => {
     showToast('Đã nạp sản phẩm demo vào giỏ hàng', 'add_shopping_cart');
   };
 
-  // Save edited rental days
+  // Save edited rental days via Calendar
   const handleSaveRentalDays = () => {
     if (!editingRentItem) return;
-    const days = Math.max(1, Math.min(30, tempDays));
-    updateCartItem(editingRentItem.id, { rentalDays: days });
+    updateCartItem(editingRentItem.id, {
+      startDate: editStartDate,
+      endDate: editEndDate,
+      rentalDays: editDays,
+    });
     setEditingRentItem(null);
-    showToast(`Đã cập nhật thời hạn thuê thành ${days} ngày`);
+    showToast(`Đã cập nhật kỳ thuê: ${editDays} ngày (${editStartDate} → ${editEndDate})`);
   };
 
   // Check if empty state should be rendered
@@ -270,7 +280,7 @@ export const Cart: React.FC = () => {
                 </span>
                 <span className="text-[#CCC5BC]">•</span>
                 <span className="text-xs text-[#7B766F]">
-                  Hồ sơ: <strong className="text-[#141310] font-medium">{user?.fullName || 'Elena Rostova'}</strong>
+                  Hồ sơ: <strong className="text-[#141310] font-medium">{user?.fullName || 'Khách hàng'}</strong>
                 </span>
               </div>
               <h1 className="font-serif text-3xl sm:text-4xl text-[#141310] font-bold tracking-tight">
@@ -537,13 +547,16 @@ export const Cart: React.FC = () => {
                                     type="button"
                                     onClick={() => {
                                       setEditingRentItem(item);
-                                      setTempDays(days);
+                                      setEditStartDate(item.startDate || '2026-11-18');
+                                      setEditEndDate(item.endDate || '2026-11-21');
+                                      setEditDays(days);
                                     }}
                                     aria-label="Chỉnh sửa ngày thuê"
-                                    className="ml-1 hover:text-[#141310] cursor-pointer"
-                                    title="Chỉnh sửa số ngày thuê"
+                                    className="ml-1 hover:text-[#141310] cursor-pointer text-[#576151] hover:underline flex items-center gap-0.5"
+                                    title="Mở lịch chọn lại ngày nhận &amp; hoàn trả"
                                   >
-                                    <span className="material-symbols-outlined text-[14px]">edit</span>
+                                    <span className="material-symbols-outlined text-[14px]">edit_calendar</span>
+                                    <span className="text-[11px] underline">Sửa ngày</span>
                                   </button>
                                 </div>
                                 <span>•</span>
@@ -1018,76 +1031,75 @@ export const Cart: React.FC = () => {
         )}
       </div>
 
-      {/* Edit Rental Duration Modal */}
+      {/* Edit Rental Duration Modal directly with Calendar */}
       {editingRentItem && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
           onClick={() => setEditingRentItem(null)}
         >
           <div
-            className="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl space-y-4 relative border border-[#EBE8E1]"
+            className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-5 relative border border-[#EBE8E1] max-h-[92vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-2 border-b border-[#F1EDE6]">
-              <h3 className="font-serif text-lg font-bold text-[#141310]">Chỉnh sửa kỳ thuê</h3>
+            {/* Header */}
+            <div className="flex items-start justify-between pb-3 border-b border-[#F1EDE6]">
+              <div>
+                <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-[#4A6B53] bg-[#EEF2EC] px-2.5 py-0.5 rounded-full mb-1">
+                  Chọn lịch thuê trực tiếp
+                </span>
+                <h3 className="font-serif text-lg font-bold text-[#141310] line-clamp-1">
+                  {editingRentItem.title}
+                </h3>
+                <p className="text-xs text-[#7B766F] mt-0.5">
+                  Bấm trực tiếp trên lịch để chọn ngày nhận và ngày hoàn trả thiết bị.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setEditingRentItem(null)}
-                className="p-1 rounded-full text-[#7B766F] hover:bg-[#F7F3EC]"
+                className="p-1.5 rounded-full text-[#7B766F] hover:bg-[#F7F3EC] transition-colors cursor-pointer"
+                title="Đóng"
               >
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-xs text-[#7B766F] line-clamp-1">{editingRentItem.title}</p>
-              <label className="block text-xs font-semibold text-[#141310]">
-                Số ngày thuê (1 - 30 ngày):
-              </label>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setTempDays((d) => Math.max(1, d - 1))}
-                  className="w-10 h-10 rounded-xl bg-[#F7F3EC] text-[#141310] font-bold text-lg flex items-center justify-center hover:bg-[#EBE8E1]"
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={tempDays}
-                  onChange={(e) => setTempDays(parseInt(e.target.value, 10) || 1)}
-                  className="flex-1 text-center font-bold text-lg py-2 border border-[#EBE8E1] rounded-xl text-[#141310]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setTempDays((d) => Math.min(30, d + 1))}
-                  className="w-10 h-10 rounded-xl bg-[#F7F3EC] text-[#141310] font-bold text-lg flex items-center justify-center hover:bg-[#EBE8E1]"
-                >
-                  +
-                </button>
-              </div>
-              <p className="text-[11px] text-[#7B766F] italic text-right">
-                Đơn giá: {formatCurrency(editingRentItem.price)} / ngày
-              </p>
+            {/* Direct Rental Calendar */}
+            <div className="py-1">
+              <RentalCalendarPicker
+                startDate={editStartDate}
+                endDate={editEndDate}
+                bookedRanges={editingBookedDates}
+                onChange={(newStart, newEnd, newDays) => {
+                  setEditStartDate(newStart);
+                  setEditEndDate(newEnd);
+                  setEditDays(newDays);
+                }}
+              />
             </div>
 
-            <div className="pt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setEditingRentItem(null)}
-                className="flex-1 py-2.5 rounded-xl border border-[#EBE8E1] text-xs font-semibold text-[#7B766F] hover:bg-[#F7F3EC]"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveRentalDays}
-                className="flex-1 py-2.5 rounded-xl bg-[#141310] text-white text-xs font-bold hover:bg-[#292724]"
-              >
-                Lưu thay đổi
-              </button>
+            {/* Selected Summary & Action CTAs */}
+            <div className="pt-3 border-t border-[#F1EDE6] flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-xs text-[#7B766F] w-full sm:w-auto">
+                Kỳ thuê: <strong className="text-[#141310]">{editDays} ngày</strong> · Đơn giá:{' '}
+                <strong className="text-[#141310]">{formatCurrency(editingRentItem.price)}</strong> / ngày
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setEditingRentItem(null)}
+                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-[#EBE8E1] text-xs font-semibold text-[#7B766F] hover:bg-[#F7F3EC] transition-colors cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveRentalDays}
+                  className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-[#141310] hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  Xác nhận kỳ thuê
+                </button>
+              </div>
             </div>
           </div>
         </div>

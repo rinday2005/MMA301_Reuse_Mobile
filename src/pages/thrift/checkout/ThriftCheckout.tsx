@@ -75,19 +75,20 @@ export const ThriftCheckout: React.FC = () => {
   // ── 4. CUSTOMER PROFILE & DELIVERY ADDRESS ──
   const storedProfile = useMemo(() => {
     try {
-      const raw = localStorage.getItem('user_profile_data');
+      const uId = user?._id || user?.id;
+      const raw = uId ? localStorage.getItem(`user_profile_${uId}`) : null;
       return raw ? JSON.parse(raw) : {};
     } catch {
       return {};
     }
-  }, []);
+  }, [user]);
 
   const [consigneeName, setConsigneeName] = useState(() => {
-    return storedProfile.fullName || user?.fullName || 'Elena Rostova';
+    return storedProfile.fullName || user?.fullName || 'Khách hàng';
   });
 
   const [phone, setPhone] = useState(() => {
-    return storedProfile.phone || '+84 908 421 892';
+    return storedProfile.phone || user?.phoneNumber || user?.phone || '';
   });
 
   const [shippingAddress, setShippingAddress] = useState(() => {

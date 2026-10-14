@@ -1,798 +1,2147 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-import { useCartWishlist } from '../../../context/CartWishlistContext';
-import { RentalCalendarPicker } from '../../../components/rent/RentalCalendarPicker';
-import {
-  getRentProductDetail,
-  getProductBookedDates,
-  QUALITY_COMMITMENTS,
-  RENT_8_STEPS_LIFECYCLE,
-  RELATED_RENT_PRODUCTS,
-  SHOP_OWNER_DATA,
-} from '../../data/rent/rentOrderDetailData';
-import type { RentProductDetailData } from '../../data/rent/rentOrderDetailData';
+import { UserSidebar } from '../../../components/layout/UserSidebar';
+import { getRentalOrderByIdApi, getMyRentalOrdersApi, type RentalOrderApi } from '../../../services/order.api';
+import { RENT_PRODUCTS } from '../../data/rent/marketplaceData';
+import { type StoredRentalOrderRecord, type StoredRentalOrderItem } from '../../data/rent/myRentOrdersData';
 
-type TabKey = 'desc' | 'terms' | 'audit' | 'deposit' | 'shipping';
+interface OrderItemDetail {
+  id: string;
+  productId: string;
+  title: string;
+  category: string;
+  warehouse: string;
+  shopName: string;
+  serialNumber: string;
+  sealId: string;
+  grade: string;
+  dailyRate: number;
+  deposit: number;
+  quantity: number;
+  itemTotal: number;
+  image: string;
+  accessoriesText: string;
+  benchReportText?: string;
+}
+
+interface OrderFullData {
+  id: string;
+  code: string;
+  status: string;
+  statusLabel: string;
+  dayProgress: string;
+  escrowDeposit: number;
+  totalRentalFee: number;
+  shippingFee: number;
+  grandTotal: number;
+  startDate: string;
+  endDate: string;
+  rentalDays: number;
+  elapsedDays: number;
+  remainingHours: string;
+  items: OrderItemDetail[];
+  recipientName: string;
+  recipientPhone: string;
+  shippingAddress: string;
+  transactionId: string;
+  paymentTime: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  carrierName: string;
+  trackingCode: string;
+  outboundDate: string;
+  returnTimeWindow: string;
+  claSignDate: string;
+  claNote: string;
+}
 
 export const RentOrderDetail: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
-  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const targetProductId = searchParams.get('productId') || searchParams.get('item');
+
   const { user } = useAuth();
 
-  // Load product data based on route param or fallback to product #1
-  const product: RentProductDetailData = useMemo(() => {
-    return getRentProductDetail(id);
-  }, [id]);
-
-  // Gallery active thumbnail (auto-resets to 0 when id changes without effect setState)
-  const [thumbState, setThumbState] = useState<{ id?: string; index: number }>({ id, index: 0 });
-  const activeThumb = thumbState.id === id ? thumbState.index : 0;
-  const setActiveThumb = (index: number) => setThumbState({ id, index });
-
-  // Rental duration & quantities
-  const [startDate, setStartDate] = useState('2026-11-15');
-  const [endDate, setEndDate] = useState('2026-11-18');
-  const [quantity, setQuantity] = useState(1);
-
-  // Booked dates in future for this product
-  const bookedDates = useMemo(() => {
-    return getProductBookedDates(product);
-  }, [product]);
-
-  // Tabs
-  const [activeTab, setActiveTab] = useState<TabKey>('desc');
-
-  const { isWishlisted, toggleWishlist, addToCart } = useCartWishlist();
-  const isWishlist = isWishlisted(product.id);
-
-  // Guest auth requirement modal
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authActionName, setAuthActionName] = useState('');
-
+  // Scroll to top on mount
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
 
-  // Calculate rental days
-  const days = useMemo(() => {
-    if (!startDate || !endDate) return 1;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    return diff > 0 ? diff : 1;
-  }, [startDate, endDate]);
-
-  const baseDailyRate = product.pricePerDay;
-  const baseDeposit = product.deposit;
-  const shippingFee = 25000;
-
-  const rentTotal = baseDailyRate * days * quantity;
-  const depositTotal = baseDeposit * quantity;
-  const grandTotal = rentTotal + depositTotal + shippingFee;
-
-  const formatVND = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN').format(amount) + '₫';
+  // Copy state
+  const [copiedCode, setCopiedCode] = useState(false);
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code.replace('#', ''));
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2500);
   };
 
-  const handleQuantityChange = (delta: number) => {
-    const next = quantity + delta;
-    if (next >= 1 && next <= product.maxQuantity) {
-      setQuantity(next);
-    }
-  };
+  // State Simulation (A, B, C, D) as demonstrated in the prompt
+  const [simulationState, setSimulationState] = useState<'A' | 'B' | 'C' | 'D'>('A');
 
-  // Actions requiring customer account
-  const handleProtectedAction = (actionTitle: string, onSuccess: () => void) => {
-    if (!user) {
-      setAuthActionName(actionTitle);
-      setShowAuthModal(true);
-      return;
-    }
-    onSuccess();
-  };
+  // Modals
+  const [activeModal, setActiveModal] = useState<'bench' | 'complaint' | 'invoice' | null>(null);
+  const [selectedItemForModal, setSelectedItemForModal] = useState<OrderItemDetail | null>(null);
 
-  const handleRentNow = () => {
-    handleProtectedAction('thuê thiết bị này', () => {
-      addToCart({
-        id: product.id,
-        title: product.title,
-        price: product.pricePerDay,
-        image: product.images[0]?.src || '',
-        mode: 'rent',
-        location: product.location,
-        quantity,
-        deposit: product.deposit,
-        rentalDays: days,
-        startDate: startDate,
-        endDate: endDate,
-        gradeBadge: product.grade,
+  // Dynamic Interactive CLA Proof State (Minh chứng bàn giao đối kiểm 3 góc)
+  interface ClaProofData {
+    isSigned: boolean;
+    signDate: string;
+    signerName: string;
+    signerPhone: string;
+    note: string;
+    photos: {
+      slot1: string;
+      slot2: string;
+      slot3: string;
+    };
+  }
+
+  const [claProof, setClaProof] = useState<ClaProofData>({
+    isSigned: false,
+    signDate: '',
+    signerName: '',
+    signerPhone: '',
+    note: '',
+    photos: { slot1: '', slot2: '', slot3: '' },
+  });
+  const [claAgreed, setClaAgreed] = useState(false);
+  const [isEditingCla, setIsEditingCla] = useState(false);
+  const [previewImageModal, setPreviewImageModal] = useState<string | null>(null);
+
+  const handlePhotoUpload = (slot: 'slot1' | 'slot2' | 'slot3', e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setClaProof((prev) => {
+        const updated = {
+          ...prev,
+          photos: {
+            ...prev.photos,
+            [slot]: base64,
+          },
+        };
+        if (orderData) {
+          const key = `cla_proof_${orderData.code.replace('#', '').trim()}`;
+          localStorage.setItem(key, JSON.stringify(updated));
+        }
+        return updated;
       });
-      navigate('/cart');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = (slot: 'slot1' | 'slot2' | 'slot3') => {
+    setClaProof((prev) => {
+      const updated = {
+        ...prev,
+        photos: {
+          ...prev.photos,
+          [slot]: '',
+        },
+      };
+      if (orderData) {
+        const key = `cla_proof_${orderData.code.replace('#', '').trim()}`;
+        localStorage.setItem(key, JSON.stringify(updated));
+      }
+      return updated;
     });
   };
 
-  const handleAddToCart = () => {
-    addToCart({
-      id: product.id,
-      title: product.title,
-      price: product.pricePerDay,
-      image: product.images[0]?.src || '',
-      mode: 'rent',
-      location: product.location,
-      quantity,
-      deposit: product.deposit,
-      rentalDays: days,
-      startDate: startDate,
-      endDate: endDate,
-      gradeBadge: product.grade,
-    });
+  const handleSignCla = () => {
+    if (!orderData) return;
+    const nowStr = new Date().toLocaleString('vi-VN');
+    const updated: ClaProofData = {
+      isSigned: true,
+      signDate: nowStr,
+      signerName: claProof.signerName || orderData.recipientName || displayName,
+      signerPhone: claProof.signerPhone || orderData.recipientPhone,
+      note:
+        claProof.note ||
+        `Khách hàng ${orderData.recipientName || displayName} đã mở hộp, kiểm tra đối soát 3 góc và ký nhận bàn giao CLA bảo chứng Smart Escrow.`,
+      photos: claProof.photos,
+    };
+    setClaProof(updated);
+    setIsEditingCla(false);
+    const key = `cla_proof_${orderData.code.replace('#', '').trim()}`;
+    localStorage.setItem(key, JSON.stringify(updated));
+    alert('Ký nhận biên bản bàn giao CLA thành công! Hồ sơ bảo chứng Smart Escrow đã được cập nhật.');
   };
 
-  const handleChat = () => {
-    handleProtectedAction('trò chuyện trực tiếp với Shop Owner', () => {
-      navigate('/chat');
-    });
+  // Dynamic user profile info for sidebar
+  const userProfileKey = (user?._id || user?.id) ? `user_profile_${user?._id || user?.id}` : '';
+  const savedProfile = useMemo(() => {
+    if (!userProfileKey) return null;
+    try {
+      const raw = localStorage.getItem(userProfileKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, [userProfileKey]);
+
+  const displayName = savedProfile?.fullName || user?.fullName || 'Khách hàng';
+  const displayEmail = savedProfile?.email || user?.email || '';
+  const displayAvatar =
+    savedProfile?.avatarUrl ||
+    user?.avatarUrl ||
+    user?.avatar ||
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuCMwbU44ZM0dZePaAOyFv49mOAhbEw3pqfZA1_2FS-7VfcegFWv61TXx3DWJIZc8UB0MsGkPHwOa97niyCrHzEC25U-maDnSnRUqud1GouXT_0YJYIqKRwjN3kZk0T5DIHXCgA8hXoz_-CU_xbOdbngGDygOaOHOBKy0qRmDr3A-8mVbyTAF5sJb5PBdNrjI_ZwYlugupcwk1mJWpjSd3dcT4W7AIaVlBFmmLq1akOA';
+
+  // Currency helper
+  const formatVnd = (amount: number) => {
+    return amount.toLocaleString('vi-VN') + '₫';
   };
 
-  const handleToggleWishlist = () => {
-    toggleWishlist(product.id);
-  };
+  // Build default product accessories & metadata helper
+  const getProductMetadata = useCallback((nameOrTitle: string, pId?: string) => {
+    const lower = (nameOrTitle || '').toLowerCase();
+    if (lower.includes('canon') || lower.includes('r6') || lower.includes('camera') || lower.includes('sony') || lower.includes('máy ảnh')) {
+      return {
+        category: 'Camera & Quang học',
+        warehouse: 'Mã kho: Đà Nẵng Central',
+        shopName: 'RedRiver Film Gear Hub (Đà Nẵng Archive)',
+        serialNumber: `SN #74209930-${(pId || 'A').slice(-1).toUpperCase()}`,
+        sealId: `Seal #TS-8841-${(pId || 'A').slice(-1).toUpperCase()}`,
+        grade: 'Grade A+',
+        accessoriesText:
+          'Body Canon R6 II, ống kính RF 24-70mm f/2.8L (hood + nắp trước sau), 02x Pin chính hãng LP-E6NH, dock sạc đôi LC-E6, thẻ CFexpress Type B 128GB + đầu đọc USB-C, dây đeo Peak Design Slide v3, vali chống va đập Nanuk 935 màu graphite.',
+        benchReportText: 'Độ sạch bề mặt 99.8%, 0 dead pixel, ngàm ống kính không trầy xước, cơ cấu chống rung IBIS 5 trục kiểm định đạt chuẩn A+.',
+      };
+    }
+    if (lower.includes('lều') || lower.includes('tent') || lower.includes('snow peak') || lower.includes('cắm trại') || lower.includes('camping')) {
+      return {
+        category: 'Dã ngoại & Thám hiểm',
+        warehouse: 'Mã kho: Sài Gòn Hub',
+        shopName: 'Alpine Camp Vault (TP. Hồ Chí Minh)',
+        serialNumber: `SN #SP-4P-${Math.floor(1000 + Math.random() * 9000)}`,
+        sealId: `Seal #TS-8841-B`,
+        grade: 'Grade A',
+        accessoriesText:
+          'Khung hợp kim nhôm Duralumin 4 mảnh nguyên bản, bạt phủ chống bão 150D Polyester Oxford (PU 1.800mm), thảm lót chống thấm nền lều Snow Peak chính hãng, 16 cọc neo nhôm Duralumin + búa dã ngoại cắm cọc, túi dù đựng nén dập nhiệt.',
+        benchReportText: 'Đã khử trùng Ozone công nghiệp & kiểm tra áp lực nước 2000mm không rò rỉ trước khi bàn giao.',
+      };
+    }
+    if (lower.includes('váy') || lower.includes('dress') || lower.includes('áo') || lower.includes('jacket') || lower.includes('fashion')) {
+      return {
+        category: 'Thời trang & Sự kiện',
+        warehouse: 'Mã kho: Hà Nội Atelier',
+        shopName: 'Maison Archive Suite (Hà Nội)',
+        serialNumber: `SN #MS-FSH-${Math.floor(1000 + Math.random() * 9000)}`,
+        sealId: `Seal #TS-8841-C`,
+        grade: 'Grade A+',
+        accessoriesText: 'Hộp cứng đựng bảo quản chuyên dụng, móc treo cao cấp gỗ tuyết tùng, túi bảo quản vải không dệt kháng ẩm, kèm hướng dẫn giặt khô sinh học.',
+        benchReportText: 'Kiểm định sớ vải 100% nguyên vẹn, giặt khô khử khuẩn công nghệ CO2 lỏng, không tì vết.',
+      };
+    }
+    return {
+      category: 'Thiết bị chuyên dụng',
+      warehouse: 'Kho Trung tâm ReUse Hub',
+      shopName: 'ReUse Partner Vault',
+      serialNumber: `SN #RH-${Math.floor(100000 + Math.random() * 900000)}`,
+      sealId: `Seal #TS-8841-X`,
+      grade: 'Grade A+',
+      accessoriesText: 'Trọn bộ phụ kiện nguyên bản, tem kiểm định bảo chứng ReUse Standard, túi bảo vệ chống va đập chuyên dụng.',
+      benchReportText: 'Kiểm định chất lượng 8 bước ReUse Standard đạt 100% tiêu chuẩn xuất kho.',
+    };
+  }, []);
 
-  const currentPreview = product.images[activeThumb] || product.images[0];
+  // Master order resolution
+  const [orderData, setOrderData] = useState<OrderFullData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const resolveOrder = async () => {
+      setLoading(true);
+      const cleanParamId = (id || '').replace('#', '').trim();
+
+      // 1. Try fetching from Backend API
+      let backendOrder: RentalOrderApi | null = null;
+      if (cleanParamId) {
+        try {
+          backendOrder = await getRentalOrderByIdApi(cleanParamId);
+        } catch {
+          // ignore
+        }
+      }
+
+      // 2. Read stored orders from localStorage across all user_rental_orders* keys
+      let localOrder: StoredRentalOrderRecord | null = null;
+      try {
+        const uId = user?._id || user?.id || '';
+        const storageKeys = new Set<string>();
+        if (uId) storageKeys.add(`user_rental_orders_${uId}`);
+        storageKeys.add('user_rental_orders');
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('user_rental_orders')) {
+            storageKeys.add(k);
+          }
+        }
+
+        const allStoredOrders: StoredRentalOrderRecord[] = [];
+        storageKeys.forEach((key) => {
+          try {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const arr = JSON.parse(raw);
+              if (Array.isArray(arr)) {
+                allStoredOrders.push(...arr);
+              }
+            }
+          } catch {
+            // ignore
+          }
+        });
+
+        if (allStoredOrders.length > 0) {
+          const cleanLower = cleanParamId.toLowerCase();
+          // Find by order id / code / or containing product id
+          localOrder =
+            allStoredOrders.find((o) => {
+              const oCode = (o.orderCode || '').replace('#', '').toLowerCase();
+              const oId = String(o._id || (o as unknown as { id?: string }).id || '').toLowerCase();
+              const codeMatch =
+                (oCode.length > 0 && oCode === cleanLower) ||
+                (oId.length > 0 && oId === cleanLower) ||
+                (oCode.length > 0 && cleanLower.includes(oCode)) ||
+                (oCode.length > 0 && oCode.includes(cleanLower));
+              const itemMatch =
+                targetProductId &&
+                o.items?.some(
+                  (it: StoredRentalOrderItem) =>
+                    String(it.productId || it.id || '').toLowerCase() === targetProductId.toLowerCase()
+                );
+              return codeMatch || itemMatch;
+            }) || null;
+
+          // If cleanParamId matches a product directly, check if there's an order containing that product
+          if (!localOrder && cleanParamId) {
+            localOrder =
+              allStoredOrders.find((o) =>
+                o.items?.some(
+                  (it: StoredRentalOrderItem) =>
+                    String(it.productId || it.id || '').toLowerCase() === cleanParamId.toLowerCase()
+                )
+              ) || null;
+          }
+
+          // If still not found and list has orders, take the most recent paid order as context
+          if (!localOrder && allStoredOrders.length > 0) {
+            const paidCandidate = allStoredOrders.find((o) =>
+              ['PAID', 'RENTING', 'READY_FOR_HANDOVER', 'HANDED_OVER', 'SHIPPING', 'DELIVERED'].includes(
+                o.status || o.paymentStatus || ''
+              )
+            );
+            if (paidCandidate) {
+              localOrder = paidCandidate;
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      // Check if backendOrder is stale seed mock (4.4M or empty items or items with title "Đơn hàng Thuê")
+      const isBackendStaleSeed =
+        backendOrder &&
+        (backendOrder.rentalFee === 4400000 ||
+          !backendOrder.items ||
+          backendOrder.items.length === 0 ||
+          backendOrder.items.some((it) => it.productName?.includes('Đơn hàng Thuê')));
+
+      if (isBackendStaleSeed && localOrder) {
+        backendOrder = null; // discard stale backend seed order in favor of real localOrder
+      }
+
+      // 3. Fallback: Check backend /my-orders
+      if (!backendOrder && !localOrder) {
+        try {
+          const myOrders = await getMyRentalOrdersApi();
+          if (Array.isArray(myOrders) && myOrders.length > 0) {
+            const validOrders = myOrders.filter((o) => {
+              const code = (o.orderCode || '').toLowerCase();
+              return !(code.includes('8845') && (!o.items || o.items.length === 0));
+            });
+            const pool = validOrders.length > 0 ? validOrders : myOrders;
+            backendOrder =
+              pool.find((o) => {
+                const oCode = (o.orderCode || '').replace('#', '').toLowerCase();
+                const oId = String(o._id || '').toLowerCase();
+                const cleanLower = cleanParamId.toLowerCase();
+                const codeMatch =
+                  (oCode.length > 0 && oCode === cleanLower) ||
+                  (oId.length > 0 && oId === cleanLower) ||
+                  (oCode.length > 0 && cleanLower.includes(oCode)) ||
+                  (oCode.length > 0 && oCode.includes(cleanLower));
+                const itemMatch =
+                  targetProductId &&
+                  o.items?.some((it) => String(it.productId || '').toLowerCase() === targetProductId.toLowerCase());
+                return codeMatch || itemMatch;
+              }) || pool[0];
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // 4. Transform raw source into OrderFullData
+      const hasLocalItems = localOrder?.items && Array.isArray(localOrder.items) && localOrder.items.length > 0;
+      const hasBackendItems = backendOrder?.items && Array.isArray(backendOrder.items) && backendOrder.items.length > 0;
+      const source = (hasLocalItems && (!hasBackendItems || isBackendStaleSeed))
+        ? localOrder
+        : (backendOrder || localOrder);
+
+      const orderCode =
+        source?.orderCode || (cleanParamId.startsWith('RH-') ? `#${cleanParamId}` : '#RH-RNT-2026-8845');
+      const displayCode = orderCode.startsWith('#') ? orderCode : `#${orderCode}`;
+
+      const rawStatus = String(source?.status || (source as Record<string, unknown>)?.paymentStatus || 'RENTING').toUpperCase();
+
+      // Dates
+      const startDateStr = source?.startDate
+        ? new Date(source.startDate).toLocaleDateString('vi-VN')
+        : new Date().toLocaleDateString('vi-VN');
+      const endDateStr = source?.endDate
+        ? new Date(source.endDate).toLocaleDateString('vi-VN')
+        : new Date(Date.now() + 5 * 86400000).toLocaleDateString('vi-VN');
+
+      let rentalDays = source?.rentalDays || 5;
+      if (source?.startDate && source?.endDate) {
+        const diffMs = new Date(source.endDate).getTime() - new Date(source.startDate).getTime();
+        const diffDays = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+        if (diffDays > 0) rentalDays = diffDays;
+      }
+
+      const now = new Date();
+      const startD = source?.startDate ? new Date(source.startDate) : new Date();
+      const endD = source?.endDate ? new Date(source.endDate) : new Date(Date.now() + rentalDays * 86400000);
+      const elapsedMs = Math.max(0, now.getTime() - startD.getTime());
+      const elapsedDays = Math.min(rentalDays, Math.max(1, Math.ceil(elapsedMs / (1000 * 60 * 60 * 24))));
+      const remainingMs = Math.max(0, endD.getTime() - now.getTime());
+      const remainingHoursCount = Math.floor(remainingMs / (1000 * 60 * 60));
+      const remainingMinutesCount = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+      const remainingHours = remainingMs > 0 ? `${remainingHoursCount} giờ ${remainingMinutesCount} phút` : 'Đã đến hạn hoàn trả';
+
+      let statusLabel = 'ĐANG THUÊ (RENTING)';
+      let dayProgress = '60%';
+      let initSimState: 'A' | 'B' | 'C' | 'D' = 'A';
+
+      if (rawStatus === 'PENDING_PAYMENT') {
+        statusLabel = 'CHỜ THANH TOÁN (PENDING PAYMENT)';
+        dayProgress = '15%';
+        initSimState = 'A';
+      } else if (rawStatus === 'PAID') {
+        statusLabel = 'ĐÃ THANH TOÁN · CHỜ BÀN GIAO';
+        dayProgress = '25%';
+        initSimState = 'A';
+      } else if (rawStatus === 'READY_FOR_HANDOVER') {
+        statusLabel = 'SẴN SÀNG BÀN GIAO';
+        dayProgress = '35%';
+        initSimState = 'A';
+      } else if (rawStatus === 'SHIPPING' || rawStatus === 'HANDED_OVER') {
+        statusLabel = 'ĐANG VẬN CHUYỂN BẢO CHỨNG NANUK';
+        dayProgress = '50%';
+        initSimState = 'A';
+      } else if (rawStatus === 'DELIVERED') {
+        statusLabel = 'ĐÃ GIAO HÀNG · BẮT ĐẦU TÍNH GIỜ';
+        dayProgress = '60%';
+        initSimState = 'A';
+      } else if (rawStatus === 'RENTING') {
+        const pct = Math.min(100, Math.max(10, Math.round((elapsedDays / rentalDays) * 100)));
+        statusLabel = `ĐANG THUÊ (RENTING) · NGÀY ${elapsedDays}/${rentalDays}`;
+        dayProgress = `${pct}%`;
+        initSimState = pct >= 90 ? 'B' : 'A';
+      } else if (rawStatus === 'RETURNED') {
+        statusLabel = 'BENCH LAB ĐỐI KIỂM · 2 GIỜ';
+        dayProgress = '82%';
+        initSimState = 'C';
+      } else if (rawStatus === 'COMPLETED') {
+        statusLabel = 'HOÀN TẤT · ĐÃ HOÀN CỌC 100%';
+        dayProgress = '100%';
+        initSimState = 'D';
+      } else if (rawStatus === 'CANCELLED') {
+        statusLabel = 'ĐÃ HỦY ĐƠN THUÊ';
+        dayProgress = '0%';
+        initSimState = 'A';
+      }
+
+      // Build Items List
+      const mappedItems: OrderItemDetail[] = [];
+
+      if (source?.items && Array.isArray(source.items) && source.items.length > 0) {
+        source.items.forEach((it: StoredRentalOrderItem, idx: number) => {
+          const itId = String(it.productId || it.id || `item-${idx + 1}`);
+          let itTitle = it.productName || it.title || `Sản phẩm thuê #${idx + 1}`;
+          let price = Number(it.pricePerDay || it.dailyPrice || (it as { price?: number }).price || 0);
+          let deposit = Number(
+            it.depositAmount ||
+            (it as { itemDeposit?: number }).itemDeposit ||
+            (it as { deposit?: number }).deposit ||
+            0
+          );
+          let image = it.imageUrl || it.image || '';
+
+          // If item is generic mock (e.g. from seeded 4.4M order)
+          if (itTitle.includes('Đơn hàng Thuê') || itTitle.includes('RH-RNT-') || price === 4400000) {
+            let foundProd = null;
+            try {
+              const sharedRaw = localStorage.getItem('reuse_shared_booked_dates');
+              if (sharedRaw) {
+                const list = JSON.parse(sharedRaw);
+                if (Array.isArray(list) && list.length > 0) {
+                  const last = list[list.length - 1];
+                  if (last?.title) {
+                    foundProd = RENT_PRODUCTS.find(
+                      (p) =>
+                        p.title.toLowerCase().includes(last.title.toLowerCase()) ||
+                        last.title.toLowerCase().includes(p.title.toLowerCase())
+                    ) || {
+                      id: last.productId || '6',
+                      title: last.title,
+                      price: 220000,
+                      deposit: '900000',
+                      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ',
+                    };
+                  }
+                }
+              }
+            } catch {
+              // ignore
+            }
+
+            if (!foundProd) {
+              foundProd = RENT_PRODUCTS.find((p) => p.id === '6') || RENT_PRODUCTS[0];
+            }
+
+            itTitle = foundProd.title;
+            price = foundProd.price || 220000;
+            deposit = typeof foundProd.deposit === 'string'
+              ? (Number(foundProd.deposit.replace(/\D/g, '')) || 900000)
+              : (foundProd.deposit || 900000);
+            image = foundProd.image;
+          }
+
+          if (!price) price = 220000;
+          if (!deposit) deposit = price * 4 || 900000;
+
+          if (!image) {
+            const foundInMarket = RENT_PRODUCTS.find(
+              (p) => p.id === itId || p.title.toLowerCase().includes(itTitle.toLowerCase())
+            );
+            if (foundInMarket?.image) {
+              image = foundInMarket.image;
+            } else {
+              const lower = itTitle.toLowerCase();
+              if (lower.includes('áo') || lower.includes('váy') || lower.includes('quần') || lower.includes('dạ') || lower.includes('wool') || lower.includes('đầm') || lower.includes('khoác')) {
+                image = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ';
+              } else if (lower.includes('lều') || lower.includes('tent') || lower.includes('cắm trại') || lower.includes('camping')) {
+                image = 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=600&q=80';
+              } else if (lower.includes('camera') || lower.includes('máy ảnh') || lower.includes('sony') || lower.includes('canon') || lower.includes('quang học')) {
+                image = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80';
+              } else {
+                image = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ';
+              }
+            }
+          }
+
+          const qty = it.quantity || (it as { qty?: number }).qty || 1;
+          const itemTotal = it.itemRentTotal || (price * rentalDays * qty);
+          const meta = getProductMetadata(itTitle, itId);
+
+          mappedItems.push({
+            id: itId,
+            productId: itId,
+            title: itTitle,
+            category: (it as { category?: string }).category || meta.category,
+            warehouse: (it as { warehouse?: string }).warehouse || meta.warehouse,
+            shopName: it.shopName || (it as { shop?: string }).shop || meta.shopName,
+            serialNumber: (it as { serialNumber?: string }).serialNumber || meta.serialNumber,
+            sealId: (it as { sealId?: string }).sealId || meta.sealId,
+            grade: it.grade || meta.grade,
+            dailyRate: price,
+            deposit,
+            quantity: qty,
+            itemTotal,
+            image,
+            accessoriesText: (it as { accessoriesText?: string }).accessoriesText || meta.accessoriesText,
+            benchReportText: (it as { benchReportText?: string }).benchReportText || meta.benchReportText,
+          });
+        });
+      }
+
+      // If items empty, check if targeted product was specified or fallback dynamically
+      if (mappedItems.length === 0) {
+        const searchId = targetProductId || cleanParamId;
+        const productFromMarket = searchId
+          ? RENT_PRODUCTS.find((p) => p.id === searchId || p.href.endsWith(`/${searchId}`))
+          : null;
+
+        if (productFromMarket) {
+          const meta = getProductMetadata(productFromMarket.title, productFromMarket.id);
+          const price = productFromMarket.price || 220000;
+          const deposit = Number(productFromMarket.deposit.replace(/\D/g, '')) || 900000;
+          mappedItems.push({
+            id: productFromMarket.id,
+            productId: productFromMarket.id,
+            title: productFromMarket.title,
+            category: meta.category,
+            warehouse: meta.warehouse,
+            shopName: meta.shopName,
+            serialNumber: meta.serialNumber,
+            sealId: meta.sealId,
+            grade: productFromMarket.conditionLabel?.includes('99') ? 'Grade A+' : 'Grade A',
+            dailyRate: price,
+            deposit,
+            quantity: 1,
+            itemTotal: price * rentalDays,
+            image: productFromMarket.image,
+            accessoriesText: meta.accessoriesText,
+            benchReportText: meta.benchReportText,
+          });
+        } else {
+          let foundProd = null;
+          try {
+            const sharedRaw = localStorage.getItem('reuse_shared_booked_dates');
+            if (sharedRaw) {
+              const list = JSON.parse(sharedRaw);
+              if (Array.isArray(list) && list.length > 0) {
+                const last = list[list.length - 1];
+                if (last?.title) {
+                  foundProd = RENT_PRODUCTS.find(
+                    (p) =>
+                      p.title.toLowerCase().includes(last.title.toLowerCase()) ||
+                      last.title.toLowerCase().includes(p.title.toLowerCase())
+                  );
+                }
+              }
+            }
+          } catch {
+            // ignore
+          }
+
+          if (!foundProd) {
+            foundProd = RENT_PRODUCTS.find((p) => p.id === '6') || RENT_PRODUCTS[0];
+          }
+
+          const fallbackTitle = foundProd?.title || 'Áo Khoác Dạ Wool Dáng Dài Cao Cấp';
+          const meta = getProductMetadata(fallbackTitle, foundProd?.id || cleanParamId);
+          const price = foundProd?.price || 220000;
+          const deposit = Number(foundProd?.deposit?.replace(/\D/g, '')) || 900000;
+          const image =
+            foundProd?.image ||
+            'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ';
+
+          mappedItems.push({
+            id: foundProd?.id || cleanParamId || 'item-1',
+            productId: foundProd?.id || cleanParamId || 'item-1',
+            title: fallbackTitle,
+            category: meta.category,
+            warehouse: meta.warehouse,
+            shopName: meta.shopName,
+            serialNumber: meta.serialNumber,
+            sealId: meta.sealId,
+            grade: 'Grade A+',
+            dailyRate: price,
+            deposit,
+            quantity: 1,
+            itemTotal: price * rentalDays,
+            image,
+            accessoriesText: meta.accessoriesText,
+            benchReportText: meta.benchReportText,
+          });
+        }
+      }
+
+      // Calculations strictly calculated from actual order items
+      const itemsRentalSum = mappedItems.reduce((acc, it) => acc + it.itemTotal, 0);
+      const itemsDepositSum = mappedItems.reduce((acc, it) => acc + it.deposit, 0);
+
+      const recordSource = source as StoredRentalOrderRecord | undefined;
+      const recordRentFee = recordSource?.totalRentFee;
+      const recordDeposit = recordSource?.totalDeposit;
+
+      const totalRentalFee =
+        source?.rentalFee && source.rentalFee !== 4400000
+          ? source.rentalFee
+          : typeof recordRentFee === 'number' && recordRentFee !== 4400000
+            ? recordRentFee
+            : itemsRentalSum;
+
+      const totalDeposit =
+        source?.depositAmount && source.depositAmount !== 22000000 && source.depositAmount > 0
+          ? source.depositAmount
+          : typeof recordDeposit === 'number' && recordDeposit !== 22000000 && recordDeposit > 0
+            ? recordDeposit
+            : itemsDepositSum;
+
+      const shippingFee = typeof source?.shippingFee === 'number' && source.shippingFee >= 0 ? source.shippingFee : 150000;
+      const grandTotal = totalRentalFee + totalDeposit + shippingFee;
+
+      // Shipping address without any type errors
+      let fullAddress = 'Địa chỉ mặc định, Bến Nghé, Quận 1, Hồ Chí Minh';
+      const rawAddr = (source as unknown as Record<string, unknown>)?.shippingAddress;
+      if (typeof rawAddr === 'string' && rawAddr.trim()) {
+        fullAddress = rawAddr;
+      } else if (typeof rawAddr === 'object' && rawAddr !== null) {
+        const addrObj = rawAddr as { detail?: string; ward?: string; district?: string; province?: string };
+        const joined = [addrObj.detail, addrObj.ward, addrObj.district, addrObj.province].filter(Boolean).join(', ');
+        if (joined) fullAddress = joined;
+      }
+
+      const recipientName =
+        ((source as unknown as Record<string, unknown>)?.recipientName as string) ||
+        ((rawAddr as { recipientName?: string })?.recipientName) ||
+        ((source as unknown as Record<string, unknown>)?.custodyHolder as string) ||
+        displayName;
+
+      const recipientPhone =
+        ((source as unknown as Record<string, unknown>)?.recipientPhone as string) ||
+        ((rawAddr as { recipientPhone?: string })?.recipientPhone) ||
+        ((source as unknown as Record<string, unknown>)?.phone as string) ||
+        user?.phoneNumber ||
+        user?.phone ||
+        '0708091060';
+
+      const itemTitles = mappedItems.map((i) => i.title).join(' và ');
+      const claNote = `Bưu kiện nguyên vẹn, bưu tá hỗ trợ kiểm tra niêm phong Nanuk và nghiệm thu ngoại quan đối với: ${itemTitles}. Khách hàng ${recipientName} đã ký nhận điện tử bảo chứng Smart Escrow.`;
+
+      // Load CLA proof from localStorage
+      const cleanCode = (orderCode || '').replace('#', '').trim();
+      const claStorageKey = `cla_proof_${cleanCode}`;
+      try {
+        const savedClaRaw = localStorage.getItem(claStorageKey);
+        if (savedClaRaw) {
+          const parsedCla = JSON.parse(savedClaRaw);
+          setClaProof(parsedCla);
+        } else {
+          setClaProof({
+            isSigned: false,
+            signDate: '',
+            signerName: recipientName,
+            signerPhone: recipientPhone,
+            note: '',
+            photos: { slot1: '', slot2: '', slot3: '' },
+          });
+        }
+      } catch {
+        // ignore
+      }
+
+      if (isMounted) {
+        setOrderData({
+          id: cleanParamId || 'RH-RNT-2026-8845',
+          code: displayCode,
+          status: rawStatus,
+          statusLabel,
+          dayProgress,
+          escrowDeposit: totalDeposit,
+          totalRentalFee,
+          shippingFee,
+          grandTotal,
+          startDate: startDateStr,
+          endDate: endDateStr,
+          rentalDays,
+          elapsedDays,
+          remainingHours,
+          items: mappedItems,
+          recipientName,
+          recipientPhone,
+          shippingAddress: fullAddress,
+          transactionId:
+            ((source as unknown as Record<string, unknown>)?.transactionNo as string) ||
+            `VNP-${cleanCode.replace(/\D/g, '').padEnd(8, '8')}`,
+          paymentTime: source?.createdAt
+            ? new Date(source.createdAt).toLocaleString('vi-VN')
+            : `${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} · ${startDateStr}`,
+          paymentMethod:
+            ((source as unknown as Record<string, unknown>)?.paymentMethod as string) ||
+            'VNPay QR / NAPAS 256-bit HSM',
+          paymentStatus: rawStatus === 'PENDING_PAYMENT' ? 'WAITING FOR PAYMENT' : 'PAID - ESCROW LOCKED',
+          carrierName: 'Bưu tá Viettel Armored White-Glove',
+          trackingCode:
+            ((source as unknown as Record<string, unknown>)?.nanukSealId as string) || `NNK-${cleanCode.slice(-4).toUpperCase()}`,
+          outboundDate: `10:15 ngày ${startDateStr}`,
+          returnTimeWindow: `14:00 - 17:00 ngày ${endDateStr}`,
+          claSignDate: startDateStr,
+          claNote,
+        });
+        setSimulationState(initSimState);
+        setLoading(false);
+      }
+    };
+
+    resolveOrder();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id, targetProductId, getProductMetadata, displayName, user]);
+
+  // Dynamic Stepper Configuration matching exact order status or user simulation
+  const stepperConfig = useMemo(() => {
+    const st = orderData?.status || 'RENTING';
+
+    switch (simulationState) {
+      case 'A': {
+        if (st === 'PENDING_PAYMENT') {
+          return {
+            progressWidth: '15%',
+            badgeText: 'CHỜ THANH TOÁN (PENDING)',
+            badgeColor: 'bg-amber-100 text-amber-800',
+            dotColor: 'bg-amber-600 animate-ping',
+            activeStep: 1,
+            timeCountdownText: 'Vui lòng hoàn tất thanh toán VNPay',
+          };
+        }
+        if (st === 'PAID') {
+          return {
+            progressWidth: '25%',
+            badgeText: 'ĐÃ THANH TOÁN · KHO ĐÓNG GÓI',
+            badgeColor: 'bg-emerald-100 text-emerald-800',
+            dotColor: 'bg-emerald-600',
+            activeStep: 3,
+            timeCountdownText: 'Shop đang chuẩn bị niêm phong thiết bị',
+          };
+        }
+        if (st === 'READY_FOR_HANDOVER') {
+          return {
+            progressWidth: '35%',
+            badgeText: 'SẴN SÀNG BÀN GIAO',
+            badgeColor: 'bg-sky-100 text-sky-800',
+            dotColor: 'bg-sky-600',
+            activeStep: 4,
+            timeCountdownText: 'Chờ đơn vị vận chuyển Nanuk tiếp nhận',
+          };
+        }
+        if (st === 'SHIPPING' || st === 'HANDED_OVER') {
+          return {
+            progressWidth: '50%',
+            badgeText: 'ĐANG VẬN CHUYỂN',
+            badgeColor: 'bg-sky-100 text-sky-800',
+            dotColor: 'bg-sky-600 animate-pulse',
+            activeStep: 5,
+            timeCountdownText: 'Bưu tá đang chuyển phát tới địa chỉ của bạn',
+          };
+        }
+        if (st === 'DELIVERED') {
+          return {
+            progressWidth: '60%',
+            badgeText: 'ĐÃ GIAO HÀNG',
+            badgeColor: 'bg-emerald-100 text-emerald-800',
+            dotColor: 'bg-emerald-600',
+            activeStep: 6,
+            timeCountdownText: 'Đã nhận hàng thành công',
+          };
+        }
+        // Default RENTING
+        return {
+          progressWidth: orderData?.dayProgress || '60%',
+          badgeText: orderData?.statusLabel || 'ĐANG THUÊ (RENTING)',
+          badgeColor: 'bg-emerald-100 text-emerald-800',
+          dotColor: 'bg-emerald-600 animate-pulse',
+          activeStep: 7,
+          timeCountdownText: `Còn ${orderData?.remainingHours || '46 giờ 22 phút'}`,
+        };
+      }
+      case 'B':
+        return {
+          progressWidth: '70%',
+          badgeText: 'SẴN SÀNG TRẢ ĐỒ · HẾT HẠN THUÊ',
+          badgeColor: 'bg-sky-100 text-sky-800',
+          dotColor: 'bg-sky-600 animate-pulse',
+          activeStep: 8,
+          timeCountdownText: 'Hôm nay là hạn trả đồ',
+        };
+      case 'C':
+        return {
+          progressWidth: '82%',
+          badgeText: 'BENCH LAB ĐỐI KIỂM · 2 GIỜ',
+          badgeColor: 'bg-amber-100 text-amber-800',
+          dotColor: 'bg-amber-600 animate-pulse',
+          activeStep: 9,
+          timeCountdownText: 'Trạm lưu ký đang kiểm tra hoàn cọc',
+        };
+      case 'D':
+        return {
+          progressWidth: '100%',
+          badgeText: 'HOÀN TẤT · ĐÃ HOÀN CỌC 100%',
+          badgeColor: 'bg-stone-100 text-stone-800',
+          dotColor: 'bg-stone-600',
+          activeStep: 11,
+          timeCountdownText: 'Giao dịch hoàn tất',
+        };
+    }
+  }, [simulationState, orderData]);
+
+  if (loading || !orderData) {
+    return (
+      <div className="min-h-screen bg-[#FBF9F5] flex items-center justify-center py-24">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-3 border-stone-300 border-t-stone-900 rounded-full animate-spin"></div>
+          <p className="text-xs font-semibold text-stone-600">Đang tải hồ sơ lưu ký &amp; biên bản đơn thuê...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full min-h-screen bg-[#FBF9F5] text-[#1C1A18] antialiased">
+    <div className="min-h-screen bg-[#FBF9F5] text-brand-charcoal antialiased selection:bg-[#E8E2D5]">
 
-      {/* Guest Auth Required Modal */}
-      {showAuthModal && (
+
+      {/* ── MAIN WORKSPACE CONTAINER WITH PERSISTENT SIDEBAR ── */}
+      <div className="flex-1 max-w-[1520px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 flex gap-8 items-start">
+        {/* User Navigation Sidebar */}
+        <UserSidebar
+          activeKey="rent-orders"
+          avatarUrl={displayAvatar}
+          displayName={displayName}
+          displayEmail={displayEmail}
+          className="w-64 shrink-0 hidden lg:block border-none"
+        />
+
+        {/* ── MAIN CONTENT AREA ── */}
+        <main className="flex-1 min-w-0 space-y-8">
+          <div className="flex flex-col w-full space-y-8">
+            {/* 1. BREADCRUMBS & TOP NAV CONTEXT */}
+            <div className="flex flex-col gap-4">
+              <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-stone-500 font-medium">
+                <Link to="/" className="hover:text-stone-900 transition-colors">Trang chủ</Link>
+                <span className="text-stone-400">/</span>
+                <Link to="/profile" className="hover:text-stone-900 transition-colors">Tài khoản</Link>
+                <span className="text-stone-400">/</span>
+                <Link to="/rent/orders" className="hover:text-stone-900 transition-colors">Đơn thuê RENT</Link>
+                <span className="text-stone-400">/</span>
+                <span className="text-stone-900 font-semibold">Chi tiết đơn thuê {orderData.code}</span>
+              </nav>
+
+              {/* HEADER TITLE & CONTROLS (Border None) */}
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border-none">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 border-none ${stepperConfig.badgeColor}`}>
+                      <span className={`w-2 h-2 rounded-full ${stepperConfig.dotColor}`}></span>
+                      {stepperConfig.badgeText}
+                    </span>
+
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-stone-100 text-stone-800 text-xs font-semibold border-none">
+                      <span>Mã đơn: {orderData.code}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyCode(orderData.code)}
+                        className="text-[10px] text-stone-500 hover:text-stone-900 font-normal underline ml-1 cursor-pointer border-none bg-transparent"
+                        id="copy-btn"
+                        title="Sao chép mã đơn"
+                      >
+                        {copiedCode ? 'Đã sao chép!' : 'Sao chép'}
+                      </button>
+                    </div>
+
+                    <span className="text-xs text-stone-500 font-medium">
+                      Bảo chứng ký quỹ Smart Escrow: <strong className="text-stone-800">{formatVnd(orderData.escrowDeposit)}</strong>
+                    </span>
+                  </div>
+
+                  <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-stone-900 tracking-tight">
+                    Hồ sơ lưu ký &amp; Quản trị đơn thuê
+                  </h1>
+                  <p className="text-xs sm:text-sm text-stone-500 max-w-2xl leading-relaxed">
+                    Đơn lưu giữ đa thiết bị chuyên dụng gồm {orderData.items.map((i) => i.title).join(' và ')}.
+                    Tiền cọc được khóa độc lập qua hợp đồng giám sát thông minh Smart Escrow ReUse Hub.
+                  </p>
+                </div>
+
+                {/* Action Buttons Row (Border None) */}
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+                  <Link
+                    to={`/chat?orderId=${orderData.code.replace('#', '')}`}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-stone-900 text-white text-xs font-semibold hover:bg-stone-800 transition-all shadow-sm border-none"
+                  >
+                    <span className="material-symbols-outlined text-[17px]">chat</span>
+                    <span>Nhắn tin Shop Owner</span>
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-stone-100 text-stone-800 text-xs font-semibold hover:bg-stone-200 transition-colors cursor-pointer border-none"
+                    title="In bản sao lưu trữ hoặc xuất file PDF"
+                  >
+                    <span className="material-symbols-outlined text-[17px]">print</span>
+                    <span>In biên bản CLA</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal('complaint')}
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-stone-100 text-rose-700 text-xs font-semibold hover:bg-rose-50 transition-colors cursor-pointer border-none"
+                  >
+                    <span className="material-symbols-outlined text-[17px]">report_problem</span>
+                    <span>Khiếu nại</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. STATE SIMULATION SWITCHER PILL BAR (Border None) */}
+            <div className="bg-stone-100/80 p-2 sm:p-2.5 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-3 text-xs border-none">
+              <div className="flex items-center gap-2 text-stone-600 font-semibold px-2">
+                <span className="material-symbols-outlined text-base text-stone-700">tune</span>
+                <span>Mô phỏng vòng đời (Simulation State):</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 w-full md:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setSimulationState('A')}
+                  className={`flex-1 md:flex-none px-3 py-1.5 rounded-xl text-[11px] transition-all cursor-pointer border-none ${simulationState === 'A'
+                      ? 'font-semibold bg-stone-900 text-white shadow-sm'
+                      : 'font-medium bg-white text-stone-700 hover:bg-stone-200'
+                    }`}
+                >
+                  Trạng thái A: Đang thuê (Hiện tại)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSimulationState('B')}
+                  className={`flex-1 md:flex-none px-3 py-1.5 rounded-xl text-[11px] transition-all cursor-pointer border-none ${simulationState === 'B'
+                      ? 'font-semibold bg-stone-900 text-white shadow-sm'
+                      : 'font-medium bg-white text-stone-700 hover:bg-stone-200'
+                    }`}
+                >
+                  Trạng thái B: Sẵn sàng trả đồ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSimulationState('C')}
+                  className={`flex-1 md:flex-none px-3 py-1.5 rounded-xl text-[11px] transition-all cursor-pointer border-none ${simulationState === 'C'
+                      ? 'font-semibold bg-stone-900 text-white shadow-sm'
+                      : 'font-medium bg-white text-stone-700 hover:bg-stone-200'
+                    }`}
+                >
+                  Trạng thái C: Bench Lab đối kiểm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSimulationState('D')}
+                  className={`flex-1 md:flex-none px-3 py-1.5 rounded-xl text-[11px] transition-all cursor-pointer border-none ${simulationState === 'D'
+                      ? 'font-semibold bg-stone-900 text-white shadow-sm'
+                      : 'font-medium bg-white text-stone-700 hover:bg-stone-200'
+                    }`}
+                >
+                  Trạng thái D: Hoàn tất cọc 100%
+                </button>
+              </div>
+            </div>
+
+            {/* 3. ORDER LIFECYCLE 11-STEP HORIZONTAL STEPPER (Border None) */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border-none space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-stone-500">Tiến trình tuần hoàn</span>
+                  <h2 className="font-serif text-lg sm:text-xl font-bold text-stone-900">
+                    Vòng đời lưu ký 11 bước (Circular Rental Lifecycle)
+                  </h2>
+                </div>
+                <div className="text-xs text-stone-600 font-medium bg-stone-100 px-3 py-1 rounded-full self-start sm:self-auto border-none">
+                  Giai đoạn hiệu lực: <strong className="text-stone-900">{orderData.startDate} - {orderData.endDate}</strong>
+                </div>
+              </div>
+
+              {/* Stepper Scrollable Track */}
+              <div className="overflow-x-auto pb-4 pt-1 thin-scrollbar">
+                <div className="min-w-[1080px] relative flex items-start justify-between">
+                  {/* Connecting Line Background */}
+                  <div className="absolute top-4 left-6 right-6 h-0.5 bg-stone-200 -z-0"></div>
+                  <div
+                    className="absolute top-4 left-6 h-0.5 bg-stone-900 -z-0 transition-all duration-500"
+                    style={{ width: stepperConfig.progressWidth }}
+                  ></div>
+
+                  {/* Step 1: Đã đặt */}
+                  <div className="flex flex-col items-center text-center w-24 relative z-10">
+                    <div className="w-8 h-8 rounded-full bg-stone-900 text-white flex items-center justify-center text-xs font-bold shadow-sm border-none">
+                      <span className="material-symbols-outlined text-[15px]">check</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-stone-900 mt-2">1. Đã đặt</span>
+                    <span className="text-[9px] text-stone-500">12/11 · 10:20</span>
+                  </div>
+
+                  {/* Step 2: Shop duyệt */}
+                  <div className="flex flex-col items-center text-center w-24 relative z-10">
+                    <div className="w-8 h-8 rounded-full bg-stone-900 text-white flex items-center justify-center text-xs font-bold shadow-sm border-none">
+                      <span className="material-symbols-outlined text-[15px]">check</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-stone-900 mt-2">2. Shop duyệt</span>
+                    <span className="text-[9px] text-stone-500">12/11 · 10:45</span>
+                  </div>
+
+                  {/* Step 3: Chờ TT */}
+                  <div className="flex flex-col items-center text-center w-24 relative z-10">
+                    <div className="w-8 h-8 rounded-full bg-stone-900 text-white flex items-center justify-center text-xs font-bold shadow-sm border-none">
+                      <span className="material-symbols-outlined text-[15px]">check</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-stone-900 mt-2">3. Chờ thanh toán</span>
+                    <span className="text-[9px] text-stone-500">Khóa Escrow</span>
+                  </div>
+
+                  {/* Step 4: Đã TT VNPay */}
+                  <div className="flex flex-col items-center text-center w-24 relative z-10">
+                    <div className="w-8 h-8 rounded-full bg-stone-900 text-white flex items-center justify-center text-xs font-bold shadow-sm border-none">
+                      <span className="material-symbols-outlined text-[15px]">check</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-stone-900 mt-2">4. Đã TT VNPay</span>
+                    <span className="text-[9px] text-stone-500">12/11 · 14:32</span>
+                  </div>
+
+                  {/* Step 5: Đóng gói Nanuk */}
+                  <div className="flex flex-col items-center text-center w-24 relative z-10">
+                    <div className="w-8 h-8 rounded-full bg-stone-900 text-white flex items-center justify-center text-xs font-bold shadow-sm border-none">
+                      <span className="material-symbols-outlined text-[15px]">check</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-stone-900 mt-2">5. Đóng gói Nanuk</span>
+                    <span className="text-[9px] text-stone-500">13/11 · Niêm seal</span>
+                  </div>
+
+                  {/* Step 6: Nhận & Test 3 góc */}
+                  <div className="flex flex-col items-center text-center w-24 relative z-10">
+                    <div className="w-8 h-8 rounded-full bg-stone-900 text-white flex items-center justify-center text-xs font-bold shadow-sm border-none">
+                      <span className="material-symbols-outlined text-[15px]">check</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-stone-900 mt-2">6. Bàn giao test</span>
+                    <span className="text-[9px] text-stone-500">14/11 · Khớp CLA</span>
+                  </div>
+
+                  {/* Step 7: ĐANG THUÊ */}
+                  <div className="flex flex-col items-center text-center w-28 relative z-10">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-md transition-all border-none ${stepperConfig.activeStep === 7
+                          ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 scale-105'
+                          : stepperConfig.activeStep > 7
+                            ? 'bg-stone-900 text-white'
+                            : 'bg-stone-100 text-stone-400'
+                        }`}
+                    >
+                      {stepperConfig.activeStep > 7 ? (
+                        <span className="material-symbols-outlined text-[15px]">check</span>
+                      ) : (
+                        <span className="material-symbols-outlined text-[16px]">visibility</span>
+                      )}
+                    </div>
+                    <span
+                      className={`text-[11px] font-bold mt-2 ${stepperConfig.activeStep === 7 ? 'text-emerald-800' : 'text-stone-900'
+                        }`}
+                    >
+                      7. ĐANG THUÊ
+                    </span>
+                    <span className="text-[9px] text-emerald-600 font-semibold">Còn 2 ngày hiệu lực</span>
+                  </div>
+
+                  {/* Step 8: Yêu cầu trả đồ */}
+                  <div className="flex flex-col items-center text-center w-24 relative z-10">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-xs transition-all border-none ${stepperConfig.activeStep === 8
+                          ? 'bg-sky-600 text-white ring-4 ring-sky-100 scale-105'
+                          : stepperConfig.activeStep > 8
+                            ? 'bg-stone-900 text-white'
+                            : 'bg-stone-100 text-stone-400'
+                        }`}
+                    >
+                      {stepperConfig.activeStep > 8 ? (
+                        <span className="material-symbols-outlined text-[15px]">check</span>
+                      ) : (
+                        <span>8</span>
+                      )}
+                    </div>
+                    <span
+                      className={`text-[11px] font-semibold mt-2 ${stepperConfig.activeStep >= 8 ? 'text-stone-900 font-bold' : 'text-stone-400'
+                        }`}
+                    >
+                      8. Yêu cầu trả
+                    </span>
+                    <span className="text-[9px] text-stone-400">19/11 · Hạn 17h</span>
+                  </div>
+
+                  {/* Step 9: Bench Lab test */}
+                  <div className="flex flex-col items-center text-center w-24 relative z-10">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-xs transition-all border-none ${stepperConfig.activeStep === 9
+                          ? 'bg-amber-600 text-white ring-4 ring-amber-100 scale-105'
+                          : stepperConfig.activeStep > 9
+                            ? 'bg-stone-900 text-white'
+                            : 'bg-stone-100 text-stone-400'
+                        }`}
+                    >
+                      {stepperConfig.activeStep > 9 ? (
+                        <span className="material-symbols-outlined text-[15px]">check</span>
+                      ) : (
+                        <span>9</span>
+                      )}
+                    </div>
+                    <span
+                      className={`text-[11px] font-semibold mt-2 ${stepperConfig.activeStep >= 9 ? 'text-stone-900 font-bold' : 'text-stone-400'
+                        }`}
+                    >
+                      9. Bench Lab
+                    </span>
+                    <span className="text-[9px] text-stone-400">Soi kính &amp; cảm biến</span>
+                  </div>
+
+                  {/* Step 10: Hoàn cọc Escrow */}
+                  <div className="flex flex-col items-center text-center w-24 relative z-10">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-xs transition-all border-none ${stepperConfig.activeStep === 10
+                          ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 scale-105'
+                          : stepperConfig.activeStep > 10
+                            ? 'bg-stone-900 text-white'
+                            : 'bg-stone-100 text-stone-400'
+                        }`}
+                    >
+                      {stepperConfig.activeStep > 10 ? (
+                        <span className="material-symbols-outlined text-[15px]">check</span>
+                      ) : (
+                        <span>10</span>
+                      )}
+                    </div>
+                    <span
+                      className={`text-[11px] font-semibold mt-2 ${stepperConfig.activeStep >= 10 ? 'text-stone-900 font-bold' : 'text-stone-400'
+                        }`}
+                    >
+                      10. Hoàn cọc
+                    </span>
+                    <span className="text-[9px] text-stone-400">{formatVnd(orderData.escrowDeposit)} tự động</span>
+                  </div>
+
+                  {/* Step 11: Hoàn tất */}
+                  <div className="flex flex-col items-center text-center w-24 relative z-10">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-xs transition-all border-none ${stepperConfig.activeStep === 11
+                          ? 'bg-stone-900 text-white ring-4 ring-stone-200 scale-105'
+                          : 'bg-stone-100 text-stone-400'
+                        }`}
+                    >
+                      <span>11</span>
+                    </div>
+                    <span
+                      className={`text-[11px] font-semibold mt-2 ${stepperConfig.activeStep === 11 ? 'text-stone-900 font-bold' : 'text-stone-400'
+                        }`}
+                    >
+                      11. Hoàn tất
+                    </span>
+                    <span className="text-[9px] text-stone-400">+250 Điểm xanh</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. TWO-COLUMN WORKSPACE */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* LEFT COLUMN: MAIN ORDER DOSSIER (7 COLS) */}
+              <div className="lg:col-span-7 space-y-8">
+                {/* CUSTODY WINDOW & COUNTDOWN (Border None) */}
+                <div className="bg-stone-900 text-stone-100 p-6 sm:p-8 rounded-3xl space-y-6 shadow-md relative overflow-hidden border-none">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <div className="text-[10px] uppercase font-bold tracking-widest text-stone-400">
+                        Cửa sổ lưu ký khách hàng
+                      </div>
+                      <h3 className="font-serif text-xl sm:text-2xl font-bold text-white mt-0.5">
+                        Thời hạn bàn giao &amp; Thuê thực tế
+                      </h3>
+                    </div>
+                    <span className="px-3 py-1 bg-stone-800 text-emerald-400 text-xs font-semibold rounded-full self-start sm:self-auto flex items-center gap-1.5 border-none">
+                      <span className="material-symbols-outlined text-[15px]">timer</span>
+                      <span>{stepperConfig.timeCountdownText}</span>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2">
+                    <div className="bg-stone-800/80 p-4 rounded-2xl border-none">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-stone-400 block">
+                        Bắt đầu tính phí
+                      </span>
+                      <span className="text-base font-bold text-white mt-1 block">{orderData.startDate}</span>
+                      <span className="text-[10px] text-stone-400">10:15 ICT (Ký nhận)</span>
+                    </div>
+                    <div className="bg-stone-800/80 p-4 rounded-2xl border-none">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-stone-400 block">
+                        Hạn chót trả đồ
+                      </span>
+                      <span className="text-base font-bold text-emerald-400 mt-1 block">{orderData.endDate}</span>
+                      <span className="text-[10px] text-stone-400">Trước 17:00 ICT</span>
+                    </div>
+                    <div className="col-span-2 sm:col-span-1 bg-stone-800/80 p-4 rounded-2xl border-none">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-stone-400 block">
+                        Tổng thời lượng
+                      </span>
+                      <span className="text-base font-bold text-white mt-1 block">
+                        {orderData.rentalDays} Ngày ({orderData.rentalDays * 24} Giờ)
+                      </span>
+                      <span className="text-[10px] text-stone-400">Đã trôi qua {orderData.elapsedDays} ngày</span>
+                    </div>
+                  </div>
+
+                  {/* Visual Progress Bar */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs text-stone-300">
+                      <span>Tiến độ sử dụng</span>
+                      <span className="font-bold">
+                        {orderData.dayProgress} hoàn tất (Ngày {orderData.elapsedDays} / {orderData.rentalDays})
+                      </span>
+                    </div>
+                    <div className="w-full bg-stone-800 h-2.5 rounded-full overflow-hidden border-none">
+                      <div
+                        className="bg-emerald-500 h-full rounded-full transition-all duration-300"
+                        style={{ width: orderData.dayProgress }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Custody Action Buttons (Border None) */}
+                  <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                    <Link
+                      to={`/rent/orders/${orderData.code.replace('#', '')}/return`}
+                      className="flex-1 inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-white text-stone-900 font-bold text-xs hover:bg-stone-200 transition-colors shadow-sm text-center border-none"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">assignment_return</span>
+                      <span>Yêu cầu trả đồ ngay (Initiate Return)</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        alert(
+                          'Đã gửi yêu cầu gia hạn thêm 2 ngày tới Shop Owner. Bạn sẽ nhận được thông báo phản hồi qua SMS & Chat trong 15 phút.'
+                        )
+                      }
+                      className="inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-stone-800 text-stone-200 font-semibold text-xs hover:bg-stone-700 transition-colors cursor-pointer border-none"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">update</span>
+                      <span>Gia hạn thuê (+2 ngày)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* ALL RENTED ITEMS IN THIS ORDER (Border None) */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-widest text-stone-500">
+                        Chi tiết sản phẩm
+                      </span>
+                      <h3 className="font-serif text-xl sm:text-2xl font-bold text-stone-900">
+                        Danh mục thiết bị đang lưu giữ ({orderData.items.length} Món)
+                      </h3>
+                    </div>
+                    <span className="text-xs bg-stone-100 text-stone-700 px-3 py-1 rounded-full font-semibold border-none">
+                      Đồng đơn {orderData.code}
+                    </span>
+                  </div>
+
+                  {/* Product Cards Loop */}
+                  {orderData.items.map((item, index) => {
+                    const isTargeted =
+                      targetProductId &&
+                      (item.productId === targetProductId || item.id === targetProductId);
+
+                    return (
+                      <div
+                        key={item.id}
+                        className={`bg-white rounded-3xl p-6 sm:p-7 shadow-sm border-none transition-all space-y-6 ${isTargeted ? 'ring-2 ring-stone-900/10' : ''
+                          }`}
+                      >
+                        <div className="flex flex-col sm:flex-row gap-5 items-start">
+                          <div className="w-full sm:w-44 h-44 rounded-2xl overflow-hidden bg-stone-100 shrink-0 relative group border-none">
+                            <img
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              src={item.image}
+                              alt={item.title}
+                            />
+                            <span className="absolute bottom-2 left-2 bg-stone-900/80 backdrop-blur-xs text-white text-[9px] uppercase px-2 py-0.5 rounded font-bold border-none">
+                              {item.grade}
+                            </span>
+                            {isTargeted && (
+                              <span className="absolute top-2 left-2 bg-emerald-600 text-white text-[8px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full shadow-xs border-none">
+                                Đang chọn
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-stone-100 text-stone-700 border-none">
+                                {item.category}
+                              </span>
+                              <span className="text-[10px] text-stone-500">{item.warehouse}</span>
+                            </div>
+
+                            <h4 className="font-serif text-lg font-bold text-stone-900 leading-snug">
+                              {item.title}
+                            </h4>
+                            <p className="text-xs text-stone-500">
+                              Nhà cung cấp: <strong className="text-stone-800">{item.shopName}</strong>
+                            </p>
+
+                            {/* Identifiers Grid */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-xs">
+                              <div className="bg-stone-50 p-2.5 rounded-xl border-none">
+                                <span className="text-[10px] text-stone-500 block">Số định danh / Serial:</span>
+                                <span className="font-mono font-bold text-stone-800">{item.serialNumber}</span>
+                              </div>
+                              <div className="bg-stone-50 p-2.5 rounded-xl border-none">
+                                <span className="text-[10px] text-stone-500 block">Khóa niêm phong Nanuk:</span>
+                                <span className="font-mono font-bold text-stone-800">{item.sealId}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Included Accessories Box */}
+                        <div className="bg-stone-50 p-4 rounded-2xl space-y-2 text-xs border-none">
+                          <span className="font-bold text-stone-800 block text-[11px] uppercase tracking-wide">
+                            Trọn bộ phụ kiện đi kèm theo biên bản:
+                          </span>
+                          <p className="text-stone-600 leading-relaxed">{item.accessoriesText}</p>
+                        </div>
+
+                        {/* Pricing & Escrow Subtotal */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-none">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-stone-400 block">
+                              Chi phí thuê thiết bị
+                            </span>
+                            <div className="text-base font-bold text-stone-900">
+                              {formatVnd(item.dailyRate)}{' '}
+                              <span className="text-xs font-normal text-stone-500">
+                                / ngày × {orderData.rentalDays} ngày =
+                              </span>{' '}
+                              {formatVnd(item.itemTotal)}
+                            </div>
+                            <span className="text-[11px] text-stone-500">
+                              Ký quỹ Smart Escrow: <strong>{formatVnd(item.deposit)}</strong> (Hoàn lại 100%)
+                            </span>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedItemForModal(item);
+                                setActiveModal('bench');
+                              }}
+                              className="px-3.5 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer border-none"
+                            >
+                              <span className="material-symbols-outlined text-[16px] text-emerald-700">verified</span>
+                              <span>{index === 0 ? 'Hồ sơ Bench Grade' : 'Chứng thư Ozone Lab'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* CUSTODY HANDOFF AUDIT TRAIL (CLA MINH CHỨNG BÀN GIAO ĐỐI KIỂM 3 GÓC) */}
+                <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border-none space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-widest text-stone-500">
+                        Minh chứng bàn giao (CLA)
+                      </span>
+                      <h3 className="font-serif text-xl sm:text-2xl font-bold text-stone-900">
+                        Nhật ký mở hộp &amp; Đối kiểm 3 góc
+                      </h3>
+                    </div>
+                    {claProof.isSigned ? (
+                      <span className="px-3.5 py-1.5 bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-full self-start sm:self-auto border-none flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                        Khách hàng đã ký xác nhận {claProof.signDate}
+                      </span>
+                    ) : (
+                      <span className="px-3.5 py-1.5 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full self-start sm:self-auto border-none flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse"></span>
+                        Chờ khách nhận bưu kiện &amp; ký nhận CLA
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-stone-600 leading-relaxed">
+                    {claProof.isSigned
+                      ? `Ảnh chụp thực tế do khách hàng ${claProof.signerName} tải lên lúc ${claProof.signDate}. Hồ sơ bàn giao CLA đã được ký điện tử và lưu ký vào Smart Escrow ReUse Hub.`
+                      : `Khi nhận bưu kiện từ bưu tá, quý khách vui lòng kiểm tra tình trạng hàng hóa, chụp ảnh thực tế 3 góc của sản phẩm (${orderData.items.map((i) => i.title).join(', ')}) và ký xác nhận để kích hoạt bảo hộ Smart Escrow.`}
+                  </p>
+
+                  {/* 3-Photo Inspection Grid (Upload & Preview) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Slot 1: Ngoại quan mặt trước */}
+                    <div className="space-y-2">
+                      <div className="h-40 rounded-2xl overflow-hidden bg-stone-50 relative group border border-stone-200/80">
+                        {claProof.photos.slot1 ? (
+                          <>
+                            <img
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform cursor-pointer"
+                              src={claProof.photos.slot1}
+                              alt="Góc 1: Mặt trước & Tổng thể"
+                              onClick={() => setPreviewImageModal(claProof.photos.slot1)}
+                            />
+                            <span className="absolute top-2 left-2 bg-stone-900/85 text-white text-[9px] px-2 py-0.5 rounded font-bold backdrop-blur-xs">
+                              Góc 1: Mặt trước &amp; Tổng thể
+                            </span>
+                            {(!claProof.isSigned || isEditingCla) && (
+                              <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <label className="p-1.5 bg-stone-900/80 hover:bg-stone-900 text-white rounded-lg cursor-pointer text-[10px]" title="Đổi ảnh">
+                                  <span className="material-symbols-outlined text-[14px]">edit</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handlePhotoUpload('slot1', e)}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePhoto('slot1')}
+                                  className="p-1.5 bg-rose-700/90 hover:bg-rose-800 text-white rounded-lg cursor-pointer text-[10px]"
+                                  title="Xóa ảnh"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">delete</span>
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <label className="w-full h-full flex flex-col items-center justify-center gap-1.5 p-4 text-center cursor-pointer hover:bg-stone-100 transition-colors">
+                            <span className="material-symbols-outlined text-stone-400 text-2xl">add_a_photo</span>
+                            <span className="text-[11px] font-semibold text-stone-700">Tải ảnh Góc 1</span>
+                            <span className="text-[10px] text-stone-400">Mặt trước &amp; Tổng thể</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handlePhotoUpload('slot1', e)}
+                            />
+                          </label>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-stone-500 block text-center">
+                        {claProof.photos.slot1 ? 'Đã tải ảnh mặt trước' : 'Chưa có ảnh minh chứng'}
+                      </span>
+                    </div>
+
+                    {/* Slot 2: Chi tiết góc cạnh & phụ kiện */}
+                    <div className="space-y-2">
+                      <div className="h-40 rounded-2xl overflow-hidden bg-stone-50 relative group border border-stone-200/80">
+                        {claProof.photos.slot2 ? (
+                          <>
+                            <img
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform cursor-pointer"
+                              src={claProof.photos.slot2}
+                              alt="Góc 2: Chi tiết & Phụ kiện"
+                              onClick={() => setPreviewImageModal(claProof.photos.slot2)}
+                            />
+                            <span className="absolute top-2 left-2 bg-stone-900/85 text-white text-[9px] px-2 py-0.5 rounded font-bold backdrop-blur-xs">
+                              Góc 2: Chi tiết &amp; Phụ kiện
+                            </span>
+                            {(!claProof.isSigned || isEditingCla) && (
+                              <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <label className="p-1.5 bg-stone-900/80 hover:bg-stone-900 text-white rounded-lg cursor-pointer text-[10px]" title="Đổi ảnh">
+                                  <span className="material-symbols-outlined text-[14px]">edit</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handlePhotoUpload('slot2', e)}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePhoto('slot2')}
+                                  className="p-1.5 bg-rose-700/90 hover:bg-rose-800 text-white rounded-lg cursor-pointer text-[10px]"
+                                  title="Xóa ảnh"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">delete</span>
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <label className="w-full h-full flex flex-col items-center justify-center gap-1.5 p-4 text-center cursor-pointer hover:bg-stone-100 transition-colors">
+                            <span className="material-symbols-outlined text-stone-400 text-2xl">add_a_photo</span>
+                            <span className="text-[11px] font-semibold text-stone-700">Tải ảnh Góc 2</span>
+                            <span className="text-[10px] text-stone-400">Góc cạnh &amp; Phụ kiện</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handlePhotoUpload('slot2', e)}
+                            />
+                          </label>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-stone-500 block text-center">
+                        {claProof.photos.slot2 ? 'Đã tải ảnh phụ kiện & chi tiết' : 'Chưa có ảnh minh chứng'}
+                      </span>
+                    </div>
+
+                    {/* Slot 3: Tem niêm phong & Khóa Nanuk */}
+                    <div className="space-y-2">
+                      <div className="h-40 rounded-2xl overflow-hidden bg-stone-50 relative group border border-stone-200/80">
+                        {claProof.photos.slot3 ? (
+                          <>
+                            <img
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform cursor-pointer"
+                              src={claProof.photos.slot3}
+                              alt="Góc 3: Tem niêm phong Nanuk"
+                              onClick={() => setPreviewImageModal(claProof.photos.slot3)}
+                            />
+                            <span className="absolute top-2 left-2 bg-stone-900/85 text-white text-[9px] px-2 py-0.5 rounded font-bold backdrop-blur-xs">
+                              Góc 3: Tem chì niêm phong
+                            </span>
+                            {(!claProof.isSigned || isEditingCla) && (
+                              <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <label className="p-1.5 bg-stone-900/80 hover:bg-stone-900 text-white rounded-lg cursor-pointer text-[10px]" title="Đổi ảnh">
+                                  <span className="material-symbols-outlined text-[14px]">edit</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handlePhotoUpload('slot3', e)}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePhoto('slot3')}
+                                  className="p-1.5 bg-rose-700/90 hover:bg-rose-800 text-white rounded-lg cursor-pointer text-[10px]"
+                                  title="Xóa ảnh"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">delete</span>
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <label className="w-full h-full flex flex-col items-center justify-center gap-1.5 p-4 text-center cursor-pointer hover:bg-stone-100 transition-colors">
+                            <span className="material-symbols-outlined text-stone-400 text-2xl">add_a_photo</span>
+                            <span className="text-[11px] font-semibold text-stone-700">Tải ảnh Góc 3</span>
+                            <span className="text-[10px] text-stone-400">Tem niêm phong Nanuk</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handlePhotoUpload('slot3', e)}
+                            />
+                          </label>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-stone-500 block text-center">
+                        {claProof.photos.slot3 ? 'Đã tải ảnh tem niêm phong' : 'Chưa có ảnh minh chứng'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Signed State: Stamp & Note Display */}
+                  {claProof.isSigned && !isEditingCla ? (
+                    <div className="p-4 sm:p-5 bg-stone-50 rounded-2xl text-xs text-stone-600 space-y-3 border-none">
+                      <div className="flex items-start gap-2.5">
+                        <span className="material-symbols-outlined text-emerald-700 text-xl shrink-0">verified_user</span>
+                        <div className="space-y-1.5 flex-1">
+                          <div className="font-bold text-stone-900 flex flex-wrap items-center gap-2">
+                            <span>Biên bản CLA đã ký điện tử:</span>
+                            <span className="font-mono text-emerald-800 font-normal bg-emerald-50 px-2 py-0.5 rounded text-[11px]">
+                              Mã xác thực: CLA-{orderData.code.replace('#', '')}
+                            </span>
+                          </div>
+                          <p className="text-stone-700">
+                            Người ký: <strong className="text-stone-900">{claProof.signerName}</strong>
+                            {claProof.signerPhone && <> · SĐT: <span className="font-mono">{claProof.signerPhone}</span></>}
+                            {claProof.signDate && <> · Thời gian: <span>{claProof.signDate}</span></>}
+                          </p>
+                          {claProof.note && (
+                            <div className="text-stone-700 italic pt-1 border-t border-stone-200/50">
+                              &ldquo;{claProof.note}&rdquo;
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-stone-200/60">
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingCla(true)}
+                          className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-stone-100 text-stone-800 text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer border border-stone-200"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">edit</span>
+                          <span>Cập nhật lại ảnh / Bổ sung ghi chú</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Unsigned / Editing State: Note input, Checkbox & Sign Button */
+                    <div className="p-5 bg-stone-50 rounded-2xl space-y-4 border border-stone-200/70">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[16px] text-stone-700">edit_note</span>
+                          <span>Ghi chú hiện trường khi nhận đồ:</span>
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={claProof.note}
+                          onChange={(e) => setClaProof((prev) => ({ ...prev, note: e.target.value }))}
+                          placeholder="Ví dụ: Bưu kiện nguyên vẹn, niêm phong Nanuk chưa bóc, đầy đủ phụ kiện theo danh mục..."
+                          className="w-full p-3 rounded-xl border border-stone-200 bg-white text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                        />
+                      </div>
+
+                      <div className="flex items-start gap-2.5">
+                        <input
+                          type="checkbox"
+                          id="cla-confirm-check"
+                          checked={claAgreed}
+                          onChange={(e) => setClaAgreed(e.target.checked)}
+                          className="mt-0.5 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
+                        />
+                        <label htmlFor="cla-confirm-check" className="text-xs text-stone-700 cursor-pointer select-none leading-relaxed">
+                          Tôi cam kết đã trực tiếp nhận hàng, mở kiện kiểm tra ngoại quan thiết bị và đồng ý ký xác nhận biên bản bàn giao CLA điện tử bảo chứng Smart Escrow.
+                        </label>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                        <span className="text-[11px] text-stone-500">
+                          Người nhận: <strong className="text-stone-800">{orderData.recipientName || displayName}</strong> ({orderData.recipientPhone})
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {isEditingCla && (
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingCla(false)}
+                              className="px-4 py-2.5 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 text-xs font-semibold transition-colors cursor-pointer"
+                            >
+                              Hủy bỏ
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={handleSignCla}
+                            disabled={!claAgreed}
+                            className="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-black text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-xs cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">draw</span>
+                            <span>{claProof.isSigned ? 'Lưu cập nhật biên bản CLA' : 'Ký nhận & Xác nhận bàn giao CLA'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN: FINANCIAL LEDGER & TRANSIT PROTOCOL (5 COLS) */}
+              <div className="lg:col-span-5 space-y-8">
+                {/* FINANCIAL LEDGER & ESCROW TRANSPARENCY (Border None) */}
+                <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border-none space-y-6">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-stone-500">
+                      Bóc tách tài chính
+                    </span>
+                    <h3 className="font-serif text-xl font-bold text-stone-900">Sổ cái thanh toán &amp; Ký quỹ</h3>
+                  </div>
+
+                  {/* Ledger Line Items */}
+                  <div className="space-y-3.5 text-xs">
+                    {orderData.items.map((it) => (
+                      <div key={it.id} className="flex justify-between items-center text-stone-700">
+                        <span className="truncate max-w-[240px]">
+                          Tiền thuê: {it.title} ({orderData.rentalDays} ngày)
+                        </span>
+                        <span className="font-semibold text-stone-900 shrink-0">{formatVnd(it.itemTotal)}</span>
+                      </div>
+                    ))}
+
+                    <div className="flex justify-between items-center text-stone-500 pl-3">
+                      <span>Tạm tính phí thuê thiết bị</span>
+                      <span className="font-medium text-stone-700">{formatVnd(orderData.totalRentalFee)}</span>
+                    </div>
+
+                    <div className="h-px bg-stone-100 my-2"></div>
+
+                    {orderData.items.map((it) => (
+                      <div key={it.id} className="flex justify-between items-center text-stone-700">
+                        <span className="flex items-center gap-1.5 truncate max-w-[240px]">
+                          <span>Cọc Smart Escrow: {it.title}</span>
+                          <span className="material-symbols-outlined text-emerald-600 text-[14px]" title="Hoàn 100%">
+                            lock
+                          </span>
+                        </span>
+                        <span className="font-semibold text-stone-900 shrink-0">{formatVnd(it.deposit)}</span>
+                      </div>
+                    ))}
+
+                    <div className="flex justify-between items-center text-stone-500 pl-3">
+                      <span>Tổng tiền ký quỹ bảo hộ (Đang khóa)</span>
+                      <span className="font-bold text-emerald-700">{formatVnd(orderData.escrowDeposit)}</span>
+                    </div>
+
+                    <div className="h-px bg-stone-100 my-2"></div>
+
+                    <div className="flex justify-between items-center text-stone-700">
+                      <span>Phí bưu tá chuyên dụng Nanuk White-Glove (2 chiều)</span>
+                      <span className="font-semibold text-stone-900">{formatVnd(orderData.shippingFee)}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-emerald-800 font-medium">
+                      <span>Mã ưu đãi tuần hoàn CIRCULAR2024</span>
+                      <span>- 0₫ (Đã cấn trừ bảo hiểm)</span>
+                    </div>
+
+                    {/* Total Settled */}
+                    <div className="pt-4 bg-stone-50 p-4 rounded-2xl space-y-1 border-none">
+                      <div className="flex justify-between items-baseline">
+                        <span className="font-bold text-stone-900 text-sm">Tổng quyết toán đã trả:</span>
+                        <span className="font-bold text-xl text-stone-900">{formatVnd(orderData.grandTotal)}</span>
+                      </div>
+                      <div className="text-[11px] text-stone-500 flex justify-between">
+                        <span>Trạng thái giao dịch:</span>
+                        <span className="font-semibold text-emerald-700">Đã thanh toán 100% qua VNPay</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Escrow Guarantee Callout (Border None) */}
+                  <div className="bg-emerald-50 text-emerald-900 p-4 rounded-2xl text-xs space-y-2 border-none">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <span className="material-symbols-outlined text-base text-emerald-700">shield_with_heart</span>
+                      <span>Cam kết hoàn tiền cọc Smart Escrow</span>
+                    </div>
+                    <p className="text-emerald-800 leading-relaxed text-[11px]">
+                      Toàn bộ <strong>{formatVnd(orderData.escrowDeposit)} tiền cọc</strong> đang được bảo lưu độc lập
+                      trong tài khoản ký quỹ trung gian. Hệ thống tự động hoàn trả 100% về tài khoản VNPay / ngân hàng
+                      nguồn của bạn trong 4 - 24 giờ sau khi thiết bị qua vòng kiểm tra Bench Lab.
+                    </p>
+                  </div>
+                </div>
+
+                {/* PAYMENT & INVOICE METADATA (Border None) */}
+                <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border-none space-y-5">
+                  <h4 className="font-serif text-lg font-bold text-stone-900">Thông tin Cổng thanh toán</h4>
+                  <div className="space-y-3 text-xs">
+                    <div className="flex justify-between py-1.5 border-b border-stone-100">
+                      <span className="text-stone-500">Cổng giao dịch</span>
+                      <span className="font-semibold text-stone-800">{orderData.paymentMethod}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-stone-100">
+                      <span className="text-stone-500">Mã giao dịch (Trans ID)</span>
+                      <span className="font-mono font-semibold text-stone-800">{orderData.transactionId}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-stone-100">
+                      <span className="text-stone-500">Thời gian giao dịch</span>
+                      <span className="font-semibold text-stone-800">{orderData.paymentTime}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5">
+                      <span className="text-stone-500">Tình trạng quỹ</span>
+                      <span className="font-semibold text-stone-800 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                        {orderData.paymentStatus}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal('invoice')}
+                    className="w-full py-3 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer border-none"
+                  >
+                    <span className="material-symbols-outlined text-[17px]">download</span>
+                    <span>Tải hóa đơn VAT &amp; Chứng thư ký quỹ</span>
+                  </button>
+                </div>
+
+                {/* SHIPPING & WHITE-GLOVE TRACKING (Border None) */}
+                <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border-none space-y-6">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-stone-500">
+                      Vận chuyển chuyên dụng
+                    </span>
+                    <h4 className="font-serif text-lg font-bold text-stone-900">Lộ trình giao nhận 2 chiều (Nanuk)</h4>
+                  </div>
+
+                  <div className="space-y-4 text-xs">
+                    {/* Outbound Delivery */}
+                    <div className="p-3.5 rounded-2xl bg-stone-50 space-y-1.5 border-none">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-stone-900 flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[16px] text-emerald-600">local_shipping</span>
+                          <span>Chiều 1: Giao hàng đến bạn</span>
+                        </span>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border-none">
+                          ĐÃ GIAO XONG
+                        </span>
+                      </div>
+                      <p className="text-stone-500 text-[11px]">
+                        Bưu tá Viettel Armored · Mã kiện #{orderData.trackingCode} · Giao lúc {orderData.outboundDate}
+                      </p>
+                    </div>
+
+                    {/* Return Delivery */}
+                    <div className="p-3.5 rounded-2xl bg-stone-50 space-y-1.5 border-none">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-stone-900 flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[16px] text-stone-600">undo</span>
+                          <span>Chiều 2: Thu hồi hoàn trả</span>
+                        </span>
+                        <span className="text-[10px] bg-stone-200 text-stone-800 font-bold px-2 py-0.5 rounded-full border-none">
+                          ĐÃ ĐẶT LỊCH
+                        </span>
+                      </div>
+                      <p className="text-stone-500 text-[11px]">
+                        Khung giờ hẹn lấy: <strong>{orderData.returnTimeWindow}</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Customer Destination Details */}
+                  <div className="pt-2 space-y-2 text-xs border-none">
+                    <span className="text-[10px] uppercase font-bold text-stone-400 block">Địa chỉ lưu ký người thuê:</span>
+                    <p className="font-semibold text-stone-800">
+                      {orderData.recipientName} — {orderData.recipientPhone}
+                    </p>
+                    <p className="text-stone-600 leading-relaxed">{orderData.shippingAddress}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      alert(
+                        'Mở bản đồ bưu tá thời gian thực Viettel Post Handoff: Chuyến xe sẵn sàng kích hoạt vào ngày 19/11.'
+                      )
+                    }
+                    className="w-full py-2.5 rounded-xl border-none text-stone-700 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">map</span>
+                    <span>Tra cứu vận đơn 2 chiều</span>
+                  </button>
+                </div>
+
+                {/* SHOP OWNER CONCIERGE & SUPPORT (Border None) */}
+                <div className="bg-stone-50 rounded-3xl p-6 sm:p-7 space-y-4 border-none">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-full bg-stone-900 text-white flex items-center justify-center font-serif text-lg font-bold border-none">
+                      RH
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-bold text-stone-900">RedRiver &amp; Alpine Camp Concierge</h5>
+                      <p className="text-[10px] text-stone-500">Đội ngũ kỹ thuật trực ban · Phản hồi trong 5 phút</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-stone-600 leading-relaxed">
+                    Cần hướng dẫn căn chỉnh profile màu Canon C-Log3 hoặc cách dựng lều trong thời tiết gió cấp 5? Kỹ
+                    thuật viên luôn túc trực hỗ trợ bạn.
+                  </p>
+                  <Link
+                    to={`/chat?orderId=${orderData.code.replace('#', '')}`}
+                    className="w-full py-3 rounded-2xl bg-stone-900 text-white text-xs font-bold hover:bg-stone-800 transition-colors flex items-center justify-center gap-2 border-none"
+                  >
+                    <span className="material-symbols-outlined text-[17px]">send</span>
+                    <span>Mở cuộc trò chuyện kỹ thuật</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* ── MODALS (Border None) ── */}
+      {/* 1. Bench Grade Modal */}
+      {activeModal === 'bench' && selectedItemForModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
-          onClick={() => setShowAuthModal(false)}
+          onClick={() => setActiveModal(null)}
         >
           <div
-            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 text-center relative border border-[#E7E2DA]"
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 border-none relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
-              onClick={() => setShowAuthModal(false)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-[#F4F0EA] text-[#78736A] transition-colors"
+              onClick={() => setActiveModal(null)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-stone-100 text-stone-500 transition-colors cursor-pointer border-none"
             >
               <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
 
-            <div className="w-14 h-14 rounded-full bg-[#F4F0EA] flex items-center justify-center text-[#1C1A18] mx-auto shadow-sm">
-              <span className="material-symbols-outlined text-[28px]">lock_person</span>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-xl font-bold text-[#1C1A18]">Yêu cầu Tài khoản Khách hàng</h3>
-              <p className="text-xs text-[#5E5A53] leading-relaxed">
-                Bạn đang truy cập ở chế độ công khai (Khách vãng lai). Để <strong>{authActionName}</strong>,
-                vui lòng đăng nhập hoặc tạo tài khoản thành viên ReUse Hub.
-              </p>
-            </div>
-
-            <div className="p-3.5 bg-[#F4F0EA]/70 rounded-2xl text-left space-y-1.5 text-xs text-[#5E5A53]">
-              <div className="flex items-center gap-2 font-semibold text-[#1C1A18]">
-                <span className="material-symbols-outlined text-[16px] text-emerald-700">verified</span>
-                Quyền lợi khi đăng nhập:
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center border-none">
+                <span className="material-symbols-outlined text-[22px]">verified</span>
+              </span>
+              <div>
+                <h3 className="font-serif font-bold text-lg text-stone-900">
+                  Chứng thư Kiểm định Kỹ thuật (Bench Report)
+                </h3>
+                <p className="text-xs text-stone-500">{selectedItemForModal.title}</p>
               </div>
-              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-[#78736A]">
-                <li>Khởi tạo hợp đồng thuê điện tử và ký quỹ an toàn</li>
-                <li>Hưởng chính sách Smart Escrow hoàn cọc tự động 100%</li>
-                <li>Quản lý lịch trình giao nhận và bảo lưu đơn hàng</li>
-              </ul>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <Link
-                to={`/login?redirect=${encodeURIComponent(window.location.pathname)}&message=${encodeURIComponent(
-                  `Bạn cần đăng nhập tài khoản để ${authActionName}!`
-                )}`}
-                className="flex-1 py-3 px-4 rounded-xl bg-[#1C1A18] text-white text-xs font-bold text-center hover:bg-[#292724] transition-all shadow-sm"
+            <div className="bg-stone-50 p-4 rounded-2xl space-y-2 text-xs border-none">
+              <div className="flex justify-between py-1 border-b border-stone-200">
+                <span className="text-stone-500">Mã định danh Serial:</span>
+                <span className="font-mono font-bold text-stone-800">{selectedItemForModal.serialNumber}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-stone-200">
+                <span className="text-stone-500">Niêm chì Smart Seal:</span>
+                <span className="font-mono font-bold text-stone-800">{selectedItemForModal.sealId}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-stone-200">
+                <span className="text-stone-500">Phân hạng chất lượng:</span>
+                <span className="font-bold text-emerald-700">{selectedItemForModal.grade}</span>
+              </div>
+              <div className="pt-2">
+                <span className="text-[10px] uppercase font-bold text-stone-400 block">Kết quả đối soát phòng Lab:</span>
+                <p className="text-stone-700 leading-relaxed mt-1 font-medium">
+                  {selectedItemForModal.benchReportText}
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                className="px-5 py-2.5 rounded-xl bg-stone-900 text-white text-xs font-semibold hover:bg-stone-800 cursor-pointer border-none"
               >
-                Đăng nhập ngay
-              </Link>
-              <Link
-                to={`/register?redirect=${encodeURIComponent(window.location.pathname)}`}
-                className="flex-1 py-3 px-4 rounded-xl bg-[#F4F0EA] text-[#1C1A18] text-xs font-bold text-center hover:bg-[#E7E2DA] transition-all"
-              >
-                Đăng ký tài khoản
-              </Link>
+                Đóng
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Main Inner Container */}
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-12">
-        {/* 1. BREADCRUMB */}
-        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-[#78736A] tracking-wide">
-          <Link to="/" className="hover:text-[#1C1A18] transition-colors">Trang chủ</Link>
-          <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-          <Link to="/rent" className="hover:text-[#1C1A18] transition-colors">RENT</Link>
-          <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-          <span className="text-[#1C1A18] font-medium truncate max-w-xs">{product.title}</span>
-        </nav>
-
-        {/* 2. MAIN TWO-COLUMN PRODUCT SECTION */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-10 xl:gap-14 items-start">
-          {/* CỘT TRÁI (LEFT COLUMN): GALLERY & QUALITY GUARANTEE */}
-          <div className="lg:col-span-7 flex flex-col gap-6">
-            {/* Main Lifestyle Image Showcase */}
-            <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-[#F4F0EA] shadow-sm group">
-              <img
-                className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]"
-                src={currentPreview.src}
-                alt={currentPreview.alt}
-              />
-
-              {/* Badges & Fast Actions Overlay */}
-              <div className="absolute top-4 left-4 flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1C1A18]/90 text-[#FBF9F5] text-[11px] font-semibold tracking-wider uppercase backdrop-blur-md shadow-sm">
-                  <span className="material-symbols-outlined text-[14px] text-amber-300">verified</span>
-                  Đã kiểm định 95%
-                </span>
-                <span className="inline-flex items-center px-2.5 py-1.5 rounded-full bg-[#FBF9F5]/90 text-[#1C1A18] text-[11px] font-bold tracking-wider uppercase backdrop-blur-md">
-                  {product.grade}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleToggleWishlist}
-                title="Lưu vào danh sách yêu thích"
-                className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-sm hover:scale-105 ${
-                  isWishlist
-                    ? 'bg-red-500 text-white'
-                    : 'bg-[#FBF9F5]/90 text-[#1C1A18] hover:bg-white'
-                }`}
-              >
-                <span
-                  className="material-symbols-outlined text-[20px]"
-                  style={isWishlist ? { fontVariationSettings: "'FILL' 1" } : {}}
-                >
-                  favorite
-                </span>
-              </button>
-
-              <div className="absolute bottom-4 left-4 right-4 bg-[#1C1A18]/80 backdrop-blur-md text-[#FBF9F5] p-3 rounded-xl flex items-center justify-between text-xs sm:opacity-90">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px] text-emerald-400">qr_code_scanner</span>
-                  <span>Mã kiểm định độc lập: <strong>{product.auditCode}</strong></span>
-                </div>
-                <span className="font-mono text-[11px] text-[#F4F0EA]/80">Kèm chứng nhận niêm phong</span>
-              </div>
-            </div>
-
-            {/* Actual Thumbnails */}
-            <div className="grid grid-cols-4 gap-3 sm:gap-4">
-              {product.images.map((img, idx) => (
-                <button
-                  key={img.caption}
-                  type="button"
-                  onClick={() => setActiveThumb(idx)}
-                  className={`group relative aspect-square rounded-xl overflow-hidden bg-[#F4F0EA] shadow-sm transition-all focus:outline-none ${
-                    activeThumb === idx ? 'ring-2 ring-[#1C1A18]' : 'hover:opacity-90'
-                  }`}
-                >
-                  <img
-                    src={img.src}
-                    alt={img.alt}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  />
-                  <span className="absolute inset-x-0 bottom-0 py-1 bg-[#1C1A18]/85 text-[10px] text-white font-medium text-center truncate px-1">
-                    {img.caption}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Khối cam kết "Bảo chứng từ ReUse Hub" */}
-            <div className="bg-[#F4F0EA]/60 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#1C1A18] text-[22px]">verified_user</span>
-                  <h3 className="font-bold text-base sm:text-lg text-[#1C1A18]">Bảo chứng an tâm từ ReUse Hub</h3>
-                </div>
-                <span className="text-[11px] font-mono uppercase bg-white text-[#5E5A53] px-2.5 py-1 rounded-full shadow-xs">
-                  Tiêu chuẩn 100%
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                {QUALITY_COMMITMENTS.map((qc) => (
-                  <div key={qc.title} className="flex items-start gap-3 bg-white p-3.5 rounded-xl shadow-xs">
-                    <span className="material-symbols-outlined text-emerald-700 text-[20px] shrink-0 mt-0.5">
-                      {qc.icon}
-                    </span>
-                    <div className="space-y-0.5">
-                      <p className="text-xs font-bold text-[#1C1A18]">{qc.title}</p>
-                      <p className="text-[11px] text-[#78736A] leading-relaxed">{qc.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* CỘT PHẢI (RIGHT COLUMN): SPEC, AVAILABILITY SELECTOR & RENTAL CALCULATOR */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            {/* Metadata Header */}
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded bg-[#F4F0EA] text-[#1C1A18] font-semibold uppercase tracking-wider text-[10px]">
-                    {product.category}
-                  </span>
-                  <span className="text-[#78736A] flex items-center gap-1 font-medium">
-                    <span className="material-symbols-outlined text-[14px]">location_on</span>
-                    {product.location}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 text-xs">
-                  <span
-                    className="material-symbols-outlined text-amber-500 text-[16px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    star
-                  </span>
-                  <span className="font-bold text-[#1C1A18]">{product.rating}</span>
-                  <span className="text-[#78736A]">({product.reviewCount} đánh giá thực tế)</span>
-                </div>
-              </div>
-
-              <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl text-[#1C1A18] font-bold tracking-tight leading-snug">
-                {product.title}
-              </h1>
-              <p className="text-sm text-[#5E5A53] font-medium leading-relaxed">
-                {product.subtitle}
-              </p>
-
-              <div className="flex items-center gap-3 pt-1">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 text-xs font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                  Tình trạng: {product.condition}
-                </span>
-                <span className="text-xs text-[#78736A] font-mono">{product.shutterOrUsage}</span>
-              </div>
-            </div>
-
-            {/* Giá thuê & Tiền cọc Panel */}
-            <div className="bg-[#F4F0EA]/50 rounded-2xl p-5 shadow-xs space-y-3">
-              <div className="flex items-baseline justify-between">
-                <div className="space-y-0.5">
-                  <span className="text-[11px] font-bold tracking-wider uppercase text-[#78736A]">Giá thuê theo ngày</span>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="font-serif text-2xl sm:text-3xl font-bold text-[#1C1A18]">
-                      {formatVND(product.pricePerDay)}
-                    </span>
-                    <span className="text-xs font-sans text-[#5E5A53] font-medium">/ ngày</span>
-                  </div>
-                </div>
-                <div className="text-right space-y-0.5">
-                  <span className="text-[11px] font-bold tracking-wider uppercase text-[#78736A]">Tiền cọc bảo đảm</span>
-                  <p className="font-serif text-base sm:text-lg font-bold text-[#1C1A18]">{product.depositFormatted}</p>
-                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-medium">
-                    <span className="material-symbols-outlined text-[12px]">lock</span> Escrow an toàn
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* KHỐI CHỌN THỜI GIAN THUÊ (AVAILABILITY & DURATION SELECTOR) */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#1C1A18] flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[16px]">calendar_month</span>
-                  Thời gian &amp; Số lượng thuê
-                </h3>
-                <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full">
-                  Sẵn sàng giao ngay
-                </span>
-              </div>
-
-              {/* Custom Rental Calendar & Booked dates in future */}
-              <RentalCalendarPicker
-                startDate={startDate}
-                endDate={endDate}
-                bookedRanges={bookedDates}
-                onChange={(newStart, newEnd) => {
-                  setStartDate(newStart);
-                  setEndDate(newEnd);
-                }}
-              />
-
-              {/* Quantity Selector */}
-              <div className="flex items-center justify-between pt-1">
-                <div>
-                  <p className="text-xs font-semibold text-[#1C1A18]">Số lượng thiết bị</p>
-                  <p className="text-[11px] text-[#78736A]">
-                    Tối đa {product.maxQuantity} bộ có sẵn trong kho {product.location}
-                  </p>
-                </div>
-                <div className="flex items-center bg-[#F4F0EA] rounded-xl p-1 shadow-xs">
-                  <button
-                    type="button"
-                    onClick={() => handleQuantityChange(-1)}
-                    disabled={quantity <= 1}
-                    className="w-8 h-8 rounded-lg bg-white text-[#1C1A18] flex items-center justify-center hover:bg-white/80 transition-colors disabled:opacity-40"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">remove</span>
-                  </button>
-                  <span className="w-10 text-center font-mono font-bold text-xs text-[#1C1A18]">
-                    {quantity < 10 ? `0${quantity}` : quantity}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleQuantityChange(1)}
-                    disabled={quantity >= product.maxQuantity}
-                    className="w-8 h-8 rounded-lg bg-white text-[#1C1A18] flex items-center justify-center hover:bg-white/80 transition-colors disabled:opacity-40"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">add</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* BẢNG TÍNH TOÁN DỰ TOÁN THUÊ (RENTAL SUMMARY LEDGER) */}
-            <div className="bg-[#F4F0EA]/30 rounded-2xl p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between pb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#1C1A18] flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[16px]">receipt_long</span>
-                  Bảng kê dự toán thuê minh bạch
-                </span>
-                <span className="text-[11px] font-mono text-[#78736A]">Tự động đối soát</span>
-              </div>
-
-              <div className="space-y-2.5 text-xs">
-                <div className="flex items-center justify-between text-[#5E5A53]">
-                  <span>Thời lượng thuê:</span>
-                  <span className="font-medium text-[#1C1A18]">{days} ngày</span>
-                </div>
-                <div className="flex items-center justify-between text-[#5E5A53]">
-                  <span>
-                    Phí thuê thực tế ({formatVND(baseDailyRate)} × {days} ngày{quantity > 1 ? ` × ${quantity}` : ''}):
-                  </span>
-                  <span className="font-semibold text-[#1C1A18]">{formatVND(rentTotal)}</span>
-                </div>
-                <div className="flex items-center justify-between text-[#5E5A53]">
-                  <div className="flex items-center gap-1">
-                    <span>Vận chuyển 2 chiều có bảo hiểm:</span>
-                    <span
-                      className="material-symbols-outlined text-[14px] text-[#78736A]"
-                      title="Bao gồm niêm phong chống sốc và bảo hiểm trầy xước trong quá trình di chuyển"
-                    >
-                      info
-                    </span>
-                  </div>
-                  <span className="font-semibold text-[#1C1A18]">{formatVND(shippingFee)}</span>
-                </div>
-                <div className="flex items-center justify-between text-[#5E5A53]">
-                  <div className="flex items-center gap-1">
-                    <span>Tiền cọc bảo đảm (Hoàn lại 100%):</span>
-                    <span className="material-symbols-outlined text-[14px] text-emerald-600">verified</span>
-                  </div>
-                  <span className="font-semibold text-[#1C1A18]">{formatVND(depositTotal)}</span>
-                </div>
-              </div>
-
-              {/* Total Calculation */}
-              <div className="pt-3 flex items-baseline justify-between bg-white p-3.5 rounded-xl shadow-xs">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#78736A]">Tổng thanh toán tạm tính</p>
-                  <p className="text-[10px] text-[#78736A]">Bao gồm cọc bảo đảm</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-xl sm:text-2xl font-bold text-[#1C1A18]">
-                    {formatVND(grandTotal)}
-                  </span>
-                </div>
-              </div>
-
-              <p className="text-[11px] text-[#78736A] leading-relaxed italic">
-                * Công thức: Tổng thanh toán = Phí thuê + Tiền cọc hoàn lại + Phí vận chuyển. Tiền cọc sẽ được hoàn trả tự động vào tài khoản sau khi trả đồ và kiểm định hoàn tất trong 2 giờ.
-              </p>
-            </div>
-
-            {/* CỤM NÚT HÀNH ĐỘNG DÀNH CHO KHÁCH & CUSTOMER */}
-            <div className="space-y-3 pt-1">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={handleRentNow}
-                  className="w-full py-3.5 px-6 rounded-full bg-[#1C1A18] hover:bg-[#292724] text-white text-xs font-bold tracking-wider uppercase text-center transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[18px]">cached</span>
-                  Thuê ngay
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAddToCart}
-                  className="w-full py-3.5 px-6 rounded-full bg-white hover:bg-[#F4F0EA] text-[#1C1A18] text-xs font-bold tracking-wider uppercase text-center transition-all shadow-sm border border-[#E7E2DA] flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
-                  Thêm vào giỏ
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={handleChat}
-                  className="py-2.5 px-4 rounded-xl bg-[#F4F0EA]/70 hover:bg-[#F4F0EA] text-[#1C1A18] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[16px]">chat</span>
-                  Chat với Shop Owner
-                </button>
-                <button
-                  type="button"
-                  onClick={handleToggleWishlist}
-                  className="py-2.5 px-4 rounded-xl bg-[#F4F0EA]/70 hover:bg-[#F4F0EA] text-[#1C1A18] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[16px]">
-                    {isWishlist ? 'favorite' : 'favorite_border'}
-                  </span>
-                  {isWishlist ? 'Đã lưu yêu thích' : 'Lưu mong muốn'}
-                </button>
-              </div>
-            </div>
-
-            {/* THÔNG TIN SHOP OWNER ĐÃ ĐƯỢC XÁC THỰC */}
-            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#78736A]">
-                  Đơn vị sở hữu thiết bị
-                </span>
-                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full font-semibold">
-                  <span className="material-symbols-outlined text-[12px]">verified</span> KYC Đã xác minh CCCD
-                </span>
-              </div>
-              <div className="flex items-center gap-3.5 pt-1">
-                <div className="w-12 h-12 rounded-full bg-[#1C1A18] text-white flex items-center justify-center text-lg font-bold shadow-sm shrink-0">
-                  {SHOP_OWNER_DATA.avatarText}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-sm text-[#1C1A18] truncate">{SHOP_OWNER_DATA.name}</h4>
-                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 text-[9px] font-bold shrink-0">
-                      {SHOP_OWNER_DATA.badge}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#78736A] pt-0.5">
-                    <span>{SHOP_OWNER_DATA.successOrders}</span>
-                    <span>•</span>
-                    <span className="text-emerald-700 font-medium">{SHOP_OWNER_DATA.responseTime}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 3. CÁC TAB THÔNG TIN SẢN PHẨM CHI TIẾT (PRODUCT INFORMATION TABS) */}
-        <section className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
-          {/* Tabs Navigation */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
-            {[
-              { id: 'desc', label: 'Mô tả & Phụ kiện' },
-              { id: 'terms', label: 'Điều khoản & Bảo quản' },
-              { id: 'audit', label: 'Tình trạng thực tế (Audit)' },
-              { id: 'deposit', label: 'Chính sách Cọc & Hoàn tiền' },
-              { id: 'shipping', label: 'Vận chuyển & Giao nhận' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id as TabKey)}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shrink-0 ${
-                  activeTab === tab.id
-                    ? 'bg-[#1C1A18] text-white shadow-xs'
-                    : 'bg-[#F4F0EA]/60 text-[#5E5A53] hover:text-[#1C1A18]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab Content 1: Mô tả & Phụ kiện */}
-          {activeTab === 'desc' && (
-            <div className="space-y-6 pt-2">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 space-y-4">
-                  <h3 className="font-serif font-bold text-lg text-[#1C1A18]">Tổng quan thiết bị chuyên nghiệp</h3>
-                  {product.overview.map((para, i) => (
-                    <p key={i} className="text-xs sm:text-sm text-[#5E5A53] leading-relaxed">
-                      {para}
-                    </p>
-                  ))}
-                </div>
-
-                <div className="bg-[#F4F0EA]/40 p-5 rounded-xl space-y-3 shadow-xs">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#1C1A18] flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[18px]">inventory_2</span>
-                    Bộ phụ kiện bàn giao kèm theo
-                  </h4>
-                  <ul className="text-xs space-y-2 text-[#5E5A53]">
-                    {product.accessories.map((acc, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[15px] text-emerald-700">check_circle</span>
-                        <span>{acc}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Tab Content 2: Điều khoản & Bảo quản */}
-          {activeTab === 'terms' && (
-            <div className="space-y-4 pt-2">
-              <h3 className="font-serif font-bold text-lg text-[#1C1A18]">Quy chuẩn sử dụng &amp; Trách nhiệm bảo quản</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-[#5E5A53]">
-                <div className="p-4 bg-[#F4F0EA]/30 rounded-xl space-y-2">
-                  <p className="font-bold text-[#1C1A18]">✓ Môi trường hoạt động cho phép:</p>
-                  <p className="leading-relaxed">{product.allowedConditions}</p>
-                </div>
-                <div className="p-4 bg-[#F4F0EA]/30 rounded-xl space-y-2">
-                  <p className="font-bold text-[#1C1A18]">✕ Các hành vi bị nghiêm cấm:</p>
-                  <p className="leading-relaxed">{product.prohibitedActions}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Tab Content 3: Tình trạng thực tế (Audit Report) */}
-          {activeTab === 'audit' && (
-            <div className="space-y-4 pt-2">
-              <h3 className="font-serif font-bold text-lg text-[#1C1A18]">Biên bản nghiệm thu kỹ thuật (Audit Log)</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                {product.auditItems.map((item) => (
-                  <div key={item.label} className="p-4 bg-[#F4F0EA]/40 rounded-xl space-y-1">
-                    <span className="text-[#78736A] text-[11px]">{item.label}</span>
-                    <p className="font-bold text-[#1C1A18] text-sm">{item.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Tab Content 4: Chính sách Cọc & Hoàn tiền */}
-          {activeTab === 'deposit' && (
-            <div className="space-y-4 pt-2 text-xs text-[#5E5A53] leading-relaxed">
-              <h3 className="font-serif font-bold text-lg text-[#1C1A18]">Cơ chế Ký quỹ Smart Escrow</h3>
-              <p>
-                Khoản tiền cọc <strong>{product.depositFormatted}</strong> không chuyển trực tiếp cho người cho thuê mà được hệ thống ReUse Hub giữ trung gian an toàn. Ngay sau khi đơn vị vận chuyển bàn giao thiết bị hoàn trả lại trạm trung tâm và kỹ thuật viên quét mã kiểm tra tình trạng trong 2 giờ, số tiền cọc sẽ được hoàn trả tự động 100% về tài khoản ngân hàng hoặc ví đã thanh toán của bạn mà không phát sinh thêm chi phí trung gian.
-              </p>
-            </div>
-          )}
-
-          {/* Tab Content 5: Vận chuyển & Giao nhận */}
-          {activeTab === 'shipping' && (
-            <div className="space-y-4 pt-2 text-xs text-[#5E5A53] leading-relaxed">
-              <h3 className="font-serif font-bold text-lg text-[#1C1A18]">Quy trình đóng gói &amp; Vận chuyển chống sốc</h3>
-              <p>
-                Thiết bị được vận chuyển bằng thùng chống sốc tiêu chuẩn có khóa niêm phong dây rút kèm tem an ninh một chiều. Khi nhận hàng, khách hàng đồng kiểm mã QR tem với tài xế trước khi mở hộp. Sau khi kết thúc thời gian thuê, nhân viên chuyển phát sẽ đến tận địa chỉ của bạn để thu hồi thiết bị với biên bản điện tử tức thì.
-              </p>
-            </div>
-          )}
-        </section>
-
-        {/* 4. QUY TRÌNH THUÊ BẢO ĐẢM 8 BƯỚC */}
-        <section className="bg-[#F4F0EA]/40 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-[#78736A]">
-                Hành trình tuần hoàn
-              </span>
-              <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1C1A18]">
-                Quy trình thuê bảo đảm 8 bước tại ReUse Hub
-              </h2>
-            </div>
-            <span className="text-xs font-semibold text-[#5E5A53] bg-white px-3 py-1 rounded-full shadow-xs w-fit">
-              100% Minh bạch rủi ro
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 pt-2">
-            {RENT_8_STEPS_LIFECYCLE.map((step) => (
-              <div
-                key={step.step}
-                className={`flex flex-col p-3.5 rounded-xl shadow-xs space-y-1.5 ${
-                  step.highlight ? 'bg-emerald-50/70 border border-emerald-200' : 'bg-white'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`text-[10px] font-mono font-bold ${
-                      step.highlight ? 'text-emerald-800' : 'text-[#78736A]'
-                    }`}
-                  >
-                    {step.step}
-                  </span>
-                  <span
-                    className={`material-symbols-outlined text-[18px] ${
-                      step.highlight ? 'text-emerald-700' : 'text-[#1C1A18]'
-                    }`}
-                  >
-                    {step.icon}
-                  </span>
-                </div>
-                <p className="font-bold text-xs text-[#1C1A18]">{step.title}</p>
-                <p className="text-[10px] text-[#78736A] leading-tight">{step.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* 5. SẢN PHẨM LIÊN QUAN ("CÓ THỂ BẠN CŨNG THÍCH") */}
-        <section className="space-y-6 pt-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-[#78736A]">
-                Gợi ý thiết bị RENT
-              </span>
-              <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1C1A18]">Có thể bạn cũng thích</h2>
-            </div>
-            <Link
-              to="/rent"
-              className="text-xs font-semibold text-[#1C1A18] hover:underline flex items-center gap-1"
+      {/* 2. Complaint Modal */}
+      {activeModal === 'complaint' && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+          onClick={() => setActiveModal(null)}
+        >
+          <div
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 border-none relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-stone-100 text-stone-500 transition-colors cursor-pointer border-none"
             >
-              Xem tất cả <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-            </Link>
-          </div>
+              <span className="material-symbols-outlined text-[20px]">close</span>
+            </button>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {RELATED_RENT_PRODUCTS.map((item) => (
-              <Link
-                key={item.id}
-                to={item.href}
-                className="group flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-[#E7E2DA]/40"
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-700 flex items-center justify-center border-none">
+                <span className="material-symbols-outlined text-[22px]">report_problem</span>
+              </span>
+              <div>
+                <h3 className="font-serif font-bold text-lg text-stone-900">Khiếu nại &amp; Trọng tài Escrow</h3>
+                <p className="text-xs text-stone-500">Đơn lưu ký {orderData.code}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs text-stone-600">
+              <p className="leading-relaxed">
+                Đội ngũ Trust &amp; Safety ReUse Hub sẽ tạm đóng băng khoản cọc Smart Escrow và liên hệ đối soát hiện trường trong 30 phút.
+              </p>
+              <textarea
+                rows={3}
+                className="w-full p-3 rounded-xl border border-stone-300 text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                placeholder="Mô tả sự cố hoặc khác biệt so với biên bản bàn giao CLA ban đầu..."
+              ></textarea>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                className="flex-1 py-2.5 rounded-xl bg-stone-100 text-stone-700 text-xs font-semibold hover:bg-stone-200 cursor-pointer border-none"
               >
-                <div className="relative aspect-[4/3] bg-[#F4F0EA] overflow-hidden">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <span className="absolute top-3 left-3 px-2 py-0.5 rounded bg-[#1C1A18]/90 text-white text-[10px] font-bold uppercase tracking-wider backdrop-blur-xs">
-                    {item.grade}
-                  </span>
-                </div>
-
-                <div className="p-4 flex flex-col flex-1 justify-between space-y-3">
-                  <div>
-                    <p className="text-[10px] font-bold text-[#78736A] uppercase tracking-wider">
-                      {item.categoryTag}
-                    </p>
-                    <h3 className="font-serif font-bold text-base text-[#1C1A18] group-hover:text-amber-800 transition-colors line-clamp-1">
-                      {item.title}
-                    </h3>
-                  </div>
-
-                  <div className="pt-2 bg-[#F4F0EA]/30 p-2.5 rounded-xl space-y-1">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-[10px] text-[#78736A] uppercase font-medium">Giá thuê:</span>
-                      <span className="font-serif font-bold text-[#1C1A18] text-sm">
-                        {formatVND(item.price)}{' '}
-                        <span className="font-sans text-[10px] font-normal text-[#78736A]">/ngày</span>
-                      </span>
-                    </div>
-                    <div className="flex items-baseline justify-between text-[11px]">
-                      <span className="text-[#78736A]">Tiền cọc:</span>
-                      <span className="font-medium text-[#1C1A18]">{item.deposit}</span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  alert('Đã tiếp nhận yêu cầu khiếu nại. Mã ticket kiểm định đã gửi về SMS của bạn.');
+                  setActiveModal(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-700 text-white text-xs font-semibold hover:bg-rose-800 cursor-pointer border-none"
+              >
+                Gửi yêu cầu
+              </button>
+            </div>
           </div>
-        </section>
-      </div>
+        </div>
+      )}
+
+      {/* 3. Invoice Modal */}
+      {activeModal === 'invoice' && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+          onClick={() => setActiveModal(null)}
+        >
+          <div
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 border-none text-center relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-stone-100 text-stone-500 transition-colors cursor-pointer border-none"
+            >
+              <span className="material-symbols-outlined text-[20px]">close</span>
+            </button>
+
+            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto border-none">
+              <span className="material-symbols-outlined text-[24px]">task_alt</span>
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="font-serif font-bold text-lg text-stone-900">Đã khởi tạo Hóa đơn điện tử VAT</h3>
+              <p className="text-xs text-stone-500">
+                Liên kết tải Chứng thư ký quỹ Escrow và Hóa đơn điện tử hợp lệ đã được gửi tự động tới hòm thư:{' '}
+                <strong className="text-stone-800">{displayEmail}</strong>.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              className="w-full py-2.5 rounded-xl bg-stone-900 text-white text-xs font-semibold hover:bg-stone-800 cursor-pointer border-none"
+            >
+              Đồng ý
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Full Photo Preview Modal */}
+      {previewImageModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in"
+          onClick={() => setPreviewImageModal(null)}
+        >
+          <div className="relative max-w-3xl max-h-[85vh] p-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setPreviewImageModal(null)}
+              className="absolute -top-10 right-0 p-1.5 rounded-full bg-white/20 hover:bg-white/40 text-white transition-colors cursor-pointer border-none"
+            >
+              <span className="material-symbols-outlined text-[22px]">close</span>
+            </button>
+            <img
+              src={previewImageModal}
+              alt="Chi tiết ảnh minh chứng"
+              className="max-w-full max-h-[80vh] rounded-2xl object-contain shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
