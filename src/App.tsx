@@ -17,6 +17,7 @@ import FaqPage from "./pages/home/FAQ";
 import ContactPage from "./pages/home/Contact";
 
 import RentMarketplace from "./pages/rent/marketplace/RentMarketplace";
+import RentProductDetail from "./pages/rent/detail/RentProductDetail";
 import RentOrderDetail from "./pages/rent/orders/RentOrderDetail";
 import MyRentOrders from "./pages/rent/orders/MyRentOrders";
 import RentCheckout from "./pages/rent/checkout/RentCheckout";
@@ -167,7 +168,7 @@ const App = () => {
 
           <Route
             path="/rent/products/:id"
-            element={<RentOrderDetail />}
+            element={<RentProductDetail />}
           />
 
           <Route
@@ -186,7 +187,7 @@ const App = () => {
 
           <Route
             path="/rent/detail/:id"
-            element={<RentOrderDetail />}
+            element={<RentProductDetail />}
           />
 
           <Route

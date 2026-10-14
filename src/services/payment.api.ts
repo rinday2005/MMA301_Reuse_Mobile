@@ -5,11 +5,14 @@ export interface CreateVnPayUrlRequest {
   orderCode?: string;
   amount?: number;
   type?: "RENT" | "THRIFT";
+  productId?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 /**
  * [BE-S3-04] Gọi API Backend để tạo VNPay Sandbox URL
- * Gửi Bearer Token (qua interceptor của api.ts) và { orderId, orderCode, amount, type }
+ * Gửi Bearer Token (qua interceptor của api.ts) và { orderId, orderCode, amount, type, productId, startDate, endDate }
  * - Nếu thành công: Chuyển hướng sang VNPay Sandbox
  * - Nếu thất bại: Chuyển hướng sang trang /payment-failed với thông báo lỗi (không dùng alert)
  */
@@ -40,6 +43,9 @@ export const handleVNPayPayment = async (
       orderCode: reqObj.orderCode,
       amount: reqObj.amount,
       type: reqObj.type || type,
+      productId: reqObj.productId,
+      startDate: reqObj.startDate,
+      endDate: reqObj.endDate,
     });
 
     // Lấy URL thanh toán và chuyển hướng sang VNPay Sandbox

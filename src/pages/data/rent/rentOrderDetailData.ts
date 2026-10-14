@@ -1,3 +1,14 @@
+import { RENT_PRODUCTS } from './marketplaceData';
+import {
+  CAMERA_CATEGORY_CONFIG,
+  FASHION_CATEGORY_CONFIG,
+  SHOES_CATEGORY_CONFIG,
+  CAMPING_CATEGORY_CONFIG,
+  ELECTRONICS_CATEGORY_CONFIG,
+  BOOKS_CATEGORY_CONFIG,
+  LIFESTYLE_CATEGORY_CONFIG,
+} from '../categories/categoryDetailData';
+
 export interface AuditLogItem {
   label: string;
   value: string;
@@ -396,73 +407,542 @@ export const RENT_PRODUCT_DETAILS_MAP: Record<string, RentProductDetailData> = {
     allowedConditions: 'Phù hợp dã ngoại bãi biển, cắm trại thảo nguyên, đồi núi trong điều kiện thời tiết thông thường.',
     prohibitedActions: 'Không nhóm lửa hay dùng bếp ga trong lều; không gấp cất khi vải lều còn đang ướt sũng.',
   },
+  '5': {
+    id: '5',
+    slug: 'canon-eos-r6',
+    title: 'Canon EOS R6 Mark II Mirrorless',
+    subtitle: 'Kèm ống kính Canon RF 24–70mm f/2.8L IS USM · Cảm biến Full-frame 24.2MP 4K 60p không crop',
+    category: 'CAMERA',
+    location: 'TP. Hồ Chí Minh',
+    rating: 4.9,
+    reviewCount: 210,
+    condition: 'Như mới (Grade A+ 99%)',
+    grade: 'Grade A+',
+    shutterOrUsage: 'Shutter: ~4.120 lần chụp',
+    pricePerDay: 500000,
+    deposit: 2500000,
+    depositFormatted: '2.500.000₫',
+    maxQuantity: 2,
+    auditCode: '#HCM-R6M2-1082',
+    images: [
+      {
+        src: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDm9RHp_nAFGyZAGYxDLuSj2aEJ1h1N-U9WI7PAFWW7ZyfVfl1i_9SppV5JiKn77I8cJ_bsDk1yKDbhK7ua6iE0__0FrQpGra28G6Yt_gWfXn44AauvwE85glJuv7mhovOe_fQm_64353WGhh-yXyasdXNywXSTsgjbqL6GWjRg7xe-alf5PYk6YJEQ4Ew9ZErc7V38NU-BCrvgK7m2VReo2j_s_PneV8IEQBWJ0hmx',
+        alt: 'Canon EOS R6 Mark II',
+        caption: 'Canon EOS R6 Mark II kèm ống kính RF 24-70mm f/2.8L',
+      },
+    ],
+    overview: [
+      'Canon EOS R6 Mark II là dòng máy ảnh hybrid quay chụp đỉnh cao với cảm biến Full-frame 24.2MP, chống rung thân máy IBIS 8 stop và lấy nét Dual Pixel CMOS AF II thông minh.',
+      'Toàn bộ thiết bị được bảo quản tủ chống ẩm 40% RH, khử khuẩn UV-C và vệ sinh cảm biến định kỳ trước mỗi kỳ thuê.',
+    ],
+    accessories: [
+      '01 Thân máy Canon EOS R6 Mark II',
+      '01 Ống kính Canon RF 24-70mm f/2.8L IS USM',
+      '02 Pin Canon LP-E6NH chính hãng',
+      '01 Sạc đôi nhanh LC-E6',
+      '01 Thẻ nhớ SDXC 128GB V60',
+      '01 Hộp chống va đập tiêu chuẩn Nanuk Canada',
+    ],
+    auditItems: [
+      { label: 'Cảm biến (Sensor)', value: '0 Bụi · 0 Dead Pixel' },
+      { label: 'Shutter Count', value: '~4.120 lần chụp' },
+      { label: 'Chống rung IBIS', value: 'Ổn định 8 stop hoàn hảo' },
+      { label: 'Kính ống kính', value: 'Trong suốt · Không mốc rễ tre' },
+    ],
+    allowedConditions: 'Phù hợp tác nghiệp sự kiện, quay phim ngắn, lookbook studio và phong cảnh ngoài trời.',
+    prohibitedActions: 'Không sử dụng dưới mưa lớn khi không có áo mưa chuyên dụng; không tự ý tháo mở bu lông ngàm ống kính.',
+  },
+  '6': {
+    id: '6',
+    slug: 'wool-coat',
+    title: 'Áo Khoác Dạ Wool Dáng Dài Cao Cấp',
+    subtitle: 'Chất liệu 100% dạ len lông cừu tự nhiên · Giữ ấm tốt, form dáng trench coat thanh lịch',
+    category: 'THỜI TRANG',
+    location: 'Hà Nội',
+    rating: 4.8,
+    reviewCount: 45,
+    condition: 'Như mới (Grade Mint 99%)',
+    grade: 'Grade Mint',
+    shutterOrUsage: 'Số lần sử dụng: 02 lần',
+    pricePerDay: 220000,
+    deposit: 900000,
+    depositFormatted: '900.000₫',
+    maxQuantity: 1,
+    auditCode: '#HN-COAT-0941',
+    images: [
+      {
+        src: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ',
+        alt: 'Áo Khoác Dạ Wool',
+        caption: 'Áo Khoác Dạ Wool Dáng Dài',
+      },
+    ],
+    overview: [
+      'Áo khoác dạ len wool dáng dài cao cấp chuẩn atelier, form dáng đứng tôn dáng, khả năng giữ ấm và cản gió vượt trội.',
+      'Được giặt khô sinh học công nghệ CO2 lỏng, ủi hơi nước định hình form dáng và bọc túi chống bụi trước khi giao.',
+    ],
+    accessories: [
+      '01 Áo khoác dạ wool nguyên tag',
+      '01 Đai thắt lưng cùng chất liệu',
+      '01 Móc gỗ sồi chuyên dụng ReUse',
+      '01 Túi trùm bảo quản kháng ẩm cao cấp',
+    ],
+    auditItems: [
+      { label: 'Độ mới chất liệu', value: '99% Như mới (Grade Mint)' },
+      { label: 'Sớ vải wool', value: 'Mịn màng · Không xù lông' },
+      { label: 'Cúc áo & Khuy', value: 'Nguyên bản chắc chắn 100%' },
+      { label: 'Độ sạch vi sinh', value: 'Khử khuẩn chuẩn y tế' },
+    ],
+    allowedConditions: 'Thích hợp dự tiệc mùa đông, chụp ảnh dã ngoại thu đông hoặc sự kiện trang trọng.',
+    prohibitedActions: 'Không giặt nước thông thường, không vắt hay phơi nắng gắt trực tiếp.',
+  },
+  '7': {
+    id: '7',
+    slug: 'op1-synth',
+    title: 'Teenage Engineering OP-1 Field Synthesizer',
+    subtitle: 'Bàn phím tổng hợp âm thanh & ghi âm 4-track tape di động đỉnh cao · Vỏ nhôm nguyên khối',
+    category: 'ĐIỆN TỬ',
+    location: 'Đà Nẵng',
+    rating: 5.0,
+    reviewCount: 18,
+    condition: 'Rất tốt (Grade A 95%)',
+    grade: 'Grade A',
+    shutterOrUsage: 'Số giờ tác nghiệp: 32 giờ',
+    pricePerDay: 320000,
+    deposit: 1500000,
+    depositFormatted: '1.500.000₫',
+    maxQuantity: 1,
+    auditCode: '#DA-OP1-4402',
+    images: [
+      {
+        src: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD9te3aJVYpGneDteUKFIdq6xEbIuYlTZXQ6bppTxwXer5UXL315L_slY8JybSWI0sElJdsxst5JeOU8COAV8d_9Id7BShJa1ubVjLBUxiuArZt_Us8GrKWyoDdUBpTh8Vu7ZJjF_FE_lY1wpNp-QphW1iJOowGOrHjdZJ0AhC0rxCOupCG6SMWnR7Fsnn3F6GWjyzYTa1UdOhqfDBBUNRlYARbhpYkepNnwYwEO5jd',
+        alt: 'OP-1 Field Synthesizer',
+        caption: 'Teenage Engineering OP-1 Field',
+      },
+    ],
+    overview: [
+      'OP-1 Field từ Teenage Engineering là cỗ máy sáng tạo âm nhạc bỏ túi huyền thoại với hơn 100 tính năng nâng cấp, màn hình màu độ phân giải cao và âm thanh stereo 32-bit.',
+      'Toàn bộ phím bấm, núm xoay vô cực encoder và cổng I/O đều được kiểm tra độ nảy và độ nhạy tín hiệu 100%.',
+    ],
+    accessories: [
+      '01 Thiết bị OP-1 Field Synthesizer',
+      '01 Cáp USB-C bọc dù bện cao cấp',
+      '01 Ăng-ten thu sóng FM rời',
+      '01 Case bảo vệ chống sốc chính hãng',
+    ],
+    auditItems: [
+      { label: 'Encoder & Phím', value: 'Độ nảy 100% · Không kẹt' },
+      { label: 'Màn hình OLED', value: 'Sáng đều · Không điểm chết' },
+      { label: 'Pin Li-ion', value: 'Dung lượng thực tế > 98%' },
+      { label: 'Cổng âm thanh', value: 'Stereo sạch · Không nhiễu' },
+    ],
+    allowedConditions: 'Thích hợp sáng tác âm nhạc studio, biểu diễn live di động hoặc thu âm thực địa.',
+    prohibitedActions: 'Không để gần nguồn nước hoặc môi trường ẩm ướt cao, tránh va đập màn hình OLED.',
+  },
+  '8': {
+    id: '8',
+    slug: 'bose-s1',
+    title: 'Loa Di Động Bose S1 Pro+ System',
+    subtitle: 'Hệ thống âm thanh biểu diễn đa năng PA Bluetooth tích hợp pin sạc 11 giờ & mixer 3 kênh',
+    category: 'ÂM THANH',
+    location: 'TP. Hồ Chí Minh',
+    rating: 4.8,
+    reviewCount: 67,
+    condition: 'Rất tốt (Grade A 95%)',
+    grade: 'Grade A',
+    shutterOrUsage: 'Số sự kiện: 14 sự kiện',
+    pricePerDay: 280000,
+    deposit: 1200000,
+    depositFormatted: '1.200.000₫',
+    maxQuantity: 2,
+    auditCode: '#HCM-BOSE-3190',
+    images: [
+      {
+        src: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDAMWq7Usi-8ij0sf0N2-H4NCl1ScKH5274kxXc8AYWyPFy16zT_Kmq3tNSf8LN7ozbRrV99cjXr3HGqO3GJ6PI3P7C3MRDNDCyXlrDzFp3bl8Vy8MCY_G5ZyYkN8df8vo1U6wxOmaDZyNehhN4Oh56uVjgr3kV6uo7bpxr_YUl2Mvvextk0D-dRSVdxpZ5pQYNkX9Qt4yECCk-T8LqKmHDOzynNhWqS_X5lmFv5_qy',
+        alt: 'Bose S1 Pro+ System',
+        caption: 'Loa Di Động Bose S1 Pro+',
+      },
+    ],
+    overview: [
+      'Bose S1 Pro+ mang đến âm thanh biểu diễn chuyên nghiệp mọi lúc mọi nơi với công nghệ ToneMatch độc quyền, màn hình OLED từng kênh và khả năng kết nối không dây siêu tiện lợi.',
+      'Hệ thống loa và mạch công suất được đo kiểm đáp tuyến tần số và khử trùng toàn diện trước khi xuất kho.',
+    ],
+    accessories: [
+      '01 Loa biểu diễn Bose S1 Pro+',
+      '01 Dây nguồn AC tiêu chuẩn',
+      '01 Pin sạc lithium-ion tích hợp sẵn',
+      '01 Túi trùm chống bụi chuyên dụng',
+    ],
+    auditItems: [
+      { label: 'Màng loa & Củ loa', value: 'Âm thanh trong trẻo · Không rè' },
+      { label: 'Thời lượng pin', value: 'Hoạt động liên tục > 10 giờ' },
+      { label: 'Kết nối Bluetooth', value: 'Khoảng cách 15m ổn định' },
+      { label: 'Vỏ loa', value: 'Cứng cáp · Khớp nối êm' },
+    ],
+    allowedConditions: 'Thích hợp acoustic cafe, tiệc dã ngoại ngoài trời, hội thảo và biểu diễn sân khấu nhỏ.',
+    prohibitedActions: 'Không để ngoài trời mưa, không cắm nguồn điện sai điện áp định mức.',
+  },
 };
 
-// Helper để lấy danh sách ngày thiết bị đã được thuê (bao gồm từ API / DB và các lịch tương lai)
-export function getProductBookedDates(product: RentProductDetailData): BookedDateRange[] {
-  const customList = product.bookedDates || [];
+// Helper để lấy danh sách ngày thiết bị đã được thuê (chỉ hiển thị ngày đã đặt thật từ đơn hàng, bỏ hoàn toàn các gạch mẫu)
+export function getProductBookedDates(product?: RentProductDetailData | { id?: string; title?: string; slug?: string } | null): BookedDateRange[] {
+  // Bỏ toàn bộ gạch mẫu giả lập, lịch để trống mặc định cho tới khi có đơn đặt thành công thật
+  const customList: BookedDateRange[] = [];
 
-  // Tạo thêm các khoảng ngày đã thuê minh họa thực tế ở tương lai gần để giao diện luôn hiển thị trực quan
-  const today = new Date();
-  const formatYMD = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  };
+  const realBookedRanges: BookedDateRange[] = [];
+  const seenDateKey = new Set<string>();
 
-  const addDays = (base: Date, days: number) => {
-    const d = new Date(base);
-    d.setDate(d.getDate() + days);
-    return d;
-  };
+  const prodId = product?.id ? String(product.id).trim().toLowerCase() : '';
+  const prodSlug = (product && 'slug' in product && product.slug) ? String(product.slug).trim().toLowerCase() : '';
+  const prodTitle = product?.title ? product.title.trim().toLowerCase() : '';
 
-  // Khoảng 1: Sau hôm nay 4 ngày (kéo dài 3 ngày)
-  const range1Start = addDays(today, 4);
-  const range1End = addDays(today, 6);
+  try {
+    // 1. Kiểm tra bộ lưu trữ ngày đã đặt chung (reuse_shared_booked_dates)
+    const sharedRaw = localStorage.getItem('reuse_shared_booked_dates');
+    if (sharedRaw) {
+      interface SharedBookingCheck {
+        productId?: string;
+        title?: string;
+        startDate?: string;
+        endDate?: string;
+        note?: string;
+        customerName?: string;
+      }
+      const sharedList: SharedBookingCheck[] = JSON.parse(sharedRaw);
+      if (Array.isArray(sharedList)) {
+        sharedList.forEach((b: SharedBookingCheck) => {
+          if (!b.startDate || !b.endDate) return;
 
-  // Khoảng 2: Sau hôm nay 12 ngày (kéo dài 4 ngày)
-  const range2Start = addDays(today, 12);
-  const range2End = addDays(today, 15);
+          const bProdId = b.productId ? String(b.productId).trim().toLowerCase() : '';
+          const bTitle = b.title ? b.title.trim().toLowerCase() : '';
 
-  const upcomingMockRanges: BookedDateRange[] = [
-    {
-      startDate: formatYMD(range1Start),
-      endDate: formatYMD(range1End),
-      note: 'Khách hàng #KH-4491 đã đặt thuê (Hà Nội)',
-      customerName: 'Hoàng Minh',
-    },
-    {
-      startDate: formatYMD(range2Start),
-      endDate: formatYMD(range2End),
-      note: 'Khách thuê sự kiện âm nhạc (Đã cọc Smart Escrow)',
-      customerName: 'Studio Phố Cổ',
-    },
-    // Giữ thêm mốc tháng 11/2026 mẫu theo hình ảnh minh họa của bạn
-    {
-      startDate: '2026-11-20',
-      endDate: '2026-11-24',
-      note: 'Đơn thuê #ORD-2026-11 đã được xác nhận',
-      customerName: 'Anh Tuấn',
-    },
-  ];
+          const isMatch =
+            (prodId && bProdId && (bProdId === prodId || bProdId.includes(prodId) || prodId.includes(bProdId))) ||
+            (prodSlug && bProdId && (bProdId === prodSlug || bProdId.includes(prodSlug) || prodSlug.includes(bProdId))) ||
+            (prodTitle && bTitle && (bTitle === prodTitle || bTitle.includes(prodTitle) || prodTitle.includes(bTitle)));
 
-  return [...customList, ...upcomingMockRanges];
+          if (isMatch) {
+            const key = `${b.startDate}_${b.endDate}`;
+            if (!seenDateKey.has(key)) {
+              seenDateKey.add(key);
+              realBookedRanges.push({
+                startDate: b.startDate,
+                endDate: b.endDate,
+                note: b.note || `Đã có khách thuê (${b.title || product?.title || 'Thiết bị'})`,
+                customerName: b.customerName || 'Khách hàng ReUse Hub',
+              });
+            }
+          }
+        });
+      }
+    }
+
+    // 2. Quét qua TẤT CẢ các keys trong localStorage liên quan đến user_rental_orders
+    const rentalStorageKeys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('user_rental_orders')) {
+        rentalStorageKeys.push(key);
+      }
+    }
+
+    rentalStorageKeys.forEach((sKey) => {
+      const raw = localStorage.getItem(sKey);
+      if (!raw) return;
+
+      interface StoredItemCheck {
+        id?: string | number;
+        productId?: string | number;
+        title?: string;
+        productName?: string;
+      }
+      interface StoredOrderCheck {
+        orderCode?: string;
+        status?: string;
+        paymentStatus?: string;
+        startDate?: string;
+        endDate?: string;
+        custodyHolder?: string;
+        items?: StoredItemCheck[];
+      }
+
+      try {
+        const orders: StoredOrderCheck[] = JSON.parse(raw);
+        if (Array.isArray(orders)) {
+          orders.forEach((o: StoredOrderCheck) => {
+            // Bỏ qua đơn đã hủy hoặc từ chối
+            if (o.status === 'CANCELLED' || o.status === 'REJECTED') return;
+            if (!o.startDate || !o.endDate) return;
+
+            // Kiểm tra xem đơn này có chứa sản phẩm hay không
+            const hasMatchingItem =
+              Array.isArray(o.items) &&
+              o.items.some((it: StoredItemCheck) => {
+                const itId = String(it.productId || it.id || '').trim().toLowerCase();
+                const itTitle = String(it.productName || it.title || '').trim().toLowerCase();
+
+                const idMatch =
+                  prodId && itId && (itId === prodId || itId.includes(prodId) || prodId.includes(itId));
+                const slugMatch =
+                  prodSlug && itId && (itId === prodSlug || itId.includes(prodSlug) || prodSlug.includes(itId));
+                const titleMatch =
+                  prodTitle &&
+                  itTitle &&
+                  (itTitle === prodTitle || itTitle.includes(prodTitle) || prodTitle.includes(itTitle));
+
+                return Boolean(idMatch || slugMatch || titleMatch);
+              });
+
+            if (hasMatchingItem) {
+              const key = `${o.startDate}_${o.endDate}`;
+              if (!seenDateKey.has(key)) {
+                seenDateKey.add(key);
+                realBookedRanges.push({
+                  startDate: o.startDate,
+                  endDate: o.endDate,
+                  note: `Đã có khách đặt đơn ${o.orderCode || ''} (${
+                    o.status === 'PAID' || o.paymentStatus === 'PAID' ? 'Đã thanh toán Escrow' : 'Đang thuê'
+                  })`,
+                  customerName: o.custodyHolder || 'Khách hàng ReUse Hub',
+                });
+              }
+            }
+          });
+        }
+      } catch {
+        // ignore parse error
+      }
+    });
+  } catch (e) {
+    console.error('Lỗi đọc lịch đã thuê:', e);
+  }
+
+  return [...customList, ...realBookedRanges];
 }
 
-// Helper để lấy chi tiết sản phẩm theo id hoặc slug
+// Helper để ghi nhận ngày đã đặt cho thiết bị khi tạo đơn
+export function recordBookedDates(productId: string, startDate: string, endDate: string, note?: string) {
+  try {
+    const sharedRaw = localStorage.getItem('reuse_shared_booked_dates') || '[]';
+    const list = JSON.parse(sharedRaw);
+    list.push({
+      productId,
+      startDate,
+      endDate,
+      note: note || 'Đã có khách đặt thuê (Bảo chứng Smart Escrow)',
+      customerName: 'Khách hàng ReUse Hub',
+    });
+    localStorage.setItem('reuse_shared_booked_dates', JSON.stringify(list));
+  } catch (e) {
+    console.error('Lỗi lưu ngày đã thuê:', e);
+  }
+}
+
+// Helper tạo chi tiết chuẩn cho bất kỳ sản phẩm nào từ dữ liệu tóm tắt
+export function createRentProductDetail(source: Partial<RentProductDetailData> & { id: string; title: string }): RentProductDetailData {
+  const price = source.pricePerDay || 450000;
+  const deposit = source.deposit || price * 5;
+  const cat = source.category || 'RENT';
+  const idStr = String(source.id);
+
+  return {
+    id: idStr,
+    slug: source.slug || idStr,
+    title: source.title,
+    subtitle: source.subtitle || `${source.title} · Chuẩn kiểm định ReUse Standard`,
+    category: cat.toUpperCase(),
+    location: source.location || 'Đà Nẵng',
+    rating: source.rating || 4.9,
+    reviewCount: source.reviewCount || 42,
+    condition: source.condition || 'Rất tốt (Grade A+)',
+    grade: source.grade || 'Grade A+',
+    shutterOrUsage: source.shutterOrUsage || 'Đã kiểm định kỹ thuật 14 bước tiêu chuẩn',
+    pricePerDay: price,
+    deposit: deposit,
+    depositFormatted: source.depositFormatted || `${deposit.toLocaleString('vi-VN')}₫`,
+    maxQuantity: source.maxQuantity || 2,
+    auditCode: source.auditCode || `#RH-${idStr.slice(-6).toUpperCase()}`,
+    images: source.images && source.images.length > 0 ? source.images : [
+      { src: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80', alt: source.title, caption: source.title }
+    ],
+    overview: source.overview && source.overview.length > 0 ? source.overview : [
+      `${source.title} là sản phẩm lưu ký cao cấp thuộc danh mục ${cat}, được kiểm định nghiêm ngặt bởi Shop Owner và ReUse Hub.`,
+      'Thiết bị đã trải qua quy trình vệ sinh phòng sạch và kiểm tra chất lượng 8 bước ReUse Standard trước khi bàn giao.'
+    ],
+    accessories: source.accessories && source.accessories.length > 0 ? source.accessories : [
+      `01 ${source.title} nguyên bản kiểm định`,
+      'Trọn bộ phụ kiện và dây nguồn/cáp kết nối tiêu chuẩn',
+      'Hộp bảo vệ chống sốc Nanuk/ReUse chuyên dụng kèm tem niêm phong',
+    ],
+    auditItems: source.auditItems && source.auditItems.length > 0 ? source.auditItems : [
+      { label: 'Tình trạng ngoại quan', value: '100% Nguyên vẹn · Đạt Grade A' },
+      { label: 'Chức năng vận hành', value: 'Hoạt động hoàn hảo 100%' },
+      { label: 'Vệ sinh phòng sạch', value: 'Khử khuẩn buồng UV-C / Ozone' },
+      { label: 'Tem bảo chứng', value: 'Đã dán tem Smart Escrow' },
+    ],
+    allowedConditions: source.allowedConditions || 'Sử dụng đúng mục đích, trong môi trường an toàn, khô ráo, tránh va đập mạnh hoặc ngập nước.',
+    prohibitedActions: source.prohibitedActions || 'Không tự ý can thiệp phần cứng, tháo mở ốc vít cơ khí hoặc cho bên thứ ba thuê lại khi chưa có văn bản đồng ý.',
+  };
+}
+
+// Helper để lấy chi tiết sản phẩm theo id hoặc slug từ bất kỳ nguồn nào (Rent, Categories, hoặc Map)
 export function getRentProductDetail(idOrSlug?: string): RentProductDetailData {
   if (!idOrSlug) return RENT_PRODUCT_DETAILS_MAP['1'];
 
-  // Tìm theo key map trực tiếp
-  if (RENT_PRODUCT_DETAILS_MAP[idOrSlug]) {
-    return RENT_PRODUCT_DETAILS_MAP[idOrSlug];
+  const clean = idOrSlug.trim();
+  const lower = clean.toLowerCase();
+
+  // 1. Tìm theo key map trực tiếp trong RENT_PRODUCT_DETAILS_MAP
+  if (RENT_PRODUCT_DETAILS_MAP[clean]) {
+    return RENT_PRODUCT_DETAILS_MAP[clean];
   }
 
-  // Tìm theo slug hoặc id trong values
-  const found = Object.values(RENT_PRODUCT_DETAILS_MAP).find(
-    (item) => item.slug === idOrSlug || item.id === idOrSlug
+  // 2. Tìm theo slug hoặc id trong values của RENT_PRODUCT_DETAILS_MAP
+  const foundMap = Object.values(RENT_PRODUCT_DETAILS_MAP).find(
+    (item) => item.slug.toLowerCase() === lower || item.id.toLowerCase() === lower
   );
+  if (foundMap) return foundMap;
 
-  return found || RENT_PRODUCT_DETAILS_MAP['1'];
+  // 3. Tìm trong RENT_PRODUCTS (tất cả các sản phẩm marketplace RENT)
+  const foundMarket = RENT_PRODUCTS.find(
+    (p) =>
+      p.id.toLowerCase() === lower ||
+      p.href.toLowerCase().endsWith(`/${lower}`) ||
+      p.title.toLowerCase().includes(lower)
+  );
+  if (foundMarket) {
+    const depNum = parseInt(foundMarket.deposit.replace(/\D/g, ''), 10) || (foundMarket.price * 5);
+    return createRentProductDetail({
+      id: foundMarket.id,
+      slug: foundMarket.href.split('/').pop() || foundMarket.id,
+      title: foundMarket.title,
+      subtitle: `${foundMarket.title} · Chuẩn kiểm định ${foundMarket.categoryLabel}`,
+      category: foundMarket.categoryLabel.toUpperCase(),
+      location: foundMarket.location,
+      rating: foundMarket.rating,
+      reviewCount: foundMarket.reviewCount,
+      condition: foundMarket.conditionLabel,
+      grade: foundMarket.conditionLabel.includes('99') ? 'Grade Mint' : 'Grade A+',
+      shutterOrUsage: `Tiêu chuẩn lưu ký: ${foundMarket.condition}`,
+      pricePerDay: foundMarket.price,
+      deposit: depNum,
+      depositFormatted: foundMarket.deposit,
+      images: [
+        { src: foundMarket.image, alt: foundMarket.title, caption: foundMarket.title }
+      ],
+      overview: [
+        `${foundMarket.title} là thiết bị cao cấp thuộc danh mục ${foundMarket.categoryLabel}, được lưu giữ tại kho ${foundMarket.location}.`,
+        'Thiết bị đã trải qua quy trình vệ sinh phòng sạch và kiểm tra chất lượng 8 bước ReUse Standard trước khi bàn giao.'
+      ],
+    });
+  }
+
+  // 4. Tìm trong tất cả các danh mục lưu trữ (CategoryDetailData rentItems)
+  const allConfigs = [
+    CAMERA_CATEGORY_CONFIG,
+    FASHION_CATEGORY_CONFIG,
+    SHOES_CATEGORY_CONFIG,
+    CAMPING_CATEGORY_CONFIG,
+    ELECTRONICS_CATEGORY_CONFIG,
+    BOOKS_CATEGORY_CONFIG,
+    LIFESTYLE_CATEGORY_CONFIG,
+  ];
+
+  for (const config of allConfigs) {
+    const catItem = config.rentItems.find(
+      (item) =>
+        item.id.toLowerCase() === lower ||
+        item.href.toLowerCase().endsWith(`/${lower}`) ||
+        item.title.toLowerCase().includes(lower)
+    );
+    if (catItem) {
+      const depNum = catItem.deposit || catItem.price * 5;
+      return createRentProductDetail({
+        id: catItem.id,
+        slug: catItem.id,
+        title: catItem.title,
+        subtitle: catItem.description,
+        category: config.title.toUpperCase(),
+        location: catItem.locationBadge || 'Đà Nẵng',
+        rating: catItem.rating,
+        reviewCount: catItem.reviewCount,
+        condition: catItem.gradeBadge,
+        grade: catItem.gradeBadge.includes('Mint') ? 'Grade Mint' : 'Grade A+',
+        shutterOrUsage: 'Kiểm định 14 bước cảm biến & cơ học ReUse Hub',
+        pricePerDay: catItem.price,
+        deposit: depNum,
+        depositFormatted: `${depNum.toLocaleString('vi-VN')}₫`,
+        images: [
+          { src: catItem.image, alt: catItem.alt || catItem.title, caption: catItem.title }
+        ],
+        overview: [
+          catItem.description,
+          `${catItem.title} đạt đầy đủ các tiêu chuẩn an toàn lưu ký và bảo chứng Escrow 100%.`
+        ],
+      });
+    }
+  }
+
+  // 5. Kiểm tra trong custom_rent_products từ localStorage
+  try {
+    const customRentRaw = localStorage.getItem('custom_rent_products');
+    if (customRentRaw) {
+      const customList = JSON.parse(customRentRaw);
+      if (Array.isArray(customList)) {
+        const foundCustom = customList.find(
+          (p: { id?: string; slug?: string; name?: string; title?: string }) =>
+            p.id?.toLowerCase() === lower ||
+            p.slug?.toLowerCase() === lower ||
+            p.name?.toLowerCase() === lower ||
+            p.title?.toLowerCase() === lower
+        );
+        if (foundCustom) {
+          return createRentProductDetail({
+            id: String(foundCustom.id || clean),
+            slug: String(foundCustom.slug || clean),
+            title: foundCustom.name || foundCustom.title || clean,
+            category: foundCustom.category || 'RENT',
+            pricePerDay: Number(foundCustom.pricePerDay || foundCustom.price) || 200000,
+            deposit: Number(foundCustom.depositAmount || foundCustom.deposit) || 1000000,
+            images: foundCustom.images || (foundCustom.image ? [{ src: foundCustom.image, alt: foundCustom.title || clean, caption: foundCustom.title || clean }] : undefined),
+            condition: foundCustom.condition || 'Rất tốt (Grade A+)',
+            location: foundCustom.location || 'Đà Nẵng',
+            overview: foundCustom.description ? [foundCustom.description] : undefined,
+          });
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // 6. Nếu có id/slug nhưng chưa nằm trong danh sách tĩnh, tạo chi tiết động khớp với slug/tên sản phẩm đó
+  if (clean && clean !== '1') {
+    const formattedTitle = clean
+      .replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
+    return createRentProductDetail({
+      id: clean,
+      slug: clean,
+      title: formattedTitle,
+      subtitle: `${formattedTitle} · Tiêu chuẩn kiểm định ReUse Standard`,
+      category: 'THIẾT BỊ LƯU KÝ',
+      location: 'Đà Nẵng',
+      rating: 5.0,
+      reviewCount: 1,
+      condition: 'Rất tốt (Grade A+)',
+      grade: 'Grade A+',
+      pricePerDay: 350000,
+      deposit: 1750000,
+      depositFormatted: '1.750.000₫',
+      overview: [
+        `${formattedTitle} là sản phẩm lưu ký cao cấp được kiểm định nghiêm ngặt bởi Shop Owner và ReUse Hub.`,
+        'Thiết bị đã trải qua quy trình vệ sinh phòng sạch và kiểm tra chất lượng 8 bước ReUse Standard trước khi bàn giao.'
+      ],
+    });
+  }
+
+  // Fallback an toàn (chỉ khi hoàn toàn không có tham số idOrSlug)
+  return RENT_PRODUCT_DETAILS_MAP['1'];
 }
+

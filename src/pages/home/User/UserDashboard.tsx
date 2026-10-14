@@ -1,12 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
 import { UserSidebar } from '../../../components/layout/UserSidebar';
+import { getMyRentalOrdersApi, type RentalOrderApi, type RentalOrderItemApi } from '../../../services/order.api';
 import {
-  MOCK_ACTIVE_RENTAL,
-  MOCK_RECENT_THRIFT_ORDERS,
-  CURATED_WISHLIST_FALLBACK,
   CIRCULAR_LIFECYCLE_STEPS,
   RECOMMENDED_DASHBOARD_ITEMS,
 } from '../../data/home/userDashboardData';
@@ -18,16 +16,182 @@ export const UserDashboard: React.FC = () => {
   const { user } = useAuth();
   const { wishlist, wishlistCount, toggleWishlist, cartCount } = useCartWishlist();
 
-  const displayName = user?.fullName || 'Elena Rostova';
+  const displayName = user?.fullName || 'Khách hàng';
 
   const formatVND = (num: number) => {
     return num.toLocaleString('vi-VN') + '₫';
   };
 
-  // ── Match Wishlist items dynamically with saved IDs ─────────
+  // ── Load Real Rental Orders & Thrift Orders ──
+  const [activeRentals, setActiveRentals] = useState<RentalOrderApi[]>([]);
+
+  // 1. Thrift orders from user storage memoized directly
+  const thriftOrders = useMemo(() => {
+    const uId = user?._id || user?.id;
+    try {
+      const key = uId ? `user_thrift_orders_${uId}` : 'user_thrift_orders';
+      const stored = localStorage.getItem(key) || (uId ? localStorage.getItem('user_thrift_orders') : null);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed as Record<string, unknown>[];
+      }
+    } catch {
+      // ignore
+    }
+    return [] as Record<string, unknown>[];
+  }, [user]);
+
+  // 2. Real Rent Orders from Backend API
+  useEffect(() => {
+    let isMounted = true;
+    const uId = user?._id || user?.id;
+
+    getMyRentalOrdersApi()
+      .then((orders) => {
+        if (!isMounted) return;
+        const validOrders = Array.isArray(orders) ? orders : [];
+        const active = validOrders.filter(
+          (o) => o.status !== 'CANCELLED' && o.status !== 'REJECTED' && o.status !== 'RETURNED' && o.status !== 'COMPLETED'
+        );
+        setActiveRentals(active);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        try {
+          const key = uId ? `user_rental_orders_${uId}` : 'user_rental_orders';
+          const stored = localStorage.getItem(key);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            const active = Array.isArray(parsed)
+              ? parsed.filter((o: Record<string, unknown>) => o.status !== 'CANCELLED' && o.status !== 'REJECTED')
+              : [];
+            setActiveRentals(active as unknown as RentalOrderApi[]);
+          } else {
+            setActiveRentals([]);
+          }
+        } catch {
+          setActiveRentals([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  // Dynamic computed active rental (if any)
+  const activeRentalData = useMemo(() => {
+    if (activeRentals.length === 0) return null;
+    const raw = activeRentals[0];
+    const rawCode = raw.orderCode || 'RH-RNT-2026';
+    const cleanId = raw._id || rawCode.replace('#', '');
+    const code = rawCode.startsWith('#') ? rawCode : `#${rawCode}`;
+
+    const rawItem = raw.items?.[0] as (RentalOrderItemApi & Record<string, unknown>) | undefined;
+    const title =
+      rawItem?.productName ||
+      (rawItem as Record<string, unknown> | undefined)?.title as string ||
+      `Đơn thuê thiết bị (${code})`;
+    const image =
+      ((rawItem as Record<string, unknown> | undefined)?.imageUrl as string) ||
+      ((rawItem as Record<string, unknown> | undefined)?.image as string) ||
+      'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80';
+
+    const startStr = raw.startDate ? new Date(raw.startDate).toLocaleDateString('vi-VN') : 'Mới tạo';
+    const endStr = raw.endDate ? new Date(raw.endDate).toLocaleDateString('vi-VN') : 'Đang cập nhật';
+    const rentalPeriod = `${startStr} – ${endStr}`;
+
+    const now = new Date().getTime();
+    const start = raw.startDate ? new Date(raw.startDate).getTime() : now;
+    const end = raw.endDate ? new Date(raw.endDate).getTime() : now + 86400000;
+    const totalDuration = Math.max(1, end - start);
+    const elapsed = Math.max(0, Math.min(totalDuration, now - start));
+    const progressPercent = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
+    const remainingDays = Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24)));
+    const returnDeadline = raw.endDate
+      ? `${new Date(raw.endDate).toLocaleDateString('vi-VN')} (còn ${remainingDays} ngày)`
+      : 'Đang xác định';
+
+    let statusLabel = 'Đang trong kỳ thuê lưu ký';
+    if (raw.status === 'PAID') statusLabel = 'Đã thanh toán · Sẵn sàng bàn giao';
+    else if (raw.status === 'SHIPPING' || raw.status === 'HANDED_OVER') statusLabel = 'Đang vận chuyển bảo chứng';
+    else if (raw.status === 'RENTING') statusLabel = `Đang lưu giữ (còn ${remainingDays} ngày)`;
+    else if (raw.status === 'DELIVERED') statusLabel = 'Đã nhận thiết bị lưu ký';
+
+    return {
+      id: code,
+      cleanId,
+      title,
+      image,
+      statusLabel,
+      rentalPeriod,
+      returnDeadline,
+      escrowDeposit: raw.depositAmount || 0,
+      progressPercent,
+      progressNote: `Hạn chuẩn bị đóng hộp ReUse Escrow (còn ${remainingDays} ngày)`,
+      detailUrl: `/rent/orders/${cleanId}`,
+      returnUrl: `/rent/return-inspection/${cleanId}`,
+    };
+  }, [activeRentals]);
+
+  // Dynamic computed thrift orders
+  const formattedThriftOrders = useMemo(() => {
+    return thriftOrders.slice(0, 3).map((order: Record<string, unknown>, idx: number) => {
+      const itemsList = order.items as Record<string, unknown>[] | undefined;
+      const item = itemsList?.[0] || order;
+      const rawId = (order.orderCode || order.id || order._id || `RH-THF-${idx + 1}`) as string;
+      const code = rawId.startsWith('#') ? rawId : `#${rawId}`;
+      const title = (item.productName || item.title || `Đơn hàng THRIFT ${code}`) as string;
+      const image =
+        ((item.imageUrl ||
+          item.image ||
+          'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80') as string);
+      const price = (order.totalAmount || item.price || 0) as number;
+      const condition = (item.condition || 'Tình trạng: Kiểm định chuẩn ReUse Grade A') as string;
+      const status =
+        order.status === 'COMPLETED'
+          ? 'ĐÃ GIAO HÀNG'
+          : order.status === 'PAID'
+          ? 'ĐÃ THANH TOÁN'
+          : (order.status as string) || 'ĐÃ XÁC NHẬN';
+      const badge = (order.badge || 'THRIFT') as string;
+      const warrantyNote = (order.warrantyNote || 'Chứng nhận Audit Bench') as string;
+      const detailUrl = `/thrift/orders/${(order._id || order.id || rawId).toString().replace('#', '')}`;
+
+      return {
+        id: code,
+        title,
+        condition,
+        price,
+        badge,
+        status,
+        warrantyNote,
+        image,
+        detailUrl,
+      };
+    });
+  }, [thriftOrders]);
+
+  // Notifications count scoped to current user
+  const unreadNotifsCount = useMemo(() => {
+    const uId = user?._id || user?.id;
+    if (!uId) return 0;
+    try {
+      const notifs = localStorage.getItem(`user_notifications_${uId}`);
+      if (notifs) {
+        const parsed = JSON.parse(notifs);
+        if (Array.isArray(parsed)) return parsed.length;
+      }
+    } catch {
+      // ignore
+    }
+    return 0;
+  }, [user]);
+
+  // ── Match Wishlist items dynamically with saved IDs (No fake mock items) ──
   const matchedWishlistItems: WishlistDashboardItem[] = useMemo(() => {
     if (!wishlist || wishlist.length === 0) {
-      return CURATED_WISHLIST_FALLBACK;
+      return [];
     }
 
     const items: WishlistDashboardItem[] = [];
@@ -67,15 +231,9 @@ export const UserDashboard: React.FC = () => {
         });
         return;
       }
-
-      // 3. Check in Fallback Catalog
-      const fallbackFound = CURATED_WISHLIST_FALLBACK.find((p) => p.id === id);
-      if (fallbackFound) {
-        items.push(fallbackFound);
-      }
     });
 
-    return items.length > 0 ? items : CURATED_WISHLIST_FALLBACK;
+    return items;
   }, [wishlist]);
 
   const rentWishlistCount = matchedWishlistItems.filter((i) => i.mode === 'rent').length;
@@ -193,11 +351,11 @@ export const UserDashboard: React.FC = () => {
               </div>
               <div className="mt-4">
                 <div className="text-3xl font-serif font-bold text-[#1C1A18]">
-                  1 <span className="text-sm font-sans font-normal text-[#76726B]">bộ</span>
+                  {activeRentals.length} <span className="text-sm font-sans font-normal text-[#76726B]">bộ</span>
                 </div>
                 <p className="text-[11px] text-[#5E6D5B] font-medium mt-1 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#5E6D5B]" />
-                  Đang trong kỳ thuê (còn 4 ngày)
+                  <span className={`w-1.5 h-1.5 rounded-full ${activeRentals.length > 0 ? 'bg-[#5E6D5B]' : 'bg-stone-300'}`} />
+                  {activeRentals.length > 0 ? 'Đang trong kỳ thuê lưu ký' : 'Chưa có đơn thuê nào'}
                 </p>
               </div>
             </Link>
@@ -222,9 +380,11 @@ export const UserDashboard: React.FC = () => {
               </div>
               <div className="mt-4">
                 <div className="text-3xl font-serif font-bold text-[#1C1A18]">
-                  3 <span className="text-sm font-sans font-normal text-[#76726B]">món</span>
+                  {thriftOrders.length} <span className="text-sm font-sans font-normal text-[#76726B]">món</span>
                 </div>
-                <p className="text-[11px] text-[#76726B] font-medium mt-1">Đã cấp chứng thư Audit Bench</p>
+                <p className="text-[11px] text-[#76726B] font-medium mt-1">
+                  {thriftOrders.length > 0 ? 'Đã cấp chứng thư Audit Bench' : 'Chưa có đơn mua nào'}
+                </p>
               </div>
             </Link>
 
@@ -246,7 +406,7 @@ export const UserDashboard: React.FC = () => {
                   {wishlistCount} <span className="text-sm font-sans font-normal text-[#76726B]">mục</span>
                 </div>
                 <p className="text-[11px] text-[#76726B] font-medium mt-1">
-                  {rentWishlistCount} món RENT · {thriftWishlistCount} món THRIFT
+                  {wishlistCount > 0 ? `${rentWishlistCount} món RENT · ${thriftWishlistCount} món THRIFT` : 'Chưa lưu sản phẩm nào'}
                 </p>
               </div>
             </Link>
@@ -271,10 +431,10 @@ export const UserDashboard: React.FC = () => {
               </div>
               <div className="mt-4">
                 <div className="text-3xl font-serif font-bold text-[#1C1A18]">
-                  1 <span className="text-sm font-sans font-normal text-[#D9534F] font-semibold">chưa đọc</span>
+                  {unreadNotifsCount} <span className={`text-sm font-sans font-normal ${unreadNotifsCount > 0 ? 'text-[#D9534F] font-semibold' : 'text-[#76726B]'}`}>chưa đọc</span>
                 </div>
                 <p className="text-[11px] text-[#76726B] font-medium mt-1 truncate">
-                  Nhắc nhở hạn trả thiết bị RENT
+                  {unreadNotifsCount > 0 ? 'Nhắc nhở cập nhật đơn hàng' : 'Không có thông báo mới'}
                 </p>
               </div>
             </Link>
@@ -302,103 +462,146 @@ export const UserDashboard: React.FC = () => {
               </Link>
             </div>
 
-            <div className="bg-white rounded-3xl border border-[#E8E4DC]/80 p-6 sm:p-7 shadow-2xs">
-              <div className="flex flex-col lg:flex-row gap-6 lg:items-center justify-between">
-                {/* Media & Details */}
-                <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center">
-                  <div className="w-full sm:w-36 h-36 rounded-2xl bg-[#F6F3EE] overflow-hidden shrink-0 border border-[#E8E4DC] relative">
-                    <img
-                      alt={MOCK_ACTIVE_RENTAL.title}
-                      className="w-full h-full object-cover"
-                      src={MOCK_ACTIVE_RENTAL.image}
-                    />
-                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-[#1C1A18]/90 text-white text-[9px] font-bold tracking-wider uppercase">
-                      RENTING
-                    </span>
+            {activeRentalData ? (
+              <div className="bg-white rounded-3xl border border-[#E8E4DC]/80 p-6 sm:p-7 shadow-2xs">
+                <div className="flex flex-col lg:flex-row gap-6 lg:items-center justify-between">
+                  {/* Media & Details */}
+                  <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center">
+                    <div className="w-full sm:w-36 h-36 rounded-2xl bg-[#F6F3EE] overflow-hidden shrink-0 border border-[#E8E4DC] relative">
+                      <img
+                        alt={activeRentalData.title}
+                        className="w-full h-full object-cover"
+                        src={activeRentalData.image}
+                      />
+                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-[#1C1A18]/90 text-white text-[9px] font-bold tracking-wider uppercase">
+                        RENTING
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono uppercase bg-[#F6F3EE] text-[#76726B] px-2 py-0.5 rounded border border-[#E8E4DC]">
+                          MÃ ĐƠN: {activeRentalData.id}
+                        </span>
+                        <span className="text-[10px] font-semibold text-[#5E6D5B] bg-[#EEF2EC] px-2 py-0.5 rounded-full">
+                          {activeRentalData.statusLabel}
+                        </span>
+                      </div>
+
+                      <h3 className="font-serif text-lg sm:text-xl font-bold text-[#1C1A18] leading-snug">
+                        {activeRentalData.title}
+                      </h3>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs text-[#76726B] pt-1">
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-[#76726B]/70">Thời gian thuê</span>
+                          <span className="font-medium text-[#1C1A18]">{activeRentalData.rentalPeriod}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-[#76726B]/70">
+                            Hạn chót hoàn trả
+                          </span>
+                          <span className="font-bold text-[#C84337]">{activeRentalData.returnDeadline}</span>
+                        </div>
+                        <div className="col-span-2 sm:col-span-1">
+                          <span className="block text-[10px] uppercase font-bold text-[#76726B]/70">
+                            Tiền cọc Smart Escrow
+                          </span>
+                          <span className="font-semibold text-[#1C1A18]">
+                            {formatVND(activeRentalData.escrowDeposit)} (hoàn 100%)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Timeline Progress */}
+                      <div className="pt-2">
+                        <div className="flex items-center justify-between text-[10px] font-medium text-[#76726B] mb-1">
+                          <span>Tiến độ kỳ thuê: {activeRentalData.progressPercent}%</span>
+                          <span>{activeRentalData.progressNote}</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-[#F6F3EE] overflow-hidden">
+                          <div
+                            className="h-full bg-[#1C1A18] rounded-full transition-all duration-500"
+                            style={{ width: `${activeRentalData.progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono uppercase bg-[#F6F3EE] text-[#76726B] px-2 py-0.5 rounded border border-[#E8E4DC]">
-                        MÃ ĐƠN: {MOCK_ACTIVE_RENTAL.id}
-                      </span>
-                      <span className="text-[10px] font-semibold text-[#5E6D5B] bg-[#EEF2EC] px-2 py-0.5 rounded-full">
-                        {MOCK_ACTIVE_RENTAL.statusLabel}
-                      </span>
-                    </div>
-
-                    <h3 className="font-serif text-lg sm:text-xl font-bold text-[#1C1A18] leading-snug">
-                      {MOCK_ACTIVE_RENTAL.title}
-                    </h3>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs text-[#76726B] pt-1">
-                      <div>
-                        <span className="block text-[10px] uppercase font-bold text-[#76726B]/70">Thời gian thuê</span>
-                        <span className="font-medium text-[#1C1A18]">{MOCK_ACTIVE_RENTAL.rentalPeriod}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] uppercase font-bold text-[#76726B]/70">
-                          Hạn chót hoàn trả
-                        </span>
-                        <span className="font-bold text-[#C84337]">{MOCK_ACTIVE_RENTAL.returnDeadline}</span>
-                      </div>
-                      <div className="col-span-2 sm:col-span-1">
-                        <span className="block text-[10px] uppercase font-bold text-[#76726B]/70">
-                          Tiền cọc Smart Escrow
-                        </span>
-                        <span className="font-semibold text-[#1C1A18]">
-                          {formatVND(MOCK_ACTIVE_RENTAL.escrowDeposit)} (hoàn 100%)
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Timeline Progress */}
-                    <div className="pt-2">
-                      <div className="flex items-center justify-between text-[10px] font-medium text-[#76726B] mb-1">
-                        <span>Tiến độ kỳ thuê: {MOCK_ACTIVE_RENTAL.progressPercent}%</span>
-                        <span>{MOCK_ACTIVE_RENTAL.progressNote}</span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-[#F6F3EE] overflow-hidden">
-                        <div
-                          className="h-full bg-[#1C1A18] rounded-full transition-all duration-500"
-                          style={{ width: `${MOCK_ACTIVE_RENTAL.progressPercent}%` }}
+                  {/* Actions on Active Order */}
+                  <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 shrink-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-[#E8E4DC]">
+                    <Link
+                      to={activeRentalData.detailUrl}
+                      className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#1C1A18] text-white text-xs font-semibold hover:bg-black transition-colors text-center shadow-2xs"
+                    >
+                      Xem chi tiết đơn thuê
+                    </Link>
+                    <Link
+                      to={activeRentalData.returnUrl}
+                      className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-white hover:bg-[#F6F3EE] text-[#1C1A18] border border-[#E8E4DC] text-xs font-semibold transition-colors text-center"
+                    >
+                      Chuẩn bị trả đồ &amp; Ảnh đối kiểm
+                    </Link>
+                    <Link
+                      to="/chat"
+                      className="inline-flex items-center justify-center px-3 py-2 text-xs font-medium text-[#76726B] hover:text-[#1C1A18] transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
                         />
-                      </div>
-                    </div>
+                      </svg>
+                      Nhắn tin với Shop Owner
+                    </Link>
                   </div>
                 </div>
-
-                {/* Actions on Active Order */}
-                <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 shrink-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-[#E8E4DC]">
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl border border-[#E8E4DC]/80 p-8 sm:p-10 text-center shadow-2xs">
+                <div className="w-14 h-14 rounded-full bg-[#F6F3EE] flex items-center justify-center mx-auto mb-4 text-[#76726B]">
+                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.5"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="font-serif text-lg sm:text-xl font-bold text-[#1C1A18] mb-1">
+                  Chưa có đơn thuê nào đang sử dụng
+                </h3>
+                <p className="text-xs sm:text-sm text-[#76726B] max-w-md mx-auto mb-5 leading-relaxed">
+                  Tài khoản của bạn hiện chưa có thiết bị nào trong kỳ thuê hoặc lưu ký. Hãy khám phá kho thiết bị chuẩn kiểm định ReUse để bắt đầu thuê.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3">
                   <Link
-                    to={MOCK_ACTIVE_RENTAL.detailUrl}
-                    className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#1C1A18] text-white text-xs font-semibold hover:bg-black transition-colors text-center shadow-2xs"
+                    to="/rent"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1C1A18] text-white text-xs font-semibold hover:bg-black transition-colors shadow-2xs"
                   >
-                    Xem chi tiết đơn thuê
-                  </Link>
-                  <Link
-                    to={MOCK_ACTIVE_RENTAL.returnUrl}
-                    className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-white hover:bg-[#F6F3EE] text-[#1C1A18] border border-[#E8E4DC] text-xs font-semibold transition-colors text-center"
-                  >
-                    Chuẩn bị trả đồ &amp; Ảnh đối kiểm
-                  </Link>
-                  <Link
-                    to="/chat"
-                    className="inline-flex items-center justify-center px-3 py-2 text-xs font-medium text-[#76726B] hover:text-[#1C1A18] transition-colors"
-                  >
-                    <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
-                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                       />
                     </svg>
-                    Nhắn tin với Shop Owner
+                    <span>Khám phá kho thiết bị RENT</span>
+                  </Link>
+                  <Link
+                    to="/rent/orders"
+                    className="inline-flex items-center px-4 py-2.5 rounded-xl bg-[#F6F3EE] hover:bg-[#EFECE6] text-[#1C1A18] border border-[#E8E4DC] text-xs font-semibold transition-colors"
+                  >
+                    Xem lịch sử thuê
                   </Link>
                 </div>
               </div>
-            </div>
+            )}
           </section>
 
           {/* 4. RECENT THRIFT ORDERS */}
@@ -416,58 +619,87 @@ export const UserDashboard: React.FC = () => {
                 to="/thrift/orders"
                 className="text-xs font-semibold text-[#1C1A18] hover:underline flex items-center gap-1"
               >
-                <span>Xem tất cả ({MOCK_RECENT_THRIFT_ORDERS.length} đơn)</span>
+                <span>Xem tất cả ({thriftOrders.length} đơn)</span>
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
                 </svg>
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {MOCK_RECENT_THRIFT_ORDERS.map((order) => (
-                <div
-                  key={order.id}
-                  className="bg-white rounded-2xl border border-[#E8E4DC]/80 p-4 shadow-2xs flex flex-col justify-between hover:border-[#1C1A18]/40 transition-all group"
-                >
-                  <div className="space-y-3">
-                    <div className="w-full h-40 rounded-xl bg-[#F6F3EE] overflow-hidden relative border border-[#E8E4DC]">
-                      <img
-                        alt={order.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        src={order.image}
-                      />
-                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-[#5E6D5B] text-white text-[9px] font-bold">
-                        {order.status}
-                      </span>
-                      {order.badge && (
-                        <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-xs text-white text-[9px] font-mono">
-                          {order.badge}
+            {formattedThriftOrders.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {formattedThriftOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="bg-white rounded-2xl border border-[#E8E4DC]/80 p-4 shadow-2xs flex flex-col justify-between hover:border-[#1C1A18]/40 transition-all group"
+                  >
+                    <div className="space-y-3">
+                      <div className="w-full h-40 rounded-xl bg-[#F6F3EE] overflow-hidden relative border border-[#E8E4DC]">
+                        <img
+                          alt={order.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          src={order.image}
+                        />
+                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-[#5E6D5B] text-white text-[9px] font-bold">
+                          {order.status}
                         </span>
-                      )}
+                        {order.badge && (
+                          <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-xs text-white text-[9px] font-mono">
+                            {order.badge}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-[#76726B] font-mono">{order.id}</span>
+                        <h4 className="font-serif font-bold text-sm text-[#1C1A18] leading-snug line-clamp-1">
+                          {order.title}
+                        </h4>
+                        <p className="text-xs text-[#76726B]">{order.condition}</p>
+                        <div className="text-sm font-bold text-[#1C1A18] pt-1">{formatVND(order.price)}</div>
+                      </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <span className="text-[10px] text-[#76726B] font-mono">{order.id}</span>
-                      <h4 className="font-serif font-bold text-sm text-[#1C1A18] leading-snug line-clamp-1">
-                        {order.title}
-                      </h4>
-                      <p className="text-xs text-[#76726B]">{order.condition}</p>
-                      <div className="text-sm font-bold text-[#1C1A18] pt-1">{formatVND(order.price)}</div>
+                    <div className="pt-3 border-t border-[#E8E4DC] mt-3 flex items-center justify-between">
+                      <span className="text-[10px] text-[#5E6D5B] font-semibold">{order.warrantyNote}</span>
+                      <Link
+                        to={order.detailUrl}
+                        className="text-xs font-semibold text-[#1C1A18] hover:underline"
+                      >
+                        Xem chi tiết →
+                      </Link>
                     </div>
                   </div>
-
-                  <div className="pt-3 border-t border-[#E8E4DC] mt-3 flex items-center justify-between">
-                    <span className="text-[10px] text-[#5E6D5B] font-semibold">{order.warrantyNote}</span>
-                    <Link
-                      to={order.detailUrl}
-                      className="text-xs font-semibold text-[#1C1A18] hover:underline"
-                    >
-                      Xem chi tiết →
-                    </Link>
-                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl border border-[#E8E4DC]/80 p-8 sm:p-10 text-center shadow-2xs">
+                <div className="w-14 h-14 rounded-full bg-[#F6F3EE] flex items-center justify-center mx-auto mb-4 text-[#76726B]">
+                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.5"
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                  </svg>
                 </div>
-              ))}
-            </div>
+                <h3 className="font-serif text-lg sm:text-xl font-bold text-[#1C1A18] mb-1">
+                  Chưa có đơn mua THRIFT nào gần đây
+                </h3>
+                <p className="text-xs sm:text-sm text-[#76726B] max-w-md mx-auto mb-5 leading-relaxed">
+                  Các sản phẩm đồ cũ, lưu trữ cá nhân kèm chứng thư kiểm định Audit Bench bạn đã mua sẽ hiển thị tại đây.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <Link
+                    to="/thrift"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1C1A18] text-white text-xs font-semibold hover:bg-black transition-colors shadow-2xs"
+                  >
+                    <span>Khám phá bộ sưu tập THRIFT</span>
+                  </Link>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* 5. WISHLIST PREVIEW (Matched dynamically from Context) */}
@@ -492,55 +724,90 @@ export const UserDashboard: React.FC = () => {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {matchedWishlistItems.slice(0, 4).map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-white rounded-2xl border border-[#E8E4DC]/80 p-3.5 shadow-2xs hover:border-[#1C1A18]/40 transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="w-full h-36 rounded-xl bg-[#F6F3EE] overflow-hidden relative border border-[#E8E4DC] mb-3">
-                      <img alt={item.title} className="w-full h-full object-cover" src={item.image} />
-                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-[#1C1A18] text-white text-[9px] font-bold">
-                        {item.badge}
-                      </span>
-                      {item.availabilityBadge && (
-                        <span className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-white/90 text-[#1C1A18] text-[9px] font-semibold">
-                          {item.availabilityBadge}
+            {matchedWishlistItems.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {matchedWishlistItems.slice(0, 4).map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-white rounded-2xl border border-[#E8E4DC]/80 p-3.5 shadow-2xs hover:border-[#1C1A18]/40 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="w-full h-36 rounded-xl bg-[#F6F3EE] overflow-hidden relative border border-[#E8E4DC] mb-3">
+                        <img alt={item.title} className="w-full h-full object-cover" src={item.image} />
+                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-[#1C1A18] text-white text-[9px] font-bold">
+                          {item.badge}
                         </span>
-                      )}
+                        {item.availabilityBadge && (
+                          <span className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-white/90 text-[#1C1A18] text-[9px] font-semibold">
+                            {item.availabilityBadge}
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="font-serif font-bold text-xs text-[#1C1A18] line-clamp-1">{item.title}</h4>
+                      <p className="text-[11px] text-[#76726B] mt-0.5 line-clamp-1">{item.subtitle}</p>
+                      <div className="text-xs font-bold text-[#1C1A18] mt-1">
+                        {formatVND(item.price)}
+                        {item.priceUnit && (
+                          <span className="font-normal text-[10px] text-[#76726B]"> {item.priceUnit}</span>
+                        )}
+                      </div>
                     </div>
-                    <h4 className="font-serif font-bold text-xs text-[#1C1A18] line-clamp-1">{item.title}</h4>
-                    <p className="text-[11px] text-[#76726B] mt-0.5 line-clamp-1">{item.subtitle}</p>
-                    <div className="text-xs font-bold text-[#1C1A18] mt-1">
-                      {formatVND(item.price)}
-                      {item.priceUnit && (
-                        <span className="font-normal text-[10px] text-[#76726B]"> {item.priceUnit}</span>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="mt-3 pt-2.5 border-t border-[#E8E4DC] flex items-center gap-2">
-                    <Link
-                      to={item.href}
-                      className="flex-1 py-1.5 rounded-lg bg-[#F6F3EE] hover:bg-[#1C1A18] hover:text-white text-[#1C1A18] text-[11px] font-semibold text-center transition-colors"
-                    >
-                      {item.mode === 'rent' ? 'Thuê ngay' : 'Xem đồ'}
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => toggleWishlist(item.id)}
-                      className="p-1.5 rounded-lg hover:bg-[#F6F3EE] text-rose-500 hover:text-rose-700 transition-colors cursor-pointer"
-                      title="Bỏ yêu thích"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                      </svg>
-                    </button>
+                    <div className="mt-3 pt-2.5 border-t border-[#E8E4DC] flex items-center gap-2">
+                      <Link
+                        to={item.href}
+                        className="flex-1 py-1.5 rounded-lg bg-[#F6F3EE] hover:bg-[#1C1A18] hover:text-white text-[#1C1A18] text-[11px] font-semibold text-center transition-colors"
+                      >
+                        {item.mode === 'rent' ? 'Thuê ngay' : 'Xem đồ'}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => toggleWishlist(item.id)}
+                        className="p-1.5 rounded-lg hover:bg-[#F6F3EE] text-rose-500 hover:text-rose-700 transition-colors cursor-pointer"
+                        title="Bỏ yêu thích"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl border border-[#E8E4DC]/80 p-8 text-center shadow-2xs">
+                <div className="w-12 h-12 rounded-full bg-[#F6F3EE] flex items-center justify-center mx-auto mb-3 text-stone-400">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.5"
+                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                    />
+                  </svg>
                 </div>
-              ))}
-            </div>
+                <h3 className="font-serif text-base font-bold text-[#1C1A18] mb-1">
+                  Chưa có sản phẩm nào trong danh sách yêu thích
+                </h3>
+                <p className="text-xs text-[#76726B] max-w-sm mx-auto mb-4">
+                  Bấm vào biểu tượng trái tim ở bất kỳ sản phẩm RENT hoặc THRIFT nào để lưu lại danh sách riêng của bạn.
+                </p>
+                <div className="flex items-center justify-center gap-3">
+                  <Link
+                    to="/rent"
+                    className="px-4 py-2 rounded-xl bg-[#F6F3EE] hover:bg-[#1C1A18] hover:text-white text-[#1C1A18] text-xs font-semibold transition-colors"
+                  >
+                    Khám phá đồ thuê
+                  </Link>
+                  <Link
+                    to="/thrift"
+                    className="px-4 py-2 rounded-xl bg-[#F6F3EE] hover:bg-[#1C1A18] hover:text-white text-[#1C1A18] text-xs font-semibold transition-colors"
+                  >
+                    Xem đồ mua THRIFT
+                  </Link>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* 6. CIRCULAR REUSE SECTION (Lifecycle Diagram) */}

@@ -58,8 +58,27 @@ export const RentCheckout: React.FC = () => {
   }, [cart, id, location.state]);
 
   // ── 3. COMMON RENTAL DATES ("ngày thuê chung" cho toàn bộ thiết bị) ──
-  const [startDate, setStartDate] = useState('2026-11-18');
-  const [endDate, setEndDate] = useState('2026-11-23');
+  const [startDate, setStartDate] = useState(() => {
+    const fromItem = (rentItems[0] as { startDate?: string })?.startDate;
+    if (fromItem) return fromItem;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const y = tomorrow.getFullYear();
+    const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const d = String(tomorrow.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  });
+
+  const [endDate, setEndDate] = useState(() => {
+    const fromItem = (rentItems[0] as { endDate?: string })?.endDate;
+    if (fromItem) return fromItem;
+    const end = new Date();
+    end.setDate(end.getDate() + 4);
+    const y = end.getFullYear();
+    const m = String(end.getMonth() + 1).padStart(2, '0');
+    const d = String(end.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  });
   const [isChangingDates, setIsChangingDates] = useState(false);
 
   // Compute common rental days
@@ -118,25 +137,28 @@ export const RentCheckout: React.FC = () => {
   // ── 4. CUSTOMER PROFILE & DELIVERY ADDRESS ("địa chỉ nhận hàng") ──
   const storedProfile = useMemo(() => {
     try {
-      const raw = localStorage.getItem('user_profile_data');
+      const uId = user?._id || user?.id;
+      const raw = uId ? localStorage.getItem(`user_profile_${uId}`) : null;
       return raw ? JSON.parse(raw) : {};
     } catch {
       return {};
     }
-  }, []);
+  }, [user]);
 
   const [custodyHolder, setCustodyHolder] = useState(() => {
     return (
       storedProfile.fullName ||
       user?.fullName ||
-      'Elena Rostova'
+      'Khách hàng'
     );
   });
 
   const [phone, setPhone] = useState(() => {
     return (
       storedProfile.phone ||
-      '+84 908 421 892'
+      user?.phoneNumber ||
+      user?.phone ||
+      ''
     );
   });
 
@@ -211,8 +233,12 @@ export const RentCheckout: React.FC = () => {
     return ((totalDeposit / totalDueToday) * 100).toFixed(1);
   }, [totalDeposit, totalDueToday]);
 
-  // Contract ID
-  const contractId = '#RH-RNT-2026-8845';
+  // Dynamic Unique Contract ID
+  const [contractId] = useState(() => {
+    const rnd = Math.floor(1000 + Math.random() * 9000);
+    const year = new Date().getFullYear();
+    return `#RH-RNT-${year}-${rnd}`;
+  });
 
   // ── 6. PAYMENT STATE & SUBMISSION SIMULATION ──
   const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'bank_transfer'>('vnpay');
@@ -235,6 +261,26 @@ export const RentCheckout: React.FC = () => {
       removeFromCart(ri.id);
     });
 
+    const mappedOrderItems = itemizedCalculations.map((item) => ({
+      id: String(item.id),
+      productId: String(item.id),
+      title: item.title,
+      productName: item.title,
+      grade:
+        ('gradeBadge' in item ? (item as { gradeBadge?: string }).gradeBadge : '') ||
+        ('grade' in item ? (item as { grade?: string }).grade : '') ||
+        'Grade A+',
+      price: item.price,
+      dailyPrice: item.price,
+      pricePerDay: item.price,
+      quantity: item.qty || item.quantity || 1,
+      depositAmount: item.itemDeposit || 0,
+      itemRentTotal: item.itemRentTotal,
+      imageUrl: item.image,
+      image: item.image,
+      shopName: (item as { vaultOrigin?: string }).vaultOrigin || 'ReUse Partner Vault',
+    }));
+
     // Save Pending Order Record to localStorage
     const newOrder = {
       orderCode: contractId,
@@ -246,7 +292,7 @@ export const RentCheckout: React.FC = () => {
       startDate,
       endDate,
       rentalDays,
-      items: itemizedCalculations,
+      items: mappedOrderItems,
       totalRentFee,
       totalDeposit,
       shippingFee: NANUK_SHIPPING_FEE,
@@ -257,8 +303,31 @@ export const RentCheckout: React.FC = () => {
     };
 
     try {
+      const uId = user?._id || user?.id || '';
+      const userKey = uId ? `user_rental_orders_${uId}` : null;
+
       const existingOrders = JSON.parse(localStorage.getItem('user_rental_orders') || '[]');
       localStorage.setItem('user_rental_orders', JSON.stringify([newOrder, ...existingOrders]));
+
+      if (userKey) {
+        const userOrders = JSON.parse(localStorage.getItem(userKey) || '[]');
+        localStorage.setItem(userKey, JSON.stringify([newOrder, ...userOrders]));
+      }
+
+      // Lưu các khoảng ngày đã đặt vào bộ nhớ chung để chặn trùng lịch
+      const sharedRaw = localStorage.getItem('reuse_shared_booked_dates') || '[]';
+      const sharedList = JSON.parse(sharedRaw);
+      rentItems.forEach((item) => {
+        sharedList.push({
+          productId: String(item.id),
+          title: item.title,
+          startDate,
+          endDate,
+          note: `Đã có khách đặt thuê (${item.title})`,
+          customerName: custodyHolder || 'Khách hàng ReUse Hub',
+        });
+      });
+      localStorage.setItem('reuse_shared_booked_dates', JSON.stringify(sharedList));
     } catch {
       // ignore
     }
@@ -272,6 +341,9 @@ export const RentCheckout: React.FC = () => {
         orderCode: contractId.replace('#', ''),
         amount: totalDueToday,
         type: 'RENT',
+        productId: rentItems[0]?.id,
+        startDate,
+        endDate,
       });
     } catch (error: unknown) {
       console.error('Error redirecting to VNPay:', error);

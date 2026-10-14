@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
     Search,
@@ -29,7 +29,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
     userRole = 'GUEST',
     wishlistCount,
-    notificationCount = 2,
+    notificationCount,
     cartCount,
     onLogout
 }) => {
@@ -37,44 +37,98 @@ export const Header: React.FC<HeaderProps> = ({
     const effectiveWishlistCount = wishlistCount !== undefined ? wishlistCount : ctxWishlistCount;
     const effectiveCartCount = cartCount !== undefined ? cartCount : ctxCartCount;
 
+    const [notifSync, setNotifSync] = useState(0);
+
+    // Dynamically calculate notifications scoped to currently logged-in user
+    const effectiveNotificationCount = useMemo(() => {
+        if (notificationCount !== undefined) return notificationCount;
+        if (userRole === 'GUEST') return 0;
+        void notifSync;
+        try {
+            const u = localStorage.getItem('user');
+            const parsedUser = u ? JSON.parse(u) : null;
+            const uId = parsedUser?._id || parsedUser?.id;
+            if (!uId) return 0;
+            const raw = localStorage.getItem(`user_notifications_${uId}`);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) return parsed.length;
+            }
+        } catch {
+            // ignore
+        }
+        return 0;
+    }, [notificationCount, userRole, notifSync]);
+
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const [headerAvatar, setHeaderAvatar] = useState<string>(() => {
         try {
-            const p = localStorage.getItem('user_profile_data');
+            const u = localStorage.getItem('user');
+            const parsedUser = u ? JSON.parse(u) : null;
+            const uId = parsedUser?._id || parsedUser?.id;
+            const p = uId ? localStorage.getItem(`user_profile_${uId}`) : null;
             if (p) {
                 const parsed = JSON.parse(p);
                 if (parsed.avatarUrl) return parsed.avatarUrl;
             }
-            const u = localStorage.getItem('user');
-            if (u) {
-                const parsed = JSON.parse(u);
-                if (parsed.avatarUrl || parsed.avatar) return parsed.avatarUrl || parsed.avatar;
+            if (parsedUser) {
+                if (parsedUser.avatarUrl || parsedUser.avatar) return parsedUser.avatarUrl || parsedUser.avatar;
             }
         } catch {
             // ignore
         }
         return '';
     });
+    const [headerName, setHeaderName] = useState<string>(() => {
+        try {
+            const u = localStorage.getItem('user');
+            const parsedUser = u ? JSON.parse(u) : null;
+            const uId = parsedUser?._id || parsedUser?.id;
+            const p = uId ? localStorage.getItem(`user_profile_${uId}`) : null;
+            if (p) {
+                const parsed = JSON.parse(p);
+                if (parsed.fullName) return parsed.fullName;
+            }
+            if (parsedUser) {
+                if (parsedUser.fullName) return parsedUser.fullName;
+            }
+        } catch {
+            // ignore
+        }
+        return 'Tài khoản của tôi';
+    });
     const dropdownRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
 
-    // Đồng bộ avatar từ hồ sơ cá nhân
+    // Đồng bộ avatar & tên từ hồ sơ cá nhân
     useEffect(() => {
         const handleAvatarSync = (e: Event) => {
-            const customEvent = e as CustomEvent<{ avatarUrl?: string }>;
+            const customEvent = e as CustomEvent<{ avatarUrl?: string; fullName?: string } | null>;
+            if (customEvent.detail === null) {
+                setHeaderAvatar('');
+                setHeaderName('Tài khoản của tôi');
+                return;
+            }
             if (customEvent.detail?.avatarUrl !== undefined) {
                 setHeaderAvatar(customEvent.detail.avatarUrl);
-            } else {
-                try {
-                    const p = localStorage.getItem('user_profile_data');
-                    if (p) {
-                        const parsed = JSON.parse(p);
-                        setHeaderAvatar(parsed.avatarUrl || '');
-                    }
-                } catch {
-                    // ignore
+            }
+            if (customEvent.detail?.fullName) {
+                setHeaderName(customEvent.detail.fullName);
+            }
+            setNotifSync((prev) => prev + 1);
+            try {
+                const u = localStorage.getItem('user');
+                const parsedUser = u ? JSON.parse(u) : null;
+                const uId = parsedUser?._id || parsedUser?.id;
+                const p = uId ? localStorage.getItem(`user_profile_${uId}`) : null;
+                if (p) {
+                    const parsed = JSON.parse(p);
+                    if (parsed.avatarUrl) setHeaderAvatar(parsed.avatarUrl);
+                    if (parsed.fullName) setHeaderName(parsed.fullName);
                 }
+            } catch {
+                // ignore
             }
         };
 
@@ -190,9 +244,11 @@ export const Header: React.FC<HeaderProps> = ({
                                 title="Danh sách yêu thích"
                             >
                                 <Heart className="w-5 h-5" />
-                                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-[#1C1A18] text-white text-[9px] font-bold leading-tight flex items-center justify-center shadow-xs">
-                                    {effectiveWishlistCount}
-                                </span>
+                                {effectiveWishlistCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-[#1C1A18] text-white text-[9px] font-bold leading-tight flex items-center justify-center shadow-xs">
+                                        {effectiveWishlistCount}
+                                    </span>
+                                )}
                             </Link>
 
                             {/* Notifications Icon (hiện khi đã login) */}
@@ -204,9 +260,11 @@ export const Header: React.FC<HeaderProps> = ({
                                     title="Thông báo"
                                 >
                                     <Bell className="w-5 h-5" />
-                                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-black text-white text-[9px] font-bold leading-tight flex items-center justify-center shadow-xs">
-                                        {notificationCount}
-                                    </span>
+                                    {effectiveNotificationCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-black text-white text-[9px] font-bold leading-tight flex items-center justify-center shadow-xs">
+                                            {effectiveNotificationCount}
+                                        </span>
+                                    )}
                                 </Link>
                             )}
 
@@ -218,9 +276,11 @@ export const Header: React.FC<HeaderProps> = ({
                                 title="Giỏ hàng"
                             >
                                 <ShoppingBag className="w-5 h-5" />
-                                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-[#1C1A18] text-white text-[9px] font-bold leading-tight flex items-center justify-center shadow-xs">
-                                    {effectiveCartCount}
-                                </span>
+                                {effectiveCartCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-[#1C1A18] text-white text-[9px] font-bold leading-tight flex items-center justify-center shadow-xs">
+                                        {effectiveCartCount}
+                                    </span>
+                                )}
                             </Link>
                         </div>
 
@@ -265,70 +325,88 @@ export const Header: React.FC<HeaderProps> = ({
 
                                 {/* Avatar Dropdown Menu */}
                                 {isProfileDropdownOpen && (
-                                    <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg py-2 z-50">
-                                        <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-2.5">
-                                            {headerAvatar && (
+                                    <div className="absolute right-0 mt-3 w-64 bg-white border border-[#E8E4DC] rounded-2xl shadow-xl shadow-black/8 p-2 z-50 animate-fade-in font-sans">
+                                        {/* User Identity Header Card */}
+                                        <div className="p-3 bg-[#FBF9F5] border border-[#EFECE6] rounded-xl flex items-center gap-3 mb-1.5">
+                                            {headerAvatar ? (
                                                 <img
                                                     src={headerAvatar}
                                                     alt="Ảnh đại diện"
-                                                    className="w-8 h-8 rounded-full object-cover border border-gray-200 shrink-0"
+                                                    className="w-10 h-10 rounded-full object-cover border border-[#E8E4DC] shrink-0 shadow-2xs"
                                                 />
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-full bg-[#1C1A18] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                                                    RH
+                                                </div>
                                             )}
-                                            <div className="overflow-hidden">
-                                                <p className="text-xs font-semibold text-gray-900 truncate">Tài khoản của tôi</p>
-                                                <p className="text-[11px] text-gray-500 uppercase font-medium mt-0.5">Role: {userRole}</p>
+                                            <div className="overflow-hidden flex-1 min-w-0">
+                                                <p className="text-xs font-bold text-[#1C1A18] truncate leading-tight">
+                                                    {headerName}
+                                                </p>
+                                                <div className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full bg-[#EEF2EC] text-[#4A6B53] text-[10px] font-semibold">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-[#4A6B53]" />
+                                                    <span>{userRole === 'ADMIN' ? 'QUẢN TRỊ VIÊN' : userRole === 'SHOP' ? 'CHỦ SHOP' : 'THÀNH VIÊN TIER 2'}</span>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <Link
-                                            to="/account-settings"
-                                            onClick={() => setIsProfileDropdownOpen(false)}
-                                            className="flex items-center gap-2 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                                        >
-                                            <SlidersHorizontal className="w-4 h-4 text-gray-500" />
-                                            Hồ sơ cá nhân
-                                        </Link>
-
-                                        <Link
-                                            to="/my-orders"
-                                            onClick={() => setIsProfileDropdownOpen(false)}
-                                            className="flex items-center gap-2 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                                        >
-                                            <Package className="w-4 h-4 text-gray-500" />
-                                            Đơn hàng của tôi
-                                        </Link>
-
-                                        {/* Quick Link dành riêng cho Shop Owner / Admin trong Dropdown */}
-                                        {userRole === 'SHOP' && (
+                                        {/* Navigation Links */}
+                                        <div className="space-y-0.5">
                                             <Link
-                                                to="/shop/inventory"
+                                                to="/profile"
                                                 onClick={() => setIsProfileDropdownOpen(false)}
-                                                className="flex items-center gap-2 px-4 py-2 text-xs text-emerald-700 font-semibold hover:bg-emerald-50 transition-colors"
+                                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#1C1A18] hover:bg-[#F7F3EC] transition-all group"
                                             >
-                                                <Store className="w-4 h-4 text-emerald-600" />
-                                                Trang quản lý Shop
+                                                <SlidersHorizontal className="w-4 h-4 text-[#76726B] group-hover:text-[#1C1A18] transition-colors" />
+                                                <span>Hồ sơ cá nhân</span>
                                             </Link>
-                                        )}
 
-                                        {userRole === 'ADMIN' && (
                                             <Link
-                                                to="/admin/dashboard"
+                                                to="/rent/orders"
                                                 onClick={() => setIsProfileDropdownOpen(false)}
-                                                className="flex items-center gap-2 px-4 py-2 text-xs text-indigo-700 font-semibold hover:bg-indigo-50 transition-colors"
+                                                className="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-[#1C1A18] hover:bg-[#F7F3EC] transition-all group"
                                             >
-                                                <LayoutDashboard className="w-4 h-4 text-indigo-600" />
-                                                Trang Admin
+                                                <div className="flex items-center gap-3">
+                                                    <Package className="w-4 h-4 text-[#76726B] group-hover:text-[#1C1A18] transition-colors" />
+                                                    <span>Đơn hàng của tôi</span>
+                                                </div>
+                                                <span className="text-[10px] bg-[#EEF2EC] text-[#4A6B53] font-bold px-1.5 py-0.5 rounded-md">
+                                                    RENT
+                                                </span>
                                             </Link>
-                                        )}
 
-                                        <div className="border-t border-gray-100 my-1"></div>
+                                            {/* Quick Link dành riêng cho Shop Owner / Admin trong Dropdown */}
+                                            {userRole === 'SHOP' && (
+                                                <Link
+                                                    to="/shop/inventory"
+                                                    onClick={() => setIsProfileDropdownOpen(false)}
+                                                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-emerald-800 hover:bg-emerald-50 transition-all"
+                                                >
+                                                    <Store className="w-4 h-4 text-emerald-600" />
+                                                    <span>Trang quản lý Shop</span>
+                                                </Link>
+                                            )}
+
+                                            {userRole === 'ADMIN' && (
+                                                <Link
+                                                    to="/admin/dashboard"
+                                                    onClick={() => setIsProfileDropdownOpen(false)}
+                                                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-indigo-800 hover:bg-indigo-50 transition-all"
+                                                >
+                                                    <LayoutDashboard className="w-4 h-4 text-indigo-600" />
+                                                    <span>Trang Admin</span>
+                                                </Link>
+                                            )}
+                                        </div>
+
+                                        <div className="border-t border-[#EFECE6] my-1.5" />
 
                                         <button
                                             onClick={handleLogout}
-                                            className="w-full flex items-center gap-2 px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors text-left"
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-all text-left cursor-pointer"
                                         >
-                                            <LogOut className="w-4 h-4 text-red-500" />
-                                            Đăng xuất
+                                            <LogOut className="w-4 h-4 text-rose-500" />
+                                            <span>Đăng xuất</span>
                                         </button>
                                     </div>
                                 )}
@@ -375,7 +453,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 <Link to="/account-settings" onClick={() => setIsMobileMenuOpen(false)} className="text-xs font-medium text-gray-700 hover:text-black py-1">
                                     Hồ sơ cá nhân
                                 </Link>
-                                <Link to="/my-orders" onClick={() => setIsMobileMenuOpen(false)} className="text-xs font-medium text-gray-700 hover:text-black py-1">
+                                <Link to="/rent/orders" onClick={() => setIsMobileMenuOpen(false)} className="text-xs font-medium text-gray-700 hover:text-black py-1">
                                     Đơn hàng của tôi
                                 </Link>
                                 <button

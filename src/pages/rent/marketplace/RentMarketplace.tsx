@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
+import { getPublicRentProductsApi } from '../../../services/rentProduct.api';
 import {
   RENT_PRODUCTS,
   RENT_SORT_OPTIONS,
@@ -202,6 +203,50 @@ const ProductCard: React.FC<{
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 const RentMarketplace: React.FC = () => {
+  const [dbProducts, setDbProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getPublicRentProductsApi()
+      .then((items) => {
+        if (!isMounted) return;
+        if (Array.isArray(items) && items.length > 0) {
+          const mapped: Product[] = items.map((item) => {
+            const catSlug = typeof item.categoryId === 'object' && item.categoryId?.slug ? item.categoryId.slug : 'fashion';
+            const catName = typeof item.categoryId === 'object' && item.categoryId?.name ? item.categoryId.name : 'Thời trang';
+            const cond = item.condition || 'GOOD';
+            const condLabel = cond === 'NEW' ? 'Mới 100%' : cond === 'LIKE_NEW' ? 'Như mới 99%' : 'Rất tốt 95%';
+            const img = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : '';
+            const dep = item.depositAmount ? `${Number(item.depositAmount).toLocaleString('vi-VN')}đ` : '0đ';
+
+            return {
+              id: item._id,
+              title: item.name,
+              category: catSlug,
+              categoryLabel: catName,
+              price: Number(item.pricePerDay) || 0,
+              rating: 5.0,
+              reviewCount: 1,
+              condition: cond === 'LIKE_NEW' ? 'Như mới' : 'Rất tốt',
+              conditionLabel: condLabel,
+              location: item.location || 'Đà Nẵng',
+              deposit: dep,
+              available: (item.totalQuantity || 1) > 0,
+              href: `/rent/products/${item._id}`,
+              image: img,
+            };
+          });
+          setDbProducts(mapped);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load products from API:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const [searchParams] = useSearchParams();
   const urlCategory = searchParams.get('category');
 
@@ -228,9 +273,57 @@ const RentMarketplace: React.FC = () => {
   };
 
   const visibleProducts = useMemo(() => {
-    let list = RENT_PRODUCTS.filter((p) => {
+    const sourceList = dbProducts.length > 0 ? dbProducts : RENT_PRODUCTS;
+    let list = sourceList.filter((p) => {
       const matchQuery = !query || p.title.toLowerCase().includes(query.toLowerCase());
-      const matchCat = category === 'all' || p.category === category;
+      const matchCat = (() => {
+        if (!category || category === 'all') return true;
+        const target = category.toLowerCase().trim();
+        const pCat = (p.category || '').toLowerCase().trim();
+        const pLabel = (p.categoryLabel || '').toLowerCase().trim();
+
+        if (pCat === target || pLabel === target) return true;
+
+        if (target === 'camera' || target === 'cameras') {
+          return pCat.includes('camera') || pCat.includes('optic') || pLabel.includes('camera') || pLabel.includes('quang học');
+        }
+        if (target === 'fashion' || target === 'clothing') {
+          return (
+            pCat.includes('fashion') ||
+            pCat.includes('thoi-trang') ||
+            pCat.includes('quan-ao') ||
+            pCat.includes('da-hoi') ||
+            pLabel.includes('thời trang') ||
+            pLabel.includes('quần áo') ||
+            pLabel.includes('dạ hội')
+          );
+        }
+        if (target === 'camping' || target === 'outdoor') {
+          return (
+            pCat.includes('camping') ||
+            pCat.includes('outdoor') ||
+            pCat.includes('cam-trai') ||
+            pCat.includes('da-ngoai') ||
+            pLabel.includes('cắm trại') ||
+            pLabel.includes('dã ngoại')
+          );
+        }
+        if (target === 'electronics' || target === 'audio') {
+          return (
+            pCat.includes('electronic') ||
+            pCat.includes('audio') ||
+            pCat.includes('dien-tu') ||
+            pCat.includes('am-thanh') ||
+            pLabel.includes('điện tử') ||
+            pLabel.includes('âm thanh')
+          );
+        }
+        if (target === 'shoes' || target === 'shoe') {
+          return pCat.includes('shoe') || pCat.includes('giay') || pLabel.includes('giày');
+        }
+
+        return pCat.includes(target) || target.includes(pCat) || pLabel.includes(target);
+      })();
       const matchCond = condition === 'all' || p.condition === condition;
       const matchLoc = location === 'all' || p.location === location;
       let matchPrice = true;
@@ -243,7 +336,7 @@ const RentMarketplace: React.FC = () => {
     else if (sort === 'price-desc') list = [...list].sort((a, b) => b.price - a.price);
     else if (sort === 'rating') list = [...list].sort((a, b) => b.rating - a.rating);
     return list;
-  }, [query, category, priceRange, condition, location, sort]);
+  }, [dbProducts, query, category, priceRange, condition, location, sort]);
 
   const resetAll = () => {
     setQuery('');
@@ -393,12 +486,13 @@ const RentMarketplace: React.FC = () => {
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Danh mục</label>
               <div className="relative">
-                <select value={category} onChange={(e) => setUserCategory(e.target.value)} className={sel}>
+                <select value={category.toLowerCase()} onChange={(e) => setUserCategory(e.target.value)} className={sel}>
                   <option value="all">Tất cả danh mục</option>
-                  <option value="Camera">Camera &amp; Ống kính</option>
-                  <option value="Fashion">Thời trang &amp; Dạ hội</option>
-                  <option value="Camping">Cắm trại &amp; Dã ngoại</option>
-                  <option value="Electronics">Thiết bị điện tử</option>
+                  <option value="camera">Camera &amp; Ống kính</option>
+                  <option value="fashion">Thời trang &amp; Dạ hội</option>
+                  <option value="camping">Cắm trại &amp; Dã ngoại</option>
+                  <option value="electronics">Điện tử &amp; Âm thanh</option>
+                  <option value="shoes">Giày dép &amp; Sneakers</option>
                 </select>
                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
               </div>

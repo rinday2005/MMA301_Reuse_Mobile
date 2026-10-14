@@ -1,3 +1,14 @@
+import { THRIFT_PRODUCTS } from './thriftMarketplaceData';
+import {
+  CAMERA_CATEGORY_CONFIG,
+  FASHION_CATEGORY_CONFIG,
+  SHOES_CATEGORY_CONFIG,
+  CAMPING_CATEGORY_CONFIG,
+  ELECTRONICS_CATEGORY_CONFIG,
+  BOOKS_CATEGORY_CONFIG,
+  LIFESTYLE_CATEGORY_CONFIG,
+} from '../categories/categoryDetailData';
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface ThriftDetailThumbnail {
@@ -215,7 +226,188 @@ export const THRIFT_RELATED_PRODUCTS: ThriftRelatedProduct[] = [
   },
 ];
 
-export function getThriftProductDetail(slug?: string): ThriftProductDetail {
-  const found = THRIFT_DETAIL_PRODUCTS.find((p) => p.slug === slug || p.id === slug);
-  return found ?? THRIFT_DETAIL_PRODUCTS[0];
+// Helper tạo chi tiết chuẩn cho bất kỳ sản phẩm Thrift nào
+export function createThriftProductDetail(
+  source: Partial<ThriftProductDetail> & { id: string; title: string }
+): ThriftProductDetail {
+  const price = source.price || 850000;
+  const originalPrice = source.originalPrice || Math.round(price * 1.35);
+  const discountPercent = Math.max(5, Math.round(((originalPrice - price) / originalPrice) * 100));
+  const idStr = String(source.id);
+  const isRentSource = source.source === 'rent' || (source.sourceLabel || '').includes('RENT');
+  const mainImg = source.mainImage || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
+
+  return {
+    id: idStr,
+    slug: source.slug || idStr,
+    specimenCode: source.specimenCode || `#TH-${idStr.slice(-6).toUpperCase()}`,
+    categoryLabel: (source.categoryLabel || 'THRIFT').toUpperCase(),
+    location: source.location || 'Đà Nẵng',
+    source: isRentSource ? 'rent' : 'used',
+    sourceLabel: source.sourceLabel || (isRentSource ? 'Từ sản phẩm RENT' : 'Đồ đã qua sử dụng'),
+    title: source.title,
+    subtitle: source.subtitle || `${source.title} · Đã qua kiểm chứng chất lượng và vệ sinh tiêu chuẩn ReUse Hub.`,
+    rating: source.rating || 4.9,
+    reviewCount: source.reviewCount || 36,
+    conditionLabel: source.conditionLabel || 'Rất tốt (95%)',
+    price,
+    originalPrice,
+    discountNote: source.discountNote || `Tiết kiệm ${discountPercent}% so với mua mới`,
+    verifiedBy: source.verifiedBy || 'Shop Owner',
+    verifiedByRole: source.verifiedByRole || 'Đối tác lưu ký uỷ quyền bởi ReUse Hub',
+    mainImage: mainImg,
+    thumbnails: source.thumbnails && source.thumbnails.length > 0 ? source.thumbnails : [
+      { src: mainImg, alt: source.title, title: 'Ngoại quan sản phẩm' },
+      { src: 'https://images.unsplash.com/photo-1581557991964-125469da3b8a?auto=format&fit=crop&w=600&q=80', alt: 'Chi tiết tem kiểm định', title: 'Tem kiểm định & Seal' },
+      { src: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=600&q=80', alt: 'Phụ kiện kèm theo', title: 'Phụ kiện & đóng gói' },
+    ],
+    reassurancePoints: source.reassurancePoints && source.reassurancePoints.length > 0 ? source.reassurancePoints : [
+      'Sở hữu vĩnh viễn (100% Outright)',
+      'Bảo chứng đổi trả 72h',
+      'Khử trùng y tế & kiểm định vật lý',
+      'Đóng gói tiêu chuẩn bảo hiểm',
+    ],
+    descriptionPoints: source.descriptionPoints && source.descriptionPoints.length > 0 ? source.descriptionPoints : [
+      `${source.title} là sản phẩm tuần hoàn chất lượng cao, đã được thẩm định nghiêm ngặt trước khi niêm yết trên ReUse Thrift.`,
+      `Tình trạng vật lý: ${source.conditionLabel || 'Rất tốt (95%)'}, mọi tính năng và chi tiết hoạt động hoàn hảo.`,
+      'Trọn bộ sản phẩm bao gồm đầy đủ phụ kiện theo mô tả kèm tem chứng thực ReUse Authentic.',
+    ],
+    auditRows: source.auditRows && source.auditRows.length > 0 ? source.auditRows : [
+      { label: 'Độ mới tổng thể', value: source.conditionLabel || '95% (Rất tốt - Grade A)' },
+      { label: 'Tình trạng ngoại quan', value: 'Bề mặt sạch sẽ, không biến dạng, không xước sâu' },
+      { label: 'Chức năng cơ học / điện tử', value: 'Hoạt động hoàn hảo 100%' },
+      { label: 'Vệ sinh chuyên sâu', value: 'Khử khuẩn Ozone & làm sạch buồng vô trùng' },
+    ],
+    auditNote: source.auditNote || 'Đã kiểm định vật lý 8 bước bởi chuyên viên của ReUse Hub.',
+    circularOriginNote: source.circularOriginNote || (isRentSource ? 'Thu hồi sau chu kỳ cho thuê ngắn hạn, bảo dưỡng toàn diện tại xưởng lưu ký.' : 'Hàng ký gửi cá nhân, được tuyển chọn và xác thực nguồn gốc minh bạch.'),
+    rentalCycles: source.rentalCycles ?? (isRentSource ? 3 : 0),
+    shippingPoints: source.shippingPoints && source.shippingPoints.length > 0 ? source.shippingPoints : [
+      'Đóng gói trong túi chống sốc và dán tem niêm phong chống giả mạo.',
+      'Giao tiêu chuẩn bảo hiểm 24–48h toàn quốc.',
+      '72 giờ bảo chứng đổi trả nếu sai lệch mô tả.',
+    ],
+  };
 }
+
+export function getThriftProductDetail(slugOrId?: string): ThriftProductDetail {
+  if (!slugOrId) return THRIFT_DETAIL_PRODUCTS[0];
+
+  const clean = slugOrId.trim();
+  const lower = clean.toLowerCase();
+
+  // 1. Tìm trong THRIFT_DETAIL_PRODUCTS
+  const found = THRIFT_DETAIL_PRODUCTS.find((p) => p.slug.toLowerCase() === lower || p.id.toLowerCase() === lower);
+  if (found) return found;
+
+  // 2. Tìm trong THRIFT_PRODUCTS (marketplace)
+  const foundMarket = THRIFT_PRODUCTS.find(
+    (p) =>
+      p.id.toLowerCase() === lower ||
+      p.slug.toLowerCase() === lower ||
+      p.href.toLowerCase().endsWith(`/${lower}`) ||
+      p.title.toLowerCase().includes(lower)
+  );
+  if (foundMarket) {
+    return createThriftProductDetail({
+      id: foundMarket.id,
+      slug: foundMarket.slug,
+      title: foundMarket.title,
+      categoryLabel: foundMarket.categoryLabel,
+      location: foundMarket.location,
+      source: foundMarket.source,
+      sourceLabel: foundMarket.sourceLabel,
+      rating: foundMarket.rating,
+      reviewCount: foundMarket.reviewCount,
+      conditionLabel: foundMarket.condition,
+      price: foundMarket.price,
+      mainImage: foundMarket.image,
+      verifiedBy: foundMarket.verifiedBy,
+    });
+  }
+
+  // 3. Tìm trong tất cả category thriftItems
+  const allConfigs = [
+    CAMERA_CATEGORY_CONFIG,
+    FASHION_CATEGORY_CONFIG,
+    SHOES_CATEGORY_CONFIG,
+    CAMPING_CATEGORY_CONFIG,
+    ELECTRONICS_CATEGORY_CONFIG,
+    BOOKS_CATEGORY_CONFIG,
+    LIFESTYLE_CATEGORY_CONFIG,
+  ];
+
+  for (const config of allConfigs) {
+    const catItem = config.thriftItems.find(
+      (item) =>
+        item.id.toLowerCase() === lower ||
+        item.href.toLowerCase().endsWith(`/${lower}`) ||
+        item.title.toLowerCase().includes(lower)
+    );
+    if (catItem) {
+      return createThriftProductDetail({
+        id: catItem.id,
+        slug: catItem.id,
+        title: catItem.title,
+        subtitle: catItem.description,
+        categoryLabel: config.title,
+        location: catItem.locationBadge || 'Đà Nẵng',
+        source: catItem.sourceType === 'rent' ? 'rent' : 'used',
+        sourceLabel: catItem.sourceLabel,
+        rating: catItem.rating,
+        reviewCount: catItem.reviewCount,
+        conditionLabel: catItem.gradeBadge,
+        price: catItem.price,
+        discountNote: catItem.discountNote,
+        mainImage: catItem.image,
+        verifiedBy: catItem.verifiedBy || 'Shop Owner',
+      });
+    }
+  }
+
+  // 4. Kiểm tra trong custom_thrift_products từ localStorage
+  try {
+    const customRaw = localStorage.getItem('custom_thrift_products');
+    if (customRaw) {
+      const customList = JSON.parse(customRaw);
+      if (Array.isArray(customList)) {
+        const foundCustom = customList.find(
+          (p: { id?: string; slug?: string; name?: string; title?: string }) =>
+            p.id?.toLowerCase() === lower ||
+            p.slug?.toLowerCase() === lower ||
+            p.name?.toLowerCase() === lower ||
+            p.title?.toLowerCase() === lower
+        );
+        if (foundCustom) {
+          return createThriftProductDetail({
+            id: String(foundCustom.id || clean),
+            slug: String(foundCustom.slug || clean),
+            title: foundCustom.name || foundCustom.title || clean,
+            categoryLabel: foundCustom.categoryLabel || 'THRIFT',
+            price: Number(foundCustom.price) || 500000,
+            mainImage: foundCustom.image || foundCustom.mainImage,
+            conditionLabel: foundCustom.condition || 'Rất tốt (95%)',
+            location: foundCustom.location || 'Đà Nẵng',
+          });
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // 5. Nếu có slug/id cụ thể nhưng chưa có trong danh sách tĩnh, tạo chi tiết tương ứng thay vì rơi về Canon EOS
+  const formattedTitle = clean
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  return createThriftProductDetail({
+    id: clean,
+    slug: clean,
+    title: formattedTitle,
+    categoryLabel: 'THRIFT TUYỂN CHỌN',
+    location: 'Đà Nẵng',
+    conditionLabel: 'Rất tốt (95%)',
+    price: 950000,
+  });
+}
+

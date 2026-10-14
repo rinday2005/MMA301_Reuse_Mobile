@@ -210,7 +210,10 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
 
   // Handle clicking a day cell
   const handleDayClick = (dateStr: string, isPast: boolean, isBooked: boolean) => {
-    if (isPast) return;
+    if (isPast || dateStr < todayStr) {
+      setErrorMessage('Không được chọn thời gian trong quá khứ. Vui lòng chọn từ hôm nay trở đi!');
+      return;
+    }
     if (isBooked) {
       setErrorMessage(`Thiết bị đã được thuê vào ngày ${formatDisplayDateVN(dateStr).dayMonth}. Vui lòng chọn ngày còn trống!`);
       return;
@@ -226,7 +229,7 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
     } else {
       // Completing the range
       if (dateStr < tempStart) {
-        // If clicked earlier than current start, make it new start
+        // If clicked earlier than current start, make it new start (provided it's not past)
         setTempStart(dateStr);
         setTempEnd('');
       } else {
@@ -247,7 +250,15 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
 
   const handleApply = () => {
     if (!tempStart) return;
+    if (tempStart < todayStr) {
+      setErrorMessage('Không được chọn thời gian trong quá khứ. Vui lòng chọn từ hôm nay trở đi!');
+      return;
+    }
     const finalEnd = tempEnd || tempStart;
+    if (finalEnd < todayStr) {
+      setErrorMessage('Ngày hoàn trả không thể ở trong quá khứ!');
+      return;
+    }
     if (hasBookedConflict(tempStart, finalEnd)) {
       setErrorMessage('Khoảng thời gian chọn bị trùng với lịch đã có người thuê.');
       return;
@@ -411,9 +422,9 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
               if (cell.isPast) {
                 btnClass += 'text-stone-300 opacity-40 cursor-not-allowed bg-transparent';
               } else if (cell.isBooked) {
-                // Booked dates styling in future
+                // Booked dates: in đỏ rõ ràng, gạch ngang, khóa chọn
                 btnClass +=
-                  'bg-rose-50/80 text-rose-700 border border-rose-200/70 cursor-not-allowed font-semibold group';
+                  'bg-red-50 text-red-600 border border-red-300 cursor-not-allowed font-bold line-through group shadow-xs hover:bg-red-50';
               } else if (isStart || isEnd) {
                 btnClass += 'bg-[#1C1A18] text-white font-bold shadow-sm z-10';
               } else if (isInRange || isHoveredRange) {
@@ -428,7 +439,7 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
                 <button
                   key={cell.dateStr}
                   type="button"
-                  disabled={cell.isPast}
+                  disabled={cell.isPast || cell.isBooked}
                   onClick={() => handleDayClick(cell.dateStr, cell.isPast, cell.isBooked)}
                   onMouseEnter={() => {
                     if (tempStart && !tempEnd && !cell.isPast && !cell.isBooked) {
@@ -437,20 +448,22 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
                   }}
                   onMouseLeave={() => setHoverDate(null)}
                   className={btnClass}
-                  title={cell.isBooked ? `Đã có người thuê: ${cell.bookedNote}` : cell.dateStr}
+                  title={cell.isBooked ? `Đã có khách thuê ngày này: ${cell.bookedNote}` : cell.dateStr}
                 >
-                  <span>{cell.dayNumber}</span>
+                  <span className={cell.isBooked ? 'line-through text-red-600' : ''}>{cell.dayNumber}</span>
 
                   {/* Indicator for booked days */}
                   {cell.isBooked && (
                     <span
-                      className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-rose-500"
+                      className="absolute bottom-0.5 text-[8px] font-black text-red-600 uppercase tracking-tighter"
                       title={cell.bookedNote}
-                    />
+                    >
+                      ĐÃ ĐẶT
+                    </span>
                   )}
 
                   {/* Indicator for today */}
-                  {cell.dateStr === todayStr && !isStart && !isEnd && (
+                  {cell.dateStr === todayStr && !isStart && !isEnd && !cell.isBooked && (
                     <span className="absolute top-1 right-1 w-1 h-1 rounded-full bg-emerald-600" />
                   )}
                 </button>
@@ -465,9 +478,9 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                 <span>Trống</span>
               </span>
-              <span className="flex items-center gap-1.5 text-rose-700 font-medium">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                <span>Đã có khách thuê</span>
+              <span className="flex items-center gap-1.5 text-red-600 font-bold">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-600" />
+                <span>In đỏ: Đã có khách thuê (Khóa chọn)</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#1C1A18]" />
