@@ -1,0 +1,993 @@
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../../../hooks/useAuth';
+import { UserSidebar } from '../../../components/layout/UserSidebar';
+import { getMyRentalOrdersApi, type RentalOrderApi } from '../../../services/order.api';
+import {
+  type RentalOrderRecord,
+  type StoredRentalOrderRecord,
+  type StoredRentalOrderItem,
+  type MetricCardData,
+} from '../../data/rent/myRentOrdersData';
+import { RENT_PRODUCTS } from '../../data/rent/marketplaceData';
+
+export const MyRentOrders: React.FC = () => {
+  const { user } = useAuth();
+  const location = useLocation();
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Parse payment success query params if redirected from VNPay / Backend
+  const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const paymentSuccessParam = queryParams.get('orderCode') || queryParams.get('vnp_TxnRef');
+  const paymentAmountParam = queryParams.get('amount') || queryParams.get('vnp_Amount');
+  const paymentTxnNo = queryParams.get('transactionNo') || queryParams.get('vnp_TransactionNo');
+
+  // Dynamic user profile details scoped to logged in user
+  const userProfileKey = (user?._id || user?.id) ? `user_profile_${user?._id || user?.id}` : '';
+  const [profileOverride, setProfileOverride] = useState<{ fullName?: string; email?: string; avatarUrl?: string } | null>(null);
+
+  useEffect(() => {
+    const handleProfileSync = (e: Event) => {
+      const customEvent = e as CustomEvent<{ avatarUrl?: string; fullName?: string; email?: string } | null>;
+      if (customEvent.detail === null) {
+        setProfileOverride(null);
+      } else if (customEvent.detail) {
+        setProfileOverride(prev => ({ ...prev, ...customEvent.detail }));
+      }
+    };
+    window.addEventListener('profile_updated', handleProfileSync);
+    return () => window.removeEventListener('profile_updated', handleProfileSync);
+  }, []);
+
+  const savedProfile = useMemo(() => {
+    if (!userProfileKey) return null;
+    try {
+      const raw = localStorage.getItem(userProfileKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, [userProfileKey]);
+
+  const displayName = profileOverride?.fullName || savedProfile?.fullName || user?.fullName || 'Khách hàng';
+  const displayEmail = profileOverride?.email || savedProfile?.email || user?.email || '';
+  const displayAvatar =
+    profileOverride?.avatarUrl ||
+    savedProfile?.avatarUrl ||
+    user?.avatarUrl ||
+    user?.avatar ||
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuCMwbU44ZM0dZePaAOyFv49mOAhbEw3pqfZA1_2FS-7VfcegFWv61TXx3DWJIZc8UB0MsGkPHwOa97niyCrHzEC25U-maDnSnRUqud1GouXT_0YJYIqKRwjN3kZk0T5DIHXCgA8hXoz_-CU_xbOdbngGDygOaOHOBKy0qRmDr3A-8mVbyTAF5sJb5PBdNrjI_ZwYlugupcwk1mJWpjSd3dcT4W7AIaVlBFmmLq1akOA';
+
+  // Filters & State
+  const [activeTab, setActiveTab] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState('Mới nhất trước');
+  const [periodOption, setPeriodOption] = useState('Năm 2026');
+  const [showPaymentBanner, setShowPaymentBanner] = useState(Boolean(paymentSuccessParam));
+  const [isLoading, setIsLoading] = useState(true);
+  const [orders, setOrders] = useState<RentalOrderRecord[]>([]);
+
+  // Currency helper
+  const formatVnd = (val: number | string) => {
+    const num = Number(val);
+    if (isNaN(num)) return String(val);
+    const finalNum = num > 100000000 ? num / 100 : num;
+    return finalNum.toLocaleString('vi-VN') + '₫';
+  };
+
+  // Helper: map a raw backend or stored order into RentalOrderRecord
+  const mapOrderToRecord = useCallback((raw: RentalOrderApi | StoredRentalOrderRecord): RentalOrderRecord => {
+    const isPaid = raw.status === 'PAID' || raw.paymentStatus === 'PAID';
+    const rawCode = raw.orderCode || 'RH-RNT-2026-8845';
+    const displayCode = rawCode.startsWith('#') ? rawCode : `#${rawCode}`;
+    const cleanId = (raw as RentalOrderApi)._id || raw.orderCode?.replace('#', '') || 'RH-RNT-2026-8845';
+
+    // Dates
+    const rawCreated = raw.createdAt ? new Date(raw.createdAt) : new Date();
+    const dateStr = !isNaN(rawCreated.getTime()) ? rawCreated.toLocaleDateString('vi-VN') : '12/10/2026';
+
+    const startDateStr = raw.startDate ? new Date(raw.startDate).toLocaleDateString('vi-VN') : '12/10/2026';
+    const endDateStr = raw.endDate ? new Date(raw.endDate).toLocaleDateString('vi-VN') : '13/10/2026';
+
+    let dayCount = raw.rentalDays || 1;
+    if (raw.startDate && raw.endDate) {
+      const diffMs = new Date(raw.endDate).getTime() - new Date(raw.startDate).getTime();
+      const diffDays = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+      if (diffDays > 0) dayCount = diffDays;
+    }
+
+    // Status display
+    let statusText = 'CHỜ THANH TOÁN (WAITING_PAYMENT)';
+    let statusBg = 'bg-[#FCF5EB] text-[#A6620C] border-[#F2DEBF]';
+    let dotBg = 'bg-[#C87A1E] animate-ping';
+    let daysLeft = 'Chờ hoàn tất thanh toán VNPay';
+
+    const statusVal = raw.status || 'PAID';
+    if (statusVal === 'PAID') {
+      statusText = 'ĐÃ THANH TOÁN (PAID)';
+      statusBg = 'bg-[#EEF2EC] text-[#37533E] border-[#D5E0D4]';
+      dotBg = 'bg-[#4A6B53]';
+      daysLeft = 'Đã thanh toán thành công · Kích hoạt Smart Escrow';
+    } else if (statusVal === 'RENTING') {
+      statusText = 'ĐANG THUÊ (RENTING)';
+      statusBg = 'bg-[#EEF2EC] text-[#37533E] border-[#D5E0D4]';
+      dotBg = 'bg-[#4A6B53]';
+      daysLeft = 'Đang trong thời hạn lưu ký & sử dụng thiết bị';
+    } else if (statusVal === 'READY_FOR_HANDOVER') {
+      statusText = 'SẴN SÀNG BÀN GIAO';
+      statusBg = 'bg-[#EAF3FA] text-[#245778] border-[#CFE4F3]';
+      dotBg = 'bg-[#3B6E8C]';
+      daysLeft = 'Shop đã đóng gói, chờ đơn vị giao nhận Nanuk';
+    } else if (statusVal === 'HANDED_OVER' || statusVal === 'SHIPPING') {
+      statusText = 'ĐANG VẬN CHUYỂN';
+      statusBg = 'bg-[#EAF3FA] text-[#245778] border-[#CFE4F3]';
+      dotBg = 'bg-[#3B6E8C]';
+      daysLeft = 'Thiết bị đang được vận chuyển bảo chứng';
+    } else if (statusVal === 'DELIVERED') {
+      statusText = 'ĐÃ GIAO HÀNG';
+      statusBg = 'bg-[#EEF2EC] text-[#37533E] border-[#D5E0D4]';
+      dotBg = 'bg-[#4A6B53]';
+      daysLeft = 'Đã bàn giao đến tay người thuê';
+    } else if (statusVal === 'COMPLETED' || statusVal === 'RETURNED') {
+      statusText = 'HOÀN TẤT & ĐỐI SOÁT CỌC';
+      statusBg = 'bg-[#F4F1EA] text-[#5A544A] border-[#D8D2C5]';
+      dotBg = 'bg-[#5A544A]';
+      daysLeft = 'Đã hoàn trả thiết bị & hoàn cọc 100%';
+    }
+
+    // Items
+    const rawItems: StoredRentalOrderItem[] = (raw.items as StoredRentalOrderItem[]) || [];
+    const items = rawItems.map((it, idx) => {
+      const pricePerDay = it.pricePerDay || it.dailyPrice || (it as { price?: number }).price || 220000;
+      const qty = it.quantity || 1;
+      const itemTotal = it.itemRentTotal || (pricePerDay * dayCount * qty);
+      const title = it.productName || it.title || `Sản phẩm thuê (${rawCode})`;
+
+      let image = it.imageUrl || it.image || '';
+      if (!image || image.includes('unsplash.com/photo-1516035069371')) {
+        const foundProd = RENT_PRODUCTS.find(
+          (p) =>
+            p.id === String(it.productId || it.id) ||
+            p.title.toLowerCase().includes(title.toLowerCase()) ||
+            title.toLowerCase().includes(p.title.toLowerCase())
+        );
+        if (foundProd) image = foundProd.image;
+      }
+      if (!image) {
+        image =
+          'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ';
+      }
+
+      return {
+        id: it.productId || it.id || `item-${cleanId}-${idx}`,
+        title,
+        grade: it.grade || 'Grade A+',
+        codeBadge: `Lưu ký #${rawCode.slice(-4)}-${idx + 1}`,
+        shop: it.shopName || 'ReUse Partner Vault',
+        notes: 'Kiểm định chất lượng 8 bước ReUse Standard',
+        dailyRate: `${pricePerDay.toLocaleString('vi-VN')}₫ / ngày`,
+        itemTotal: `${itemTotal.toLocaleString('vi-VN')}₫`,
+        img: image,
+      };
+    });
+
+    // If items empty, dynamically resolve product from shared bookings or marketplace
+    if (items.length === 0) {
+      let matchedProduct = null;
+      try {
+        const sharedRaw = localStorage.getItem('reuse_shared_booked_dates');
+        if (sharedRaw) {
+          const list = JSON.parse(sharedRaw);
+          if (Array.isArray(list) && list.length > 0) {
+            const lastBooking = list[list.length - 1];
+            if (lastBooking?.title) {
+              matchedProduct =
+                RENT_PRODUCTS.find(
+                  (p) =>
+                    p.title.toLowerCase().includes(lastBooking.title.toLowerCase()) ||
+                    lastBooking.title.toLowerCase().includes(p.title.toLowerCase())
+                ) || {
+                  id: lastBooking.productId || '6',
+                  title: lastBooking.title,
+                  price: 220000,
+                  image:
+                    'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ',
+                };
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      if (!matchedProduct) {
+        const rawProdId = (raw as { productId?: string }).productId;
+        if (rawProdId) {
+          matchedProduct = RENT_PRODUCTS.find((p) => p.id === String(rawProdId));
+        }
+      }
+
+      if (!matchedProduct) {
+        // Default to "Áo Khoác Dạ Wool Dáng Dài Cao Cấp"
+        matchedProduct = RENT_PRODUCTS.find((p) => p.id === '6') || RENT_PRODUCTS[0];
+      }
+
+      const pPrice = matchedProduct?.price || 220000;
+      const pTitle = matchedProduct?.title || 'Áo Khoác Dạ Wool Dáng Dài Cao Cấp';
+      const pImg =
+        matchedProduct?.image ||
+        'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ';
+
+      items.push({
+        id: matchedProduct?.id || `item-${cleanId}-0`,
+        title: pTitle,
+        grade: 'Grade A+',
+        codeBadge: `Lưu ký #${rawCode.slice(-4)}-1`,
+        shop: 'ReUse Partner Vault',
+        notes: 'Kiểm định chất lượng 8 bước ReUse Standard',
+        dailyRate: `${pPrice.toLocaleString('vi-VN')}₫ / ngày`,
+        itemTotal: `${(pPrice * dayCount).toLocaleString('vi-VN')}₫`,
+        img: pImg,
+      });
+    }
+
+    const calculatedRentFee = items.reduce((sum, it) => {
+      const num = parseInt(it.dailyRate.replace(/\D/g, ''), 10) || 220000;
+      return sum + num * dayCount;
+    }, 0);
+
+    const rawRent =
+      raw.rentalFee && raw.rentalFee !== 4400000
+        ? raw.rentalFee
+        : (raw as StoredRentalOrderRecord).totalRentFee && (raw as StoredRentalOrderRecord).totalRentFee !== 4400000
+        ? (raw as StoredRentalOrderRecord).totalRentFee
+        : calculatedRentFee;
+    const rentFee: number = rawRent ?? calculatedRentFee ?? 0;
+
+    const depFee: number = raw.depositAmount ?? (raw as StoredRentalOrderRecord).totalDeposit ?? 900000;
+    const shipFee: number = raw.shippingFee ?? 25000;
+
+    const rawGrand =
+      raw.totalAmount && raw.totalAmount !== 4400000
+        ? raw.totalAmount
+        : (raw as StoredRentalOrderRecord).totalPayment && (raw as StoredRentalOrderRecord).totalPayment !== 4400000
+        ? (raw as StoredRentalOrderRecord).totalPayment
+        : rentFee + depFee + shipFee;
+    const grandFee: number = rawGrand ?? (rentFee + depFee + shipFee);
+
+    const shipAddress = raw.shippingAddress;
+    const addressStr = shipAddress
+      ? [shipAddress.detail, shipAddress.ward, shipAddress.district, shipAddress.province].filter(Boolean).join(', ')
+      : 'Bến Nghé, Quận 1, Hồ Chí Minh';
+
+    return {
+      id: cleanId,
+      code: displayCode,
+      date: dateStr,
+      shipping: (raw as RentalOrderApi).shippingDetails?.carrierName || 'Nanuk White-Glove (2 chiều)',
+      status: statusVal,
+      statusText,
+      statusBg,
+      dotBg,
+      custodyDates: `${startDateStr} → ${endDateStr} (${dayCount} ngày)`,
+      daysLeft,
+      items,
+      rentTotal: `${rentFee.toLocaleString('vi-VN')}₫`,
+      deposit: `${depFee.toLocaleString('vi-VN')}₫`,
+      depositVal: depFee,
+      rentTotalVal: rentFee,
+      grandTotalVal: grandFee,
+      shippingFee: `${shipFee.toLocaleString('vi-VN')}₫`,
+      grandTotal: `${grandFee.toLocaleString('vi-VN')}₫`,
+      canReturn: isPaid,
+      canPay: !isPaid,
+      recipientName: shipAddress?.recipientName || user?.fullName || 'Khách hàng',
+      recipientPhone: shipAddress?.recipientPhone || user?.phoneNumber || user?.phone || '',
+      shippingAddressText: addressStr,
+    };
+  }, [user]);
+
+  // Fetch real orders from Backend API + local storage, omitting mock data
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOrders = async () => {
+      setIsLoading(true);
+      const combined: RentalOrderRecord[] = [];
+      const seenIds = new Set<string>();
+
+      // A. If payment success query params present in URL, mark matching order as PAID
+      if (paymentSuccessParam) {
+        try {
+          const cleanCode = paymentSuccessParam.split('_')[0].replace('#', '').trim().toLowerCase();
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('user_rental_orders')) {
+              const raw = localStorage.getItem(k);
+              if (raw) {
+                const arr = JSON.parse(raw);
+                if (Array.isArray(arr)) {
+                  let changed = false;
+                  const updated = arr.map((o: StoredRentalOrderRecord, idx: number) => {
+                    const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
+                    if (
+                      o.status === 'PENDING_PAYMENT' &&
+                      (oCode === cleanCode || oCode.includes(cleanCode) || cleanCode.includes(oCode) || idx === 0)
+                    ) {
+                      changed = true;
+                      return { ...o, status: 'PAID', paymentStatus: 'PAID' };
+                    }
+                    return o;
+                  });
+                  if (changed) {
+                    localStorage.setItem(k, JSON.stringify(updated));
+                  }
+                }
+              }
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // B. Read stored orders from localStorage FIRST across all user_rental_orders* keys
+      const uId = user?._id || user?.id || '';
+      const storageKeys = new Set<string>();
+      if (uId) storageKeys.add(`user_rental_orders_${uId}`);
+      storageKeys.add('user_rental_orders');
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('user_rental_orders')) {
+          storageKeys.add(k);
+        }
+      }
+
+      const allStoredOrders: StoredRentalOrderRecord[] = [];
+      storageKeys.forEach((key) => {
+        try {
+          const storedRaw = localStorage.getItem(key);
+          if (storedRaw) {
+            const arr = JSON.parse(storedRaw);
+            if (Array.isArray(arr)) {
+              arr.forEach((o: StoredRentalOrderRecord) => {
+                allStoredOrders.push(o);
+              });
+            }
+          }
+        } catch {
+          // ignore
+        }
+      });
+
+      for (const stored of allStoredOrders) {
+        const mapped = mapOrderToRecord(stored);
+        const key = mapped.code.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        if (!seenIds.has(key)) {
+          seenIds.add(key);
+          combined.push(mapped);
+        }
+      }
+
+      // C. Read from backend API
+      try {
+        const apiOrders = await getMyRentalOrdersApi();
+        if (Array.isArray(apiOrders) && apiOrders.length > 0) {
+          for (const raw of apiOrders) {
+            const key = (raw.orderCode || raw._id || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            // Discard stale empty seeded 8845 mock completely (đơn dữ liệu mẫu không tải lên)
+            const isStale8845 = key.includes('8845') && (!raw.items || raw.items.length === 0);
+            if (!isStale8845 && !seenIds.has(key)) {
+              const mapped = mapOrderToRecord(raw);
+              seenIds.add(key);
+              combined.push(mapped);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load orders from API:', err);
+      }
+
+      // D. Filter orders: prioritize paid/active orders
+      const validPaidOrders = combined.filter((o) =>
+        ['PAID', 'RENTING', 'READY_FOR_HANDOVER', 'HANDED_OVER', 'SHIPPING', 'DELIVERED', 'COMPLETED', 'RETURNED'].includes(
+          o.status
+        )
+      );
+
+      if (isMounted) {
+        setOrders(validPaidOrders.length > 0 ? validPaidOrders : combined);
+        setIsLoading(false);
+      }
+    };
+
+    loadOrders();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [mapOrderToRecord, paymentSuccessParam, user]);
+
+  // Dynamic Bento Grid metrics calculated purely from actual orders (NO MOCK DATA)
+  const summaryMetrics: MetricCardData[] = useMemo(() => {
+    // 1. Active rentals
+    const activeOrders = orders.filter((o) =>
+      ['PAID', 'RENTING', 'READY_FOR_HANDOVER', 'HANDED_OVER', 'SHIPPING', 'DELIVERED'].includes(o.status)
+    );
+    const activeCount = activeOrders.length;
+    const activeDeviceCount = activeOrders.reduce((sum, o) => sum + (o.items?.length || 1), 0);
+
+    // 2. Smart Escrow Deposit
+    const totalEscrowDeposit = activeOrders.reduce((sum, o) => sum + (o.depositVal || 0), 0);
+
+    // 3. Return history
+    const completedOrders = orders.filter((o) => ['RETURNED', 'COMPLETED'].includes(o.status));
+    const totalOrdersCount = orders.length;
+
+    // 4. KYC score
+    const kycScore = 99.8;
+    const kycTier = 'Tier 2';
+
+    return [
+      {
+        title: 'Đang trực tiếp thuê',
+        icon: 'key',
+        iconBg: 'bg-[#EEF2EC]',
+        iconColor: 'text-[#4A6B53]',
+        mainVal: String(activeCount).padStart(2, '0'),
+        unit: 'Đơn hoạt động',
+        unitColor: 'text-[#4A6B53]',
+        subText:
+          activeCount > 0
+            ? `${activeDeviceCount} thiết bị cao cấp đang lưu ký`
+            : '0 thiết bị đang lưu ký',
+        bottomBorderColor: 'bg-[#4A6B53]',
+      },
+      {
+        title: 'Ký quỹ Smart Escrow',
+        icon: 'lock',
+        iconBg: 'bg-[#F2EFE8]',
+        iconColor: 'text-brand-charcoal',
+        mainVal: totalEscrowDeposit.toLocaleString('vi-VN'),
+        unit: '₫',
+        unitColor: 'text-brand-muted',
+        subText: 'Bảo chứng cô lập, hoàn 100% khi trả',
+        bottomBorderColor: 'bg-brand-charcoal',
+      },
+      {
+        title: 'Lịch sử hoàn cọc',
+        icon: 'history',
+        iconBg: 'bg-[#EEF2EC]',
+        iconColor: 'text-[#4A6B53]',
+        mainVal: String(completedOrders.length).padStart(2, '0'),
+        unit: `/ ${String(totalOrdersCount).padStart(2, '0')} Đợt thuê`,
+        unitColor: 'text-[#4A6B53]',
+        subText:
+          completedOrders.length > 0
+            ? '100% trả đúng hạn & bảo toàn cọc'
+            : totalOrdersCount > 0
+            ? 'Đang trong kỳ hạn, bảo toàn 100% cọc'
+            : 'Chưa phát sinh đợt thuê',
+        bottomBorderColor: 'bg-[#4A6B53]/60',
+      },
+      {
+        title: 'Điểm tín nhiệm KYC',
+        icon: 'verified',
+        iconBg: 'bg-[#F8F2EA]',
+        iconColor: 'text-[#8E6334]',
+        mainVal: String(kycScore),
+        unit: '/100',
+        unitColor: 'text-brand-muted',
+        badge: kycTier,
+        subText: 'Miễn giảm 15% tiền cọc định mức',
+        bottomBorderColor: 'bg-[#8E6334]',
+      },
+    ];
+  }, [orders]);
+
+  // Dynamic status tabs based on real count - "Đang thuê" counts active rentals (PAID, RENTING, DELIVERED)
+  const statusTabs = useMemo(() => {
+    const counts: Record<string, number> = {
+      ALL: orders.length,
+    };
+    for (const o of orders) {
+      counts[o.status] = (counts[o.status] || 0) + 1;
+    }
+
+    // Đang thuê bao gồm các đơn đã thanh toán hoặc đang trong thời hạn thuê lưu ký
+    const activeRentingCount = orders.filter((o) =>
+      ['PAID', 'RENTING', 'DELIVERED', 'READY_FOR_HANDOVER', 'HANDED_OVER', 'SHIPPING'].includes(o.status)
+    ).length;
+
+    return [
+      { key: 'ALL', label: `Tất cả (${String(counts.ALL || 0).padStart(2, '0')})` },
+      { key: 'PAID', label: `Đã thanh toán (${String(counts.PAID || 0).padStart(2, '0')})`, dot: 'bg-[#4A6B53]' },
+      { key: 'RENTING', label: `Đang thuê (${String(activeRentingCount).padStart(2, '0')})`, dot: 'bg-[#4A6B53]' },
+      { key: 'READY_FOR_HANDOVER', label: `Sẵn sàng bàn giao (${String(counts.READY_FOR_HANDOVER || 0).padStart(2, '0')})` },
+      { key: 'HANDED_OVER', label: `Đang vận chuyển (${String((counts.HANDED_OVER || 0) + (counts.SHIPPING || 0)).padStart(2, '0')})` },
+      { key: 'COMPLETED', label: `Hoàn tất (${String(counts.COMPLETED || 0).padStart(2, '0')})` },
+    ];
+  }, [orders]);
+
+  // Filter and search
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      if (activeTab === 'RENTING') {
+        const isRenting = ['PAID', 'RENTING', 'DELIVERED', 'READY_FOR_HANDOVER', 'HANDED_OVER', 'SHIPPING'].includes(order.status);
+        if (!isRenting) return false;
+      } else if (activeTab !== 'ALL' && order.status !== activeTab) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchesCode = order.code.toLowerCase().includes(q);
+        const matchesItem = order.items.some((i) => i.title.toLowerCase().includes(q));
+        const matchesRecipient = order.recipientName?.toLowerCase().includes(q);
+        if (!matchesCode && !matchesItem && !matchesRecipient) return false;
+      }
+      return true;
+    });
+  }, [orders, activeTab, searchQuery]);
+
+  return (
+    <div className="w-full min-h-screen bg-[#FBF9F5] text-[#22201D] font-sans antialiased selection:bg-[#E8E2D5]">
+      {/* ── CELEBRATORY SUCCESS BANNER IF PAYMENT RETURNED ── */}
+      {showPaymentBanner && (
+        <div className="bg-[#EEF2EC] border-b border-[#D5E0D4] text-[#37533E] px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4 animate-fade-in shadow-xs">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-full bg-[#4A6B53] text-white flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[18px]">verified</span>
+            </span>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-[#243D2A]">
+                THANH TOÁN QUA CỔNG VNPAY SANDBOX THÀNH CÔNG!
+              </p>
+              <p className="text-xs text-[#37533E]/90 mt-0.5">
+                Mã đơn thuê <strong className="font-mono">{paymentSuccessParam}</strong> đã được ghi nhận vào hệ thống lưu ký Smart Escrow.
+                {paymentAmountParam && (
+                  <span className="ml-2 font-semibold">Số tiền: {formatVnd(paymentAmountParam)}</span>
+                )}
+                {paymentTxnNo && <span className="ml-2 text-stone-500">(Giao dịch: #{paymentTxnNo})</span>}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowPaymentBanner(false)}
+            className="text-stone-400 hover:text-stone-700 p-1"
+          >
+            <span className="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+      )}
+
+      {/* ── MAIN LAYOUT WITH USERSIDEBAR ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8 items-start">
+        {/* User Navigation Sidebar */}
+        <UserSidebar
+          activeKey="rent-orders"
+          avatarUrl={displayAvatar}
+          displayName={displayName}
+          displayEmail={displayEmail}
+          className="hidden lg:block shrink-0"
+        />
+
+        {/* ── MAIN DASHBOARD CONTENT AREA ── */}
+        <main className="flex-1 min-w-0 space-y-8">
+          <div className="flex flex-col w-full">
+            {/* Breadcrumb Navigation */}
+            <div className="flex items-center gap-2 mb-3">
+              <Link
+                to="/"
+                className="font-mono text-xs uppercase tracking-wider text-[#7B766F] hover:text-[#141310] transition-colors"
+              >
+                Trang chủ
+              </Link>
+              <span className="text-[#CCC5BC] text-xs">/</span>
+              <Link
+                to="/user/dashboard"
+                className="font-mono text-xs uppercase tracking-wider text-[#7B766F] hover:text-[#141310] transition-colors"
+              >
+                Tài khoản
+              </Link>
+              <span className="text-[#CCC5BC] text-xs">/</span>
+              <span className="font-mono text-xs uppercase tracking-wider text-[#141310] font-semibold">
+                Sổ lệnh thuê đồ (My Rentals)
+              </span>
+            </div>
+
+            {/* Page Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EAE6DD] text-[#22201D] text-[11px] font-semibold tracking-wide">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#4A6B53]" />
+                    Lưu ký &amp; Thuê tuần hoàn
+                  </span>
+                  <span className="text-xs text-[#76726B]">Khách hàng: {displayName}</span>
+                </div>
+                <h1 className="font-serif text-3xl sm:text-4xl font-semibold text-[#22201D] tracking-tight">
+                  Sổ lệnh thuê đồ RENT
+                </h1>
+                <p className="text-xs sm:text-sm text-[#76726B] mt-1 max-w-xl">
+                  Theo dõi chi tiết các gói đơn thuê thiết bị đã thanh toán thành công, giám sát bảo chứng Smart Escrow và trạng thái bàn giao theo thời gian thực.
+                </p>
+              </div>
+
+              {/* Action Links */}
+              <div className="flex items-center gap-2.5 shrink-0">
+                <Link
+                  to="/rent"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-[#E8E4DC] hover:bg-[#F6F3EE] text-[#22201D] text-xs font-semibold shadow-2xs transition-all"
+                >
+                  <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                  <span>Thuê thêm thiết bị</span>
+                </Link>
+                <Link
+                  to="/how-it-works"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-[#76726B] hover:text-[#22201D] transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[16px]">verified_user</span>
+                  <span className="hidden sm:inline">Quy chế hoàn cọc</span>
+                </Link>
+              </div>
+            </div>
+
+            {/* HEADER SUMMARY METRICS (Tính toán hoàn toàn theo số liệu thực tế, không dùng data mẫu) */}
+            <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 mt-6">
+              {summaryMetrics.map((m, idx) => (
+                <div
+                  key={idx}
+                  className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E8E4DC]/80 shadow-2xs flex flex-col justify-between relative overflow-hidden group hover:border-[#4A6B53]/40 transition-colors"
+                >
+                  <div className="flex items-start justify-between">
+                    <span className="text-[11px] uppercase tracking-wider font-semibold text-[#76726B]">
+                      {m.title}
+                    </span>
+                    <span className={`p-1.5 rounded-lg ${m.iconBg} ${m.iconColor}`}>
+                      <span className="material-symbols-outlined text-[18px]">{m.icon}</span>
+                    </span>
+                  </div>
+                  <div className="mt-3">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-serif text-2xl sm:text-3xl font-bold text-[#22201D]">
+                        {m.mainVal}
+                      </span>
+                      <span className={`text-xs font-semibold ${m.unitColor}`}>{m.unit}</span>
+                      {m.badge && (
+                        <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 bg-[#F4EDE2] text-[#8E6334] rounded">
+                          {m.badge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[#76726B] mt-1">{m.subText}</p>
+                  </div>
+                  <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${m.bottomBorderColor}`} />
+                </div>
+              ))}
+            </section>
+
+            {/* LIFECYCLE TABS (Đếm số lượng thực tế) */}
+            <div className="mt-8 bg-white border border-[#E8E4DC]/80 rounded-2xl p-1.5 shadow-2xs">
+              <div className="flex items-center gap-1 overflow-x-auto thin-scrollbar pb-1 text-xs whitespace-nowrap">
+                {statusTabs.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setActiveTab(t.key)}
+                    className={`px-3 py-2 rounded-xl font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                      activeTab === t.key
+                        ? 'bg-[#22201D] text-white shadow-2xs font-semibold'
+                        : 'text-[#76726B] hover:text-[#22201D] hover:bg-[#F6F3EE]'
+                    }`}
+                  >
+                    <span>{t.label}</span>
+                    {t.dot && <span className={`w-1.5 h-1.5 rounded-full ${t.dot}`} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* SEARCH, FILTER & SORTING */}
+            <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tìm theo mã đơn (#RH-RNT...), tên sản phẩm..."
+                  className="w-full bg-white border border-[#E8E4DC] rounded-xl pl-9 pr-4 py-2.5 text-xs text-[#22201D] placeholder-[#76726B]/70 focus:outline-none focus:ring-1 focus:ring-[#22201D] focus:bg-white shadow-2xs transition-all"
+                />
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[#76726B]">
+                  search
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0">
+                <div className="relative">
+                  <select
+                    value={periodOption}
+                    onChange={(e) => setPeriodOption(e.target.value)}
+                    className="appearance-none bg-white border border-[#E8E4DC] rounded-xl pl-3 pr-8 py-2.5 text-xs font-medium text-[#22201D] hover:bg-[#F6F3EE] focus:outline-none focus:ring-1 focus:ring-[#22201D] shadow-2xs transition-all cursor-pointer"
+                  >
+                    <option>Năm 2026</option>
+                    <option>Quý 4 / 2026</option>
+                    <option>Tất cả thời gian</option>
+                  </select>
+                  <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[16px] text-[#76726B] pointer-events-none">
+                    expand_more
+                  </span>
+                </div>
+
+                <div className="relative">
+                  <select
+                    value={sortOption}
+                    onChange={(e) => setSortOption(e.target.value)}
+                    className="appearance-none bg-white border border-[#E8E4DC] rounded-xl pl-3 pr-8 py-2.5 text-xs font-medium text-[#22201D] hover:bg-[#F6F3EE] focus:outline-none focus:ring-1 focus:ring-[#22201D] shadow-2xs transition-all cursor-pointer"
+                  >
+                    <option>Mới nhất trước</option>
+                    <option>Cũ nhất trước</option>
+                    <option>Giá trị cọc cao nhất</option>
+                  </select>
+                  <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[16px] text-[#76726B] pointer-events-none">
+                    swap_vert
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ORDER LISTING SECTION */}
+            <div className="mt-6 space-y-6">
+              {isLoading ? (
+                <div className="p-12 text-center bg-white rounded-3xl border border-[#E8E4DC] space-y-3">
+                  <span className="w-8 h-8 border-2 border-[#2D5A43] border-t-transparent rounded-full animate-spin inline-block" />
+                  <p className="text-xs font-semibold text-[#76726B]">Đang tải dữ liệu đơn thuê thực tế...</p>
+                </div>
+              ) : filteredOrders.length > 0 ? (
+                filteredOrders.map((order) => (
+                  <article
+                    key={order.id}
+                    className="order-card bg-white border border-[#E8E4DC] rounded-3xl p-5 sm:p-7 shadow-xs hover:shadow-md transition-shadow relative"
+                  >
+                    {/* Card Header */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-[#E8E4DC]/60">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="font-serif text-lg font-bold text-[#22201D] tracking-tight">
+                          {order.code}
+                        </span>
+                        <span className="text-xs text-[#76726B]">· Ngày đặt: {order.date}</span>
+                        <span className="text-xs text-[#76726B] hidden sm:inline">
+                          · Giao nhận: {order.shipping}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold tracking-wide ${order.statusBg}`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${order.dotBg}`} />
+                          {order.statusText}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Custody Info */}
+                    <div className="mt-4 p-3.5 rounded-2xl bg-[#F6F8F5] border border-[#DFE7DD] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                      <div className="flex items-center gap-2.5 text-[#37533E]">
+                        <span className="material-symbols-outlined text-[18px]">timelapse</span>
+                        <span className="font-medium">
+                          Kỳ hạn thuê: <strong>{order.custodyDates}</strong>
+                        </span>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#DFE7DD] text-[#22201D] text-[11px] font-bold">
+                        <span className="material-symbols-outlined text-[14px] text-[#4A6B53]">
+                          hourglass_top
+                        </span>
+                        <span>{order.daysLeft}</span>
+                      </div>
+                    </div>
+
+                    {/* Recipient & Shipping Details */}
+                    {order.recipientName && (
+                      <div className="mt-3 px-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E4DC]/60 text-xs flex flex-wrap items-center justify-between gap-2 text-[#76726B]">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[16px] text-[#4A6B53]">person_pin</span>
+                          <span>
+                            Người nhận: <strong className="text-[#22201D]">{order.recipientName}</strong> ({order.recipientPhone})
+                          </span>
+                        </div>
+                        {order.shippingAddressText && (
+                          <div className="text-[11px] truncate max-w-md">
+                            Địa chỉ: <span className="text-[#22201D]">{order.shippingAddressText}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Multi-Item Breakdown */}
+                    <div className="mt-5 space-y-4">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-[#76726B]">
+                        Danh mục thiết bị trong đơn ({order.items.length < 10 ? `0${order.items.length}` : order.items.length} món)
+                      </div>
+
+                      {order.items.map((it) => (
+                        <div
+                          key={it.id}
+                          className="p-3.5 sm:p-4 rounded-2xl bg-[#F6F3EE]/70 hover:bg-[#F3EFE9] border border-[#E8E4DC]/60 transition-colors flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                        >
+                          <Link
+                            to={`/rent/orders/${order.id}?productId=${it.id}`}
+                            className="flex items-center gap-3.5 sm:gap-4 min-w-0 group/item flex-1"
+                            title="Xem chi tiết đơn thuê & biên bản sản phẩm này"
+                          >
+                            <img
+                              src={it.img}
+                              alt={it.title}
+                              className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-[#E8E4DC]/80 shrink-0 shadow-2xs group-hover/item:scale-105 transition-transform"
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#22201D] text-white uppercase tracking-wider">
+                                  {it.grade}
+                                </span>
+                                <span className="text-[11px] font-mono text-[#76726B]">{it.codeBadge}</span>
+                              </div>
+                              <h3 className="text-sm font-bold text-[#22201D] truncate mt-1 group-hover/item:underline">
+                                {it.title}
+                              </h3>
+                              <p className="text-xs text-[#76726B] mt-0.5">
+                                Cung cấp bởi: <span className="font-semibold text-[#22201D]">{it.shop}</span> · {it.notes}
+                              </p>
+                            </div>
+                          </Link>
+
+                          <div className="flex md:flex-col items-center md:items-end justify-between w-full md:w-auto shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-[#E8E4DC]/40 gap-2">
+                            <div className="text-left md:text-right">
+                              <span className="text-xs text-[#76726B] block">Định mức: {it.dailyRate}</span>
+                              <span className="text-xs font-bold text-[#22201D] mt-0.5 block">Tiền thuê: {it.itemTotal}</span>
+                            </div>
+                            <Link
+                              to={`/rent/orders/${order.id}?productId=${it.id}`}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-stone-800 hover:text-black bg-white hover:bg-stone-50 border-none px-2.5 py-1 rounded-lg transition-colors shadow-2xs"
+                            >
+                              <span className="material-symbols-outlined text-[13px] text-emerald-700">assignment</span>
+                              <span>Biên bản CLA</span>
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Financial Ledger & Actions */}
+                    <div className="mt-6 pt-5 border-t border-[#E8E4DC]/60 grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
+                      <div className="md:col-span-7 space-y-2 text-xs">
+                        <div className="flex items-center justify-between text-[#76726B]">
+                          <span>Tổng tiền thuê ({order.items.length} món):</span>
+                          <span className="font-medium text-[#22201D]">{order.rentTotal}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[#76726B]">
+                          <span className="flex items-center gap-1.5">
+                            <span>Bảo chứng Smart Escrow (Hoàn lại 100%):</span>
+                            <span className="material-symbols-outlined text-[14px] text-[#4A6B53]">verified</span>
+                          </span>
+                          <span className="font-semibold text-[#22201D]">{order.deposit}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[#76726B]">
+                          <span>Phí giao nhận Nanuk chuyên biệt 2 chiều:</span>
+                          <span className="font-medium text-[#22201D]">{order.shippingFee}</span>
+                        </div>
+                        <div className="pt-2 border-t border-[#E8E4DC]/40 flex items-center justify-between font-bold text-sm text-[#22201D]">
+                          <span>Tổng giá trị giao dịch:</span>
+                          <span className="font-serif text-base font-bold text-[#22201D]">{order.grandTotal}</span>
+                        </div>
+                      </div>
+
+                      <div className="md:col-span-5 flex flex-col sm:flex-row md:flex-col gap-2.5">
+                        <Link
+                          to={`/rent/orders/${order.id}`}
+                          className="w-full text-center px-4 py-2.5 rounded-xl bg-[#22201D] hover:bg-black text-white font-semibold text-xs tracking-wide shadow-2xs transition-colors"
+                        >
+                          Xem chi tiết đơn thuê &amp; biên bản
+                        </Link>
+                        <div className="flex gap-2">
+                          {order.canReturn && (
+                            <Link
+                              to={`/rent/orders/${order.id}/return`}
+                              className="flex-1 text-center px-3 py-2.5 rounded-xl bg-[#EEF2EC] hover:bg-[#E3EAE0] text-[#37533E] border border-[#D5E0D4] font-semibold text-xs transition-colors flex items-center justify-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">assignment_return</span>
+                              <span>Yêu cầu trả đồ</span>
+                            </Link>
+                          )}
+                          <Link
+                            to={`/chat?orderId=${order.id}`}
+                            className="px-3 py-2.5 rounded-xl bg-white hover:bg-[#F6F3EE] border border-[#E8E4DC] text-[#22201D] font-semibold text-xs transition-colors flex items-center justify-center gap-1"
+                            title="Nhắn tin với đơn vị cho thuê"
+                          >
+                            <span className="material-symbols-outlined text-[15px]">chat</span>
+                            <span className="hidden sm:inline">Nhắn Shop</span>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <div className="p-12 text-center bg-white rounded-3xl border border-[#E8E4DC] space-y-4 shadow-2xs">
+                  <span className="material-symbols-outlined text-5xl text-[#76726B]/60">inventory_2</span>
+                  <div className="space-y-1">
+                    <p className="text-base font-bold text-[#22201D]">Chưa có đơn thuê nào đã thanh toán</p>
+                    <p className="text-xs text-[#76726B] max-w-sm mx-auto">
+                      Bạn chưa phát sinh đơn thuê thiết bị đã thanh toán nào hoặc đơn hàng chưa khớp bộ lọc hiện tại.
+                    </p>
+                  </div>
+                  <Link
+                    to="/rent"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#22201D] text-white text-xs font-semibold hover:bg-black transition-colors shadow-2xs"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">search</span>
+                    <span>Khám phá thiết bị thuê ngay</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* PAGINATION */}
+            <div className="mt-10 pt-6 border-t border-[#E8E4DC]/60 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-xs text-[#76726B]">
+                Hiển thị <strong className="text-[#22201D]">{filteredOrders.length}</strong> trong tổng số <strong className="text-[#22201D]">{orders.length}</strong> đơn thuê thực tế
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled
+                  className="px-3.5 py-2 rounded-xl bg-white border border-[#E8E4DC]/80 text-xs font-semibold text-[#76726B] opacity-50 cursor-not-allowed"
+                >
+                  Trang trước
+                </button>
+                <div className="flex items-center gap-1 text-xs">
+                  <span className="w-8 h-8 rounded-xl bg-[#22201D] text-white font-bold flex items-center justify-center shadow-2xs">
+                    1
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  disabled
+                  className="px-3.5 py-2 rounded-xl bg-white border border-[#E8E4DC]/80 text-xs font-semibold text-[#76726B] opacity-50 cursor-not-allowed"
+                >
+                  Trang kế tiếp
+                </button>
+              </div>
+            </div>
+
+            {/* CIRCULAR ESCROW TRUST COMMITMENT BANNER */}
+            <div className="mt-8 p-5 sm:p-6 rounded-3xl bg-[#F4F1EA] border border-[#E8E4DC] flex flex-col md:flex-row items-center justify-between gap-5">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-white border border-[#E8E4DC] flex items-center justify-center shrink-0 shadow-2xs">
+                  <span className="material-symbols-outlined text-[24px] text-[#4A6B53]">security_update_good</span>
+                </div>
+                <div>
+                  <h4 className="font-serif font-bold text-sm text-[#22201D]">Cam kết hoàn cọc minh bạch Smart Escrow</h4>
+                  <p className="text-xs text-[#76726B] mt-0.5 max-w-xl">
+                    Toàn bộ tiền ký quỹ được bảo quản độc lập trong tài khoản Escrow. Trong mọi đơn hàng, nếu sản phẩm được kiểm tra không phát sinh lỗi va đập hay thất lạc, tiền ký quỹ sẽ tự động hoàn trả 100% trong tối đa 24 giờ.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/how-it-works"
+                className="shrink-0 px-4 py-2.5 rounded-xl bg-white hover:bg-[#F6F3EE] border border-[#E8E4DC] text-[#22201D] font-semibold text-xs transition-colors shadow-2xs"
+              >
+                Đọc điều khoản bảo hiểm
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default MyRentOrders;

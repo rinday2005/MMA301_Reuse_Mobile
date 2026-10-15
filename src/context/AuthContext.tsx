@@ -21,11 +21,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const login = async (data: Parameters<typeof loginApi>[0]) => {
     const result = await loginApi(data);
 
+    // Xóa cache dữ liệu của user cũ trước khi lưu thông tin user mới
+    localStorage.removeItem("user_profile_data");
+    localStorage.removeItem("user_rental_orders");
+    localStorage.removeItem("user_thrift_orders");
+
     localStorage.setItem("token", result.accessToken);
     localStorage.setItem("user", JSON.stringify(result.user));
 
     setToken(result.accessToken);
     setUser(result.user);
+
+    window.dispatchEvent(new CustomEvent("profile_updated", { detail: result.user }));
+    window.dispatchEvent(new Event("user_profile_updated"));
 
     return result.user;
   };
@@ -33,9 +41,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("user_profile_data");
+    localStorage.removeItem("user_rental_orders");
+    localStorage.removeItem("user_thrift_orders");
 
     setToken(null);
     setUser(null);
+
+    window.dispatchEvent(new CustomEvent("profile_updated", { detail: null }));
+    window.dispatchEvent(new Event("user_profile_updated"));
   };
 
   return (

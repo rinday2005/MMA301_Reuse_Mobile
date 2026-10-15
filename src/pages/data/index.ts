@@ -6,3 +6,5 @@ export * from './home/howItWorksData';
 export * from './home/aboutData';
 export * from './thrift/thriftMarketplaceData';
 export * from './thrift/thriftDetailData';
+export * from './categories/categoriesData';
+export * from './categories/categoryDetailData';

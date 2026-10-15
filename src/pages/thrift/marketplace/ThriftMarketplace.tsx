@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
+import { useCartWishlist } from '../../../context/CartWishlistContext';
 import {
     THRIFT_PRODUCTS,
     THRIFT_CATEGORY_OPTIONS,
@@ -15,10 +16,14 @@ import type { ThriftProduct, ThriftSortKey } from '../../data/thrift/thriftMarke
 export const ThriftMarketplace: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { isWishlisted, toggleWishlist, addToCart } = useCartWishlist();
+    const [searchParams] = useSearchParams();
+    const urlCat = searchParams.get('category')?.toLowerCase();
 
     // Search & Filter state
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('all');
+    const [userCategory, setUserCategory] = useState<string | null>(null);
+    const selectedCategory = userCategory ?? (urlCat || 'all');
     const [selectedPrice, setSelectedPrice] = useState('all');
     const [selectedCondition, setSelectedCondition] = useState('all');
     const [selectedLocation, setSelectedLocation] = useState('all');
@@ -28,12 +33,6 @@ export const ThriftMarketplace: React.FC = () => {
     // Pagination (mock pagination: 8 items per page)
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8;
-
-    // Wishlist set of product IDs
-    const [wishlist, setWishlist] = useState<Set<string>>(new Set());
-
-    // Toast notification for user actions
-    const [toastMessage, setToastMessage] = useState<string | null>(null);
 
     // Auth requirement modal state
     const [authModal, setAuthModal] = useState<{
@@ -45,13 +44,6 @@ export const ThriftMarketplace: React.FC = () => {
         actionName: '',
         targetUrl: '',
     });
-
-    const triggerToast = (msg: string) => {
-        setToastMessage(msg);
-        setTimeout(() => {
-            setToastMessage(null);
-        }, 3500);
-    };
 
     // Protected action helper
     const handleProtectedAction = (actionTitle: string, targetUrl: string, onSuccess: () => void) => {
@@ -70,41 +62,40 @@ export const ThriftMarketplace: React.FC = () => {
     const handleBuyNow = (product: ThriftProduct) => {
         handleProtectedAction(
             `mua ngay "${product.title}"`,
-            `/cart?checkout=thrift&productId=${product.id}`,
+            '/cart',
             () => {
-                navigate(`/cart?checkout=thrift&productId=${product.id}`);
+                addToCart({
+                    id: product.id,
+                    title: product.title,
+                    price: product.price,
+                    image: product.image,
+                    mode: 'thrift',
+                    location: product.location,
+                    categoryLabel: product.category,
+                    gradeBadge: product.condition,
+                    quantity: 1,
+                });
+                navigate('/cart');
             }
         );
     };
 
     const handleAddToCart = (product: ThriftProduct) => {
-        handleProtectedAction(
-            `thêm "${product.title}" vào giỏ hàng`,
-            `/cart`,
-            () => {
-                triggerToast(`Đã thêm thành công "${product.title}" vào giỏ hàng THRIFT!`);
-            }
-        );
+        addToCart({
+            id: product.id,
+            title: product.title,
+            price: product.price,
+            image: product.image,
+            mode: 'thrift',
+            location: product.location,
+            categoryLabel: product.category,
+            gradeBadge: product.condition,
+            quantity: 1,
+        });
     };
 
     const handleToggleWishlist = (product: ThriftProduct) => {
-        handleProtectedAction(
-            `lưu "${product.title}" vào danh sách yêu thích`,
-            `/thrift`,
-            () => {
-                setWishlist((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(product.id)) {
-                        next.delete(product.id);
-                        triggerToast(`Đã bỏ lưu "${product.title}".`);
-                    } else {
-                        next.add(product.id);
-                        triggerToast(`Đã lưu "${product.title}" vào danh sách yêu thích!`);
-                    }
-                    return next;
-                });
-            }
-        );
+        toggleWishlist(product.id);
     };
 
     // Filter & sort logic
@@ -172,7 +163,7 @@ export const ThriftMarketplace: React.FC = () => {
 
     const handleResetFilters = () => {
         setSearchQuery('');
-        setSelectedCategory('all');
+        setUserCategory('all');
         setSelectedPrice('all');
         setSelectedCondition('all');
         setSelectedLocation('all');
@@ -187,20 +178,6 @@ export const ThriftMarketplace: React.FC = () => {
 
     return (
         <div className="w-full min-h-screen text-[#1C1A18] antialiased">
-            {/* Toast Notification */}
-            {toastMessage && (
-                <div className="fixed top-24 right-6 z-50 flex items-center gap-2.5 bg-[#1C1A18] text-white px-5 py-3 rounded-xl shadow-xl animate-fade-in text-xs font-medium">
-                    <span className="material-symbols-outlined text-[18px] text-emerald-400">check_circle</span>
-                    <span>{toastMessage}</span>
-                    <button
-                        type="button"
-                        onClick={() => setToastMessage(null)}
-                        className="ml-2 text-white/60 hover:text-white cursor-pointer"
-                    >
-                        <span className="material-symbols-outlined text-[14px]">close</span>
-                    </button>
-                </div>
-            )}
 
             {/* Guest Auth Required Modal */}
             {authModal.open && (
@@ -349,7 +326,7 @@ export const ThriftMarketplace: React.FC = () => {
                             <div className="relative">
                                 <select
                                     value={selectedCategory}
-                                    onChange={(e) => setSelectedCategory(e.target.value)}
+                                    onChange={(e) => setUserCategory(e.target.value)}
                                     className="w-full py-2 pl-3 pr-7 bg-[#F4F0EA]/50 rounded-lg text-[#1C1A18] focus:outline-none focus:bg-[#F4F0EA] text-xs font-medium cursor-pointer appearance-none"
                                 >
                                     {THRIFT_CATEGORY_OPTIONS.map((opt) => (
@@ -458,7 +435,7 @@ export const ThriftMarketplace: React.FC = () => {
                 {filteredProducts.length > 0 ? (
                     <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                         {filteredProducts.map((product) => {
-                            const isSaved = wishlist.has(product.id);
+                            const isSaved = isWishlisted(product.id);
 
                             return (
                                 <article
