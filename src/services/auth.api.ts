@@ -10,6 +10,8 @@ export interface User {
   email: string;
   fullName: string;
   role: "USER" | "SHOP_OWNER" | "ADMIN";
+  name?: string;       // Thêm dòng này để fix lỗi
+  username?: string;   // Thêm dòng này để fix lỗi
 }
 
 export interface LoginResponse {

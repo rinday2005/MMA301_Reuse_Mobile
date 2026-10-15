@@ -17,16 +17,28 @@ import ThriftDetail from "./pages/thrift/detail/ThriftDetail";
 import PublicRoutes from "./routes/PublicRoutes";
 import ProtectedRoutes from "./routes/ProtectedRoutes";
 import { MasterLayout } from "./components/layout/MasterLayout";
-import { AuthContext } from "./context/auth-context"; // [FE-S1-07-h] Kiểm tra đúng đường dẫn auth-context trong dự án của bạn
+import { AuthContext } from "./context/auth-context";
 import { NavigationLoader } from "./components/common/NavigationLoader";
 import { ScrollRevealManager } from "./components/common/ScrollRevealManager";
+
+// Context & Layout của Shop Owner
+import { ShopProvider } from "./context/ShopContext";
+import { ShopOwnerLayout } from "./components/layout_shop_owner/ownerlayout";
+
+// 7 Trang Shop Owner thực tế của D
+import { ShopDashboard } from "./pages/rent/shop/ShopDashboard";
+import { ManageRentProducts } from "./pages/rent/shop/ManageRentProducts";
+import { CreateRentProduct } from "./pages/rent/shop/CreateRentProduct";
+import { RentProductDetail } from "./pages/rent/shop/RentProductDetail";
+import { EditRentProduct } from "./pages/rent/shop/EditRentProduct";
+import { InventoryDashboard } from "./pages/rent/shop/InventoryDashboard";
+import { RentInventoryDetail } from "./pages/rent/shop/RentInventoryDetail";
 
 // Component Wrapper tự động nhận diện Role thực tế từ Auth Context
 const AppLayout = ({ role }: { role?: 'GUEST' | 'USER' | 'SHOP' | 'ADMIN' }) => {
   const auth = useContext(AuthContext);
   const user = auth?.user;
 
-  // [FE-S1-07-h] Mapping role từ Backend về định dạng Role của MasterLayout
   const getMappedRole = (rawRole?: string) => {
     if (rawRole === 'SHOP_OWNER' || rawRole === 'SHOP') return 'SHOP';
     if (rawRole === 'CUSTOMER' || rawRole === 'USER') return 'USER';
@@ -34,7 +46,6 @@ const AppLayout = ({ role }: { role?: 'GUEST' | 'USER' | 'SHOP' | 'ADMIN' }) => 
     return undefined;
   };
 
-  // Ưu tiên Role thực tế người dùng đăng nhập > Role truyền từ Route > Mặc định 'GUEST'
   const activeRole = getMappedRole(user?.role) || role || 'GUEST';
 
   return (
@@ -44,8 +55,7 @@ const AppLayout = ({ role }: { role?: 'GUEST' | 'USER' | 'SHOP' | 'ADMIN' }) => 
   );
 };
 
-// --- [FE-S1-07-h] Placeholder Pages phục vụ cho Header & Navigation Demo ---
-
+// ── Placeholder Pages cho Sàn Chung ──
 const CategoriesPage = () => (
   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
     <h1 className="text-2xl font-bold text-gray-800">Danh Mục Sản Phẩm</h1>
@@ -82,8 +92,6 @@ const MyOrdersPage = () => (
   </div>
 );
 
-
-// ── Danh mục Pages ──
 const CategoryDetailPage = ({ name }: { name: string }) => (
   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
     <h1 className="text-2xl font-bold text-gray-800">Danh Mục: {name}</h1>
@@ -94,12 +102,6 @@ const CategoryDetailPage = ({ name }: { name: string }) => (
 const UserDashboard = () => (
   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
     <h1 className="text-2xl font-bold text-gray-800">User Dashboard</h1>
-  </div>
-);
-
-const ShopDashboard = () => (
-  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-    <h1 className="text-2xl font-bold text-gray-800">Shop Owner Dashboard</h1>
   </div>
 );
 
@@ -121,7 +123,28 @@ const App = () => {
           <Route path="/register" element={<Register />} />
         </Route>
 
-        {/* 2. [FE-S1-07-h] Browsing Routes dùng MasterLayout (Truy cập tự do, không bị ép quay về /login) */}
+        {/* 2. Shop Owner Module - Được bọc riêng ShopProvider và ShopOwnerLayout (Không dùng MasterLayout) */}
+        <Route
+          element={
+            <ShopProvider>
+              <ShopOwnerLayout />
+            </ShopProvider>
+          }
+        >
+          <Route path="/shop" element={<ShopDashboard />} />
+          <Route path="/shop/dashboard" element={<ShopDashboard />} />
+          <Route path="/shop/rent/products" element={<ManageRentProducts />} />
+          <Route path="/shop/rent-products" element={<ManageRentProducts />} />
+          <Route path="/shop/rent/create" element={<CreateRentProduct />} />
+          <Route path="/shop/rent/products/create" element={<CreateRentProduct />} />
+          <Route path="/shop/rent/products/:id" element={<RentProductDetail />} />
+          <Route path="/shop/rent/edit/:id" element={<EditRentProduct />} />
+          <Route path="/shop/rent/inventory" element={<InventoryDashboard />} />
+          <Route path="/shop/inventory" element={<InventoryDashboard />} />
+          <Route path="/shop/rent/inventory/:itemId" element={<RentInventoryDetail />} />
+        </Route>
+
+        {/* 3. Browsing Routes dùng MasterLayout */}
         <Route element={<AppLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/rent" element={<RentMarketplace />} />
@@ -159,24 +182,14 @@ const App = () => {
           <Route path="/categories/lifestyle" element={<CategoryDetailPage name="Đồ trang trí & Setup" />} />
         </Route>
 
-        {/* 3. User Protected Routes */}
+        {/* 4. User Protected Routes */}
         <Route element={<ProtectedRoutes allowedRoles={["USER"]} />}>
           <Route element={<AppLayout role="USER" />}>
             <Route path="/user/dashboard" element={<UserDashboard />} />
           </Route>
         </Route>
 
-        {/* 4. Shop Owner Protected Routes (Có Sidebar Shop) */}
-        <Route element={<ProtectedRoutes allowedRoles={["SHOP_OWNER"]} />}>
-          <Route element={<AppLayout role="SHOP" />}>
-            <Route path="/shop/dashboard" element={<ShopDashboard />} />
-            <Route path="/shop/inventory" element={<ShopDashboard />} />
-            <Route path="/shop/rent/create" element={<ShopDashboard />} />
-            <Route path="/shop/orders" element={<ShopDashboard />} />
-          </Route>
-        </Route>
-
-        {/* 5. Admin Protected Routes (Có Sidebar Admin) */}
+        {/* 5. Admin Protected Routes */}
         <Route element={<ProtectedRoutes allowedRoles={["ADMIN"]} />}>
           <Route element={<AppLayout role="ADMIN" />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />

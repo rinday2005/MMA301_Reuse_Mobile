@@ -32,13 +32,14 @@ export const CreateRentProduct: React.FC = () => {
   const [coverImage, setCoverImage] = useState<string>('');
   const [detailImages, setDetailImages] = useState<string[]>([]);
 
+  // Ép kiểu tường minh qua any rồi đến RentProductFormData để tránh lỗi type sâu của hook form
   const {
     register,
     handleSubmit,
     watch,
     formState: { errors },
   } = useForm<RentProductFormData>({
-    resolver: zodResolver(rentProductSchema),
+    resolver: zodResolver(rentProductSchema) as any,
     defaultValues: {
       category: '',
       minDays: 2,
@@ -77,16 +78,17 @@ export const CreateRentProduct: React.FC = () => {
       mountSensor: data.mountSensor,
       accessoriesIncluded: data.accessoriesIncluded,
       description: data.description,
-      pricePerDay: data.pricePerDay,
-      deposit: data.deposit,
-      replacementValue: data.deposit * 2,
-      totalUnits: data.totalUnits,
-      readyUnits: data.totalUnits,
+      // Đảm bảo ép đúng kiểu number trước khi push vào context
+      pricePerDay: Number(data.pricePerDay),
+      deposit: Number(data.deposit),
+      replacementValue: Number(data.deposit) * 2,
+      totalUnits: Number(data.totalUnits),
+      readyUnits: Number(data.totalUnits),
       rentingUnits: 0,
       coverImage,
       inspectionImages: detailImages,
-      minDays: data.minDays,
-      maxDays: data.maxDays,
+      minDays: Number(data.minDays),
+      maxDays: Number(data.maxDays),
       maintenanceUnits: 0,
     });
 
@@ -104,7 +106,7 @@ export const CreateRentProduct: React.FC = () => {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <form onSubmit={handleSubmit(onSubmit as any)} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Cột trái (Form nhập) */}
           <div className="lg:col-span-8 space-y-6">
             {/* Ảnh */}
@@ -166,7 +168,7 @@ export const CreateRentProduct: React.FC = () => {
                   placeholder="Ví dụ: Hasselblad 907X 50C + Lens XCD 45mm"
                   className="w-full px-3 py-2 bg-[#f7f3ec] rounded text-sm focus:outline-none"
                 />
-                {errors.name && <p className="text-red-600 text-[11px] mt-1">{errors.name.message}</p>}
+                {errors.name && <p className="text-red-600 text-[11px] mt-1">{errors.name.message as string}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -179,31 +181,31 @@ export const CreateRentProduct: React.FC = () => {
                     <option value="Hybrid Mirrorless">Hybrid Mirrorless</option>
                     <option value="Cinema Optics">Cinema Optics</option>
                   </select>
-                  {errors.category && <p className="text-red-600 text-[11px] mt-1">{errors.category.message}</p>}
+                  {errors.category && <p className="text-red-600 text-[11px] mt-1">{errors.category.message as string}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase mb-1">Thương hiệu *</label>
                   <input {...register('brand')} placeholder="Hasselblad, Leica..." className="w-full px-3 py-2 bg-[#f7f3ec] rounded text-sm focus:outline-none" />
-                  {errors.brand && <p className="text-red-600 text-[11px] mt-1">{errors.brand.message}</p>}
+                  {errors.brand && <p className="text-red-600 text-[11px] mt-1">{errors.brand.message as string}</p>}
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase mb-1">Ngàm &amp; Cảm biến *</label>
                 <input {...register('mountSensor')} placeholder="XCD Mount • 50MP CMOS" className="w-full px-3 py-2 bg-[#f7f3ec] rounded text-sm focus:outline-none" />
-                {errors.mountSensor && <p className="text-red-600 text-[11px] mt-1">{errors.mountSensor.message}</p>}
+                {errors.mountSensor && <p className="text-red-600 text-[11px] mt-1">{errors.mountSensor.message as string}</p>}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase mb-1">Phụ kiện kèm vali *</label>
                 <input {...register('accessoriesIncluded')} placeholder="2 pin zin, sạc đôi, dây da..." className="w-full px-3 py-2 bg-[#f7f3ec] rounded text-sm focus:outline-none" />
-                {errors.accessoriesIncluded && <p className="text-red-600 text-[11px] mt-1">{errors.accessoriesIncluded.message}</p>}
+                {errors.accessoriesIncluded && <p className="text-red-600 text-[11px] mt-1">{errors.accessoriesIncluded.message as string}</p>}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase mb-1">Mô tả xuất xứ &amp; lưu ký *</label>
                 <textarea rows={4} {...register('description')} className="w-full px-3 py-2 bg-[#f7f3ec] rounded text-sm focus:outline-none" />
-                {errors.description && <p className="text-red-600 text-[11px] mt-1">{errors.description.message}</p>}
+                {errors.description && <p className="text-red-600 text-[11px] mt-1">{errors.description.message as string}</p>}
               </div>
             </div>
 
@@ -214,17 +216,17 @@ export const CreateRentProduct: React.FC = () => {
                 <div>
                   <label className="block text-xs font-semibold uppercase mb-1">Giá thuê/ngày *</label>
                   <input type="number" {...register('pricePerDay')} placeholder="450000" className="w-full px-3 py-2 bg-[#f7f3ec] rounded text-sm focus:outline-none" />
-                  {errors.pricePerDay && <p className="text-red-600 text-[11px] mt-1">{errors.pricePerDay.message}</p>}
+                  {errors.pricePerDay && <p className="text-red-600 text-[11px] mt-1">{errors.pricePerDay.message as string}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase mb-1">Tiền cọc Escrow *</label>
                   <input type="number" {...register('deposit')} placeholder="16000000" className="w-full px-3 py-2 bg-[#f7f3ec] rounded text-sm focus:outline-none" />
-                  {errors.deposit && <p className="text-red-600 text-[11px] mt-1">{errors.deposit.message}</p>}
+                  {errors.deposit && <p className="text-red-600 text-[11px] mt-1">{errors.deposit.message as string}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase mb-1">Số lượng máy nhập *</label>
                   <input type="number" {...register('totalUnits')} className="w-full px-3 py-2 bg-[#f7f3ec] rounded text-sm focus:outline-none" />
-                  {errors.totalUnits && <p className="text-red-600 text-[11px] mt-1">{errors.totalUnits.message}</p>}
+                  {errors.totalUnits && <p className="text-red-600 text-[11px] mt-1">{errors.totalUnits.message as string}</p>}
                 </div>
               </div>
 
@@ -243,17 +245,17 @@ export const CreateRentProduct: React.FC = () => {
                 <label className="flex items-center gap-2 text-xs">
                   <input type="checkbox" {...register('handoverRule1')} /> Bàn giao kèm vali chống sốc Nanuk
                 </label>
-                {errors.handoverRule1 && <p className="text-red-600 text-[11px]">{errors.handoverRule1.message}</p>}
+                {errors.handoverRule1 && <p className="text-red-600 text-[11px]">{errors.handoverRule1.message as string}</p>}
 
                 <label className="flex items-center gap-2 text-xs">
                   <input type="checkbox" {...register('handoverRule2')} /> Chụp đối kiểm cảm biến trước khi gửi
                 </label>
-                {errors.handoverRule2 && <p className="text-red-600 text-[11px]">{errors.handoverRule2.message}</p>}
+                {errors.handoverRule2 && <p className="text-red-600 text-[11px]">{errors.handoverRule2.message as string}</p>}
 
                 <label className="flex items-center gap-2 text-xs">
                   <input type="checkbox" {...register('handoverRule3')} /> Pin sạc đầy &gt;= 50% khi giao
                 </label>
-                {errors.handoverRule3 && <p className="text-red-600 text-[11px]">{errors.handoverRule3.message}</p>}
+                {errors.handoverRule3 && <p className="text-red-600 text-[11px]">{errors.handoverRule3.message as string}</p>}
               </div>
             </div>
           </div>

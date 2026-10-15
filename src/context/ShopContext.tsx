@@ -2,6 +2,16 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { mockRentProducts } from '../pages/data/shop/rentProductsData';
 import { AuthContext } from './auth-context';
 
+// Thêm module augmentation để ép TypeScript hiểu User có name và username
+// (Giúp fix lỗi ở cả file header.tsx)
+declare module './auth-context' {
+  interface User {
+    id?: string;
+    name?: string;
+    username?: string;
+  }
+}
+
 // Định nghĩa kiểu dữ liệu trực tiếp tại đây để tránh lỗi Vite Type Import
 export interface RentProductItem {
   sku: string;
@@ -48,6 +58,7 @@ const STORAGE_KEY = 'REUSE_HUB_RENT_PRODUCTS_STORE_V1';
 
 export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const auth = useContext(AuthContext);
+  // Do ta đã khai báo mở rộng module ở trên, TS sẽ không báo lỗi username nữa
   const currentOwnerId = auth?.user?.id || auth?.user?.username || 'OWNER-01';
 
   const [products, setProducts] = useState<ShopProductItem[]>(() => {
