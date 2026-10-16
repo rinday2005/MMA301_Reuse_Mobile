@@ -4,7 +4,7 @@ import { useCartWishlist, type CartItem } from '../../context/CartWishlistContex
 import { AuthContext } from '../../context/auth-context';
 import { DEFAULT_DEMO_CART_ITEMS } from '../data/cart/defaultCartData';
 import { RentalCalendarPicker } from '../../components/rent/RentalCalendarPicker';
-import { getProductBookedDates } from '../data/rent/rentOrderDetailData';
+import { getProductBookedDates, hasDateRangeConflict } from '../data/rent/rentOrderDetailData';
 
 export const Cart: React.FC = () => {
   const navigate = useNavigate();
@@ -230,6 +230,10 @@ export const Cart: React.FC = () => {
   // Save edited rental days via Calendar
   const handleSaveRentalDays = () => {
     if (!editingRentItem) return;
+    if (hasDateRangeConflict(editStartDate, editEndDate, editingBookedDates)) {
+      showToast('Khoảng ngày bạn chọn có ngày đã có khách đặt! Vui lòng chọn khoảng ngày còn trống.', 'warning');
+      return;
+    }
     updateCartItem(editingRentItem.id, {
       startDate: editStartDate,
       endDate: editEndDate,
@@ -905,6 +909,21 @@ export const Cart: React.FC = () => {
                       onClick={() => {
                         if (!user) {
                           navigate('/login', { state: { from: '/rent/checkout' } });
+                          return;
+                        }
+                        const conflictItem = selectedRentItems.find((item) => {
+                          const bDates = getProductBookedDates({ id: item.id, title: item.title });
+                          return (
+                            item.startDate &&
+                            item.endDate &&
+                            hasDateRangeConflict(item.startDate, item.endDate, bDates)
+                          );
+                        });
+                        if (conflictItem) {
+                          showToast(
+                            `Thiết bị "${conflictItem.title}" bị trùng ngày đã có khách đặt! Hãy bấm "Sửa ngày" trước khi thuê.`,
+                            'event_busy'
+                          );
                           return;
                         }
                         navigate('/rent/checkout', {

@@ -3,8 +3,6 @@ import Header from './Header';
 import type { UserRole } from './Header';
 import Footer from './Footer';
 import { Sidebar } from './Sidebar';
-import { GuestSidebar } from './GuestSidebar';
-import { UserSidebar } from './UserSidebar';
 
 interface MasterLayoutProps {
   children: React.ReactNode;
@@ -18,8 +16,6 @@ export const MasterLayout: React.FC<MasterLayoutProps> = ({
   onLogout
 }) => {
   const showAdminShopSidebar = userRole === 'ADMIN' || userRole === 'SHOP';
-  const showGuestSidebar = userRole === 'GUEST';
-  const showUserSidebar = userRole === 'USER';
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fdf9f2] text-stone-900 antialiased">
@@ -32,12 +28,6 @@ export const MasterLayout: React.FC<MasterLayoutProps> = ({
         {showAdminShopSidebar && (
           <Sidebar role={userRole === 'ADMIN' ? 'ADMIN' : 'SHOP'} />
         )}
-
-        {/* Sidebar GUEST — toggle overlay khi role GUEST */}
-        {showGuestSidebar && <GuestSidebar />}
-
-        {/* Sidebar CUSTOMER / USER — toggle overlay khi role CUSTOMER */}
-        {showUserSidebar && <UserSidebar mode="drawer" />}
 
         <main className={`flex-1 w-full pt-28 ${showAdminShopSidebar ? 'px-4 lg:px-8' : ''}`}>
           {children}

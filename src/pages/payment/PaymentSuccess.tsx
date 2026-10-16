@@ -28,67 +28,52 @@ interface StoredOrder {
   [key: string]: unknown;
 }
 
-  // Update localStorage status
+  // Update localStorage status strictly for the logged-in user
   useEffect(() => {
     try {
       const cleanTarget = orderCode.replace('#', '').trim().toLowerCase();
 
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('user_rental_orders')) {
-          const raw = localStorage.getItem(key);
-          if (raw) {
-            const orders: StoredOrder[] = JSON.parse(raw);
-            if (Array.isArray(orders)) {
-              let updated = false;
-              const newOrders = orders.map((o: StoredOrder, idx: number) => {
-                const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
-                const isMatch =
-                  oCode === cleanTarget ||
-                  oCode.includes(cleanTarget) ||
-                  cleanTarget.includes(oCode) ||
-                  (idx === 0 && o.status === 'PENDING_PAYMENT');
-
-                if (isMatch) {
-                  updated = true;
-                  return { ...o, status: 'PAID', paymentStatus: 'PAID', transactionNo, bankCode };
-                }
-                return o;
-              });
-              if (updated) {
-                localStorage.setItem(key, JSON.stringify(newOrders));
-              }
-            }
-          }
+      let uId = '';
+      try {
+        const userRaw = localStorage.getItem('user');
+        if (userRaw) {
+          const u = JSON.parse(userRaw);
+          uId = u._id || u.id || '';
         }
+      } catch {
+        // ignore
+      }
 
-        if (key && key.startsWith('user_thrift_orders')) {
-          const raw = localStorage.getItem(key);
-          if (raw) {
-            const orders: StoredOrder[] = JSON.parse(raw);
-            if (Array.isArray(orders)) {
-              let updated = false;
-              const newOrders = orders.map((o: StoredOrder, idx: number) => {
-                const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
-                const isMatch =
-                  oCode === cleanTarget ||
-                  oCode.includes(cleanTarget) ||
-                  cleanTarget.includes(oCode) ||
-                  (idx === 0 && o.status === 'PENDING_PAYMENT');
+      if (uId) {
+        const rentKey = `user_rental_orders_${uId}`;
+        const raw = localStorage.getItem(rentKey);
+        if (raw) {
+          const orders: StoredOrder[] = JSON.parse(raw);
+          if (Array.isArray(orders)) {
+            let updated = false;
+            const newOrders = orders.map((o: StoredOrder, idx: number) => {
+              const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
+              const isMatch =
+                oCode === cleanTarget ||
+                oCode.includes(cleanTarget) ||
+                cleanTarget.includes(oCode) ||
+                (idx === 0 && o.status === 'PENDING_PAYMENT');
 
-                if (isMatch) {
-                  updated = true;
-                  return { ...o, status: 'PAID', paymentStatus: 'PAID', transactionNo, bankCode };
-                }
-                return o;
-              });
-              if (updated) {
-                localStorage.setItem(key, JSON.stringify(newOrders));
+              if (isMatch) {
+                updated = true;
+                return { ...o, status: 'PAID', paymentStatus: 'PAID', transactionNo, bankCode };
               }
+              return o;
+            });
+            if (updated) {
+              localStorage.setItem(rentKey, JSON.stringify(newOrders));
             }
           }
         }
       }
+
+      // Clean up legacy global shared keys to prevent cross-account pollution
+      localStorage.removeItem('user_rental_orders');
     } catch {
       // ignore
     }

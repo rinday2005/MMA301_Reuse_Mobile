@@ -9,7 +9,7 @@ import {
   type StoredRentalOrderItem,
   type MetricCardData,
 } from '../../data/rent/myRentOrdersData';
-import { RENT_PRODUCTS } from '../../data/rent/marketplaceData';
+import { getRentProductDetail } from '../../data/rent/rentOrderDetailData';
 
 export const MyRentOrders: React.FC = () => {
   const { user } = useAuth();
@@ -70,6 +70,26 @@ export const MyRentOrders: React.FC = () => {
   const [showPaymentBanner, setShowPaymentBanner] = useState(Boolean(paymentSuccessParam));
   const [isLoading, setIsLoading] = useState(true);
   const [orders, setOrders] = useState<RentalOrderRecord[]>([]);
+
+  // Track sidebar collapsed state to display inline restore chip when collapsed
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('reuse_user_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleSync = (e: Event) => {
+      const customEvent = e as CustomEvent<boolean>;
+      if (typeof customEvent.detail === 'boolean') {
+        setIsSidebarCollapsed(customEvent.detail);
+      }
+    };
+    window.addEventListener('reuse_user_sidebar_toggle', handleSync);
+    return () => window.removeEventListener('reuse_user_sidebar_toggle', handleSync);
+  }, []);
 
   // Currency helper
   const formatVnd = (val: number | string) => {
@@ -142,25 +162,60 @@ export const MyRentOrders: React.FC = () => {
     // Items
     const rawItems: StoredRentalOrderItem[] = (raw.items as StoredRentalOrderItem[]) || [];
     const items = rawItems.map((it, idx) => {
-      const pricePerDay = it.pricePerDay || it.dailyPrice || (it as { price?: number }).price || 220000;
+      let pricePerDay = it.pricePerDay || it.dailyPrice || (it as { price?: number }).price || 0;
       const qty = it.quantity || 1;
-      const itemTotal = it.itemRentTotal || (pricePerDay * dayCount * qty);
-      const title = it.productName || it.title || `Sản phẩm thuê (${rawCode})`;
-
+      let title = it.productName || it.title || '';
       let image = it.imageUrl || it.image || '';
-      if (!image || image.includes('unsplash.com/photo-1516035069371')) {
-        const foundProd = RENT_PRODUCTS.find(
-          (p) =>
-            p.id === String(it.productId || it.id) ||
-            p.title.toLowerCase().includes(title.toLowerCase()) ||
-            title.toLowerCase().includes(p.title.toLowerCase())
-        );
-        if (foundProd) image = foundProd.image;
+
+      const isGeneric = !title || title.includes('Đơn hàng Thuê') || title.includes('RH-RNT-');
+      if (isGeneric || !image || image.includes('unsplash.com/photo-1516035069371') || pricePerDay === 0) {
+        let resolved = null;
+        const pId = String(it.productId || it.id || '');
+        if (pId && !pId.startsWith('item-')) {
+          const found = getRentProductDetail(pId);
+          if (found && !found.title.includes('Thuê')) resolved = found;
+        }
+
+        if (!resolved) {
+          try {
+            const sharedRaw = localStorage.getItem('reuse_shared_booked_dates');
+            if (sharedRaw) {
+              const list = JSON.parse(sharedRaw);
+              if (Array.isArray(list) && list.length > 0) {
+                const cId = cleanId.toLowerCase();
+                const matchedBooking = list.find((b: { orderCode?: string; note?: string; title?: string }) => {
+                  const bCode = (b.orderCode || '').replace('#', '').toLowerCase();
+                  const bNote = (b.note || '').toLowerCase();
+                  return Boolean(cId && (bCode === cId || bNote.includes(cId)));
+                }) || list[list.length - 1];
+
+                if (matchedBooking?.productId || matchedBooking?.title) {
+                  resolved = getRentProductDetail(matchedBooking.productId || matchedBooking.title);
+                }
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        if (resolved) {
+          if (isGeneric) title = resolved.title;
+          if (!pricePerDay) pricePerDay = resolved.pricePerDay;
+          if (!image || image.includes('unsplash.com/photo-1516035069371')) {
+            image = resolved.images?.[0]?.src || image;
+          }
+        }
       }
+
+      if (!pricePerDay) pricePerDay = 220000;
+      if (!title) title = `Sản phẩm thuê (${rawCode})`;
       if (!image) {
         image =
           'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ';
       }
+
+      const itemTotal = it.itemRentTotal || (pricePerDay * dayCount * qty);
 
       return {
         id: it.productId || it.id || `item-${cleanId}-${idx}`,
@@ -184,19 +239,17 @@ export const MyRentOrders: React.FC = () => {
           const list = JSON.parse(sharedRaw);
           if (Array.isArray(list) && list.length > 0) {
             const lastBooking = list[list.length - 1];
-            if (lastBooking?.title) {
-              matchedProduct =
-                RENT_PRODUCTS.find(
-                  (p) =>
-                    p.title.toLowerCase().includes(lastBooking.title.toLowerCase()) ||
-                    lastBooking.title.toLowerCase().includes(p.title.toLowerCase())
-                ) || {
-                  id: lastBooking.productId || '6',
-                  title: lastBooking.title,
-                  price: 220000,
-                  image:
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ',
+            if (lastBooking?.productId || lastBooking?.title) {
+              const res = getRentProductDetail(lastBooking.productId || lastBooking.title);
+              if (res) {
+                matchedProduct = {
+                  id: res.id,
+                  title: res.title,
+                  price: res.pricePerDay,
+                  deposit: res.deposit,
+                  image: res.images?.[0]?.src || '',
                 };
+              }
             }
           }
         }
@@ -207,17 +260,32 @@ export const MyRentOrders: React.FC = () => {
       if (!matchedProduct) {
         const rawProdId = (raw as { productId?: string }).productId;
         if (rawProdId) {
-          matchedProduct = RENT_PRODUCTS.find((p) => p.id === String(rawProdId));
+          const res = getRentProductDetail(String(rawProdId));
+          if (res) {
+            matchedProduct = {
+              id: res.id,
+              title: res.title,
+              price: res.pricePerDay,
+              deposit: res.deposit,
+              image: res.images?.[0]?.src || '',
+            };
+          }
         }
       }
 
       if (!matchedProduct) {
-        // Default to "Áo Khoác Dạ Wool Dáng Dài Cao Cấp"
-        matchedProduct = RENT_PRODUCTS.find((p) => p.id === '6') || RENT_PRODUCTS[0];
+        const res = getRentProductDetail('7');
+        matchedProduct = {
+          id: res.id,
+          title: res.title,
+          price: res.pricePerDay,
+          deposit: res.deposit,
+          image: res.images?.[0]?.src || '',
+        };
       }
 
-      const pPrice = matchedProduct?.price || 220000;
-      const pTitle = matchedProduct?.title || 'Áo Khoác Dạ Wool Dáng Dài Cao Cấp';
+      const pPrice = matchedProduct?.price || 350000;
+      const pTitle = matchedProduct?.title || 'Teenage Engineering OP-1 Field Synthesizer';
       const pImg =
         matchedProduct?.image ||
         'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ';
@@ -248,7 +316,12 @@ export const MyRentOrders: React.FC = () => {
         : calculatedRentFee;
     const rentFee: number = rawRent ?? calculatedRentFee ?? 0;
 
-    const depFee: number = raw.depositAmount ?? (raw as StoredRentalOrderRecord).totalDeposit ?? 900000;
+    const depFee: number =
+      raw.depositAmount && raw.depositAmount > 0
+        ? raw.depositAmount
+        : (raw as StoredRentalOrderRecord).totalDeposit && (raw as StoredRentalOrderRecord).totalDeposit! > 0
+        ? (raw as StoredRentalOrderRecord).totalDeposit!
+        : 1500000;
     const shipFee: number = raw.shippingFee ?? 25000;
 
     const rawGrand =
@@ -299,34 +372,44 @@ export const MyRentOrders: React.FC = () => {
       setIsLoading(true);
       const combined: RentalOrderRecord[] = [];
       const seenIds = new Set<string>();
+      const uId = user?._id || user?.id || '';
 
-      // A. If payment success query params present in URL, mark matching order as PAID
-      if (paymentSuccessParam) {
+      // Clean up legacy global shared keys that cause cross-account pollution
+      try {
+        localStorage.removeItem('user_rental_orders');
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('reuse_order_backup_')) {
+            localStorage.removeItem(k);
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      // A. If payment success query params present in URL, mark matching order as PAID in user's isolated storage
+      if (uId && paymentSuccessParam) {
         try {
           const cleanCode = paymentSuccessParam.split('_')[0].replace('#', '').trim().toLowerCase();
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (k && k.startsWith('user_rental_orders')) {
-              const raw = localStorage.getItem(k);
-              if (raw) {
-                const arr = JSON.parse(raw);
-                if (Array.isArray(arr)) {
-                  let changed = false;
-                  const updated = arr.map((o: StoredRentalOrderRecord, idx: number) => {
-                    const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
-                    if (
-                      o.status === 'PENDING_PAYMENT' &&
-                      (oCode === cleanCode || oCode.includes(cleanCode) || cleanCode.includes(oCode) || idx === 0)
-                    ) {
-                      changed = true;
-                      return { ...o, status: 'PAID', paymentStatus: 'PAID' };
-                    }
-                    return o;
-                  });
-                  if (changed) {
-                    localStorage.setItem(k, JSON.stringify(updated));
-                  }
+          const userKey = `user_rental_orders_${uId}`;
+          const raw = localStorage.getItem(userKey);
+          if (raw) {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) {
+              let changed = false;
+              const updated = arr.map((o: StoredRentalOrderRecord, idx: number) => {
+                const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
+                if (
+                  o.status === 'PENDING_PAYMENT' &&
+                  (oCode === cleanCode || oCode.includes(cleanCode) || cleanCode.includes(oCode) || idx === 0)
+                ) {
+                  changed = true;
+                  return { ...o, status: 'PAID', paymentStatus: 'PAID' };
                 }
+                return o;
+              });
+              if (changed) {
+                localStorage.setItem(userKey, JSON.stringify(updated));
               }
             }
           }
@@ -335,61 +418,49 @@ export const MyRentOrders: React.FC = () => {
         }
       }
 
-      // B. Read stored orders from localStorage FIRST across all user_rental_orders* keys
-      const uId = user?._id || user?.id || '';
-      const storageKeys = new Set<string>();
-      if (uId) storageKeys.add(`user_rental_orders_${uId}`);
-      storageKeys.add('user_rental_orders');
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('user_rental_orders')) {
-          storageKeys.add(k);
-        }
-      }
-
-      const allStoredOrders: StoredRentalOrderRecord[] = [];
-      storageKeys.forEach((key) => {
-        try {
-          const storedRaw = localStorage.getItem(key);
-          if (storedRaw) {
-            const arr = JSON.parse(storedRaw);
-            if (Array.isArray(arr)) {
-              arr.forEach((o: StoredRentalOrderRecord) => {
-                allStoredOrders.push(o);
-              });
-            }
-          }
-        } catch {
-          // ignore
-        }
-      });
-
-      for (const stored of allStoredOrders) {
-        const mapped = mapOrderToRecord(stored);
-        const key = mapped.code.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        if (!seenIds.has(key)) {
-          seenIds.add(key);
-          combined.push(mapped);
-        }
-      }
-
-      // C. Read from backend API
+      // B. Read from backend API (Source of truth strictly isolated for the currently authenticated user)
       try {
         const apiOrders = await getMyRentalOrdersApi();
         if (Array.isArray(apiOrders) && apiOrders.length > 0) {
           for (const raw of apiOrders) {
             const key = (raw.orderCode || raw._id || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-            // Discard stale empty seeded 8845 mock completely (đơn dữ liệu mẫu không tải lên)
-            const isStale8845 = key.includes('8845') && (!raw.items || raw.items.length === 0);
-            if (!isStale8845 && !seenIds.has(key)) {
+            if (!seenIds.has(key)) {
               const mapped = mapOrderToRecord(raw);
               seenIds.add(key);
               combined.push(mapped);
             }
           }
+          // Overwrite local user cache with fresh authoritative data from MongoDB
+          if (uId) {
+            localStorage.setItem(`user_rental_orders_${uId}`, JSON.stringify(apiOrders));
+          }
+        } else if (uId) {
+          localStorage.removeItem(`user_rental_orders_${uId}`);
         }
       } catch (err) {
         console.warn('Could not load orders from API:', err);
+      }
+
+      // C. Read stored orders ONLY from this specific user's scoped key (offline / optimistic cache)
+      if (uId) {
+        try {
+          const userKey = `user_rental_orders_${uId}`;
+          const storedRaw = localStorage.getItem(userKey);
+          if (storedRaw) {
+            const parsed = JSON.parse(storedRaw);
+            const userOrders: StoredRentalOrderRecord[] = Array.isArray(parsed) ? parsed : [parsed];
+            for (const stored of userOrders) {
+              const key = (stored.orderCode || stored._id || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+              if (key && !seenIds.has(key)) {
+                const mapped = mapOrderToRecord(stored);
+                seenIds.add(key);
+                combined.push(mapped);
+              }
+            }
+          }
+        } catch {
+          // ignore
+        }
       }
 
       // D. Filter orders: prioritize paid/active orders
@@ -565,20 +636,36 @@ export const MyRentOrders: React.FC = () => {
         </div>
       )}
 
-      {/* ── MAIN LAYOUT WITH USERSIDEBAR ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8 items-start">
-        {/* User Navigation Sidebar */}
+      {/* ── MAIN WORKSPACE CONTAINER WITH PERSISTENT SIDEBAR ── */}
+      <div className="max-w-[1520px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 flex gap-8">
+        {/* User Navigation Sidebar (Fixed on left side) */}
         <UserSidebar
           activeKey="rent-orders"
           avatarUrl={displayAvatar}
           displayName={displayName}
           displayEmail={displayEmail}
-          className="hidden lg:block shrink-0"
         />
 
         {/* ── MAIN DASHBOARD CONTENT AREA ── */}
         <main className="flex-1 min-w-0 space-y-8">
           <div className="flex flex-col w-full">
+            {/* Quick inline restore chip if user clicked 3-bar button to hide sidebar */}
+            {isSidebarCollapsed && (
+              <div className="flex items-center gap-2 mb-3 animate-fade-in">
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('reuse_user_sidebar_toggle', { detail: false }))}
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-[#E8E4DC] text-xs font-semibold text-[#1C1A18] hover:bg-[#F6F3EE] hover:border-[#1C1A18]/40 transition-all shadow-2xs cursor-pointer group"
+                  title="Mở lại menu điều hướng (Dấu 3 gạch)"
+                >
+                  <span className="material-symbols-outlined text-[18px] text-[#5E6D5B] group-hover:scale-110 transition-transform">
+                    menu
+                  </span>
+                  <span>Hiện menu điều hướng</span>
+                </button>
+              </div>
+            )}
+
             {/* Breadcrumb Navigation */}
             <div className="flex items-center gap-2 mb-3">
               <Link

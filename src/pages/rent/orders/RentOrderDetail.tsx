@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { UserSidebar } from '../../../components/layout/UserSidebar';
-import { getRentalOrderByIdApi, getMyRentalOrdersApi, type RentalOrderApi } from '../../../services/order.api';
-import { RENT_PRODUCTS } from '../../data/rent/marketplaceData';
+import { getRentalOrderByIdApi, type RentalOrderApi, type RentalOrderItemApi } from '../../../services/order.api';
+import { getRentProductDetail } from '../../data/rent/rentOrderDetailData';
 import { type StoredRentalOrderRecord, type StoredRentalOrderItem } from '../../data/rent/myRentOrdersData';
 
 interface OrderItemDetail {
@@ -75,6 +75,26 @@ export const RentOrderDetail: React.FC = () => {
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2500);
   };
+
+  // Track sidebar collapsed state to display inline restore chip when collapsed
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('reuse_user_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleSync = (e: Event) => {
+      const customEvent = e as CustomEvent<boolean>;
+      if (typeof customEvent.detail === 'boolean') {
+        setIsSidebarCollapsed(customEvent.detail);
+      }
+    };
+    window.addEventListener('reuse_user_sidebar_toggle', handleSync);
+    return () => window.removeEventListener('reuse_user_sidebar_toggle', handleSync);
+  }, []);
 
   // State Simulation (A, B, C, D) as demonstrated in the prompt
   const [simulationState, setSimulationState] = useState<'A' | 'B' | 'C' | 'D'>('A');
@@ -258,6 +278,7 @@ export const RentOrderDetail: React.FC = () => {
     const resolveOrder = async () => {
       setLoading(true);
       const cleanParamId = (id || '').replace('#', '').trim();
+      const uId = user?._id || user?.id || '';
 
       // 1. Try fetching from Backend API
       let backendOrder: RentalOrderApi | null = null;
@@ -269,130 +290,77 @@ export const RentOrderDetail: React.FC = () => {
         }
       }
 
-      // 2. Read stored orders from localStorage across all user_rental_orders* keys
+      // If backendOrder exists, ensure it belongs to the logged-in user or authorized roles
+      if (backendOrder && uId && user?.role !== 'ADMIN' && user?.role !== 'SHOP_OWNER') {
+        const orderRenterId = String(
+          (backendOrder.renterId as unknown as { _id?: string })?._id || backendOrder.renterId || ''
+        );
+        if (orderRenterId && orderRenterId !== String(uId)) {
+          backendOrder = null;
+        }
+      }
+
+      // 2. Read stored orders from localStorage STRICTLY for the current logged-in user only
       let localOrder: StoredRentalOrderRecord | null = null;
-      try {
-        const uId = user?._id || user?.id || '';
-        const storageKeys = new Set<string>();
-        if (uId) storageKeys.add(`user_rental_orders_${uId}`);
-        storageKeys.add('user_rental_orders');
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith('user_rental_orders')) {
-            storageKeys.add(k);
-          }
-        }
-
-        const allStoredOrders: StoredRentalOrderRecord[] = [];
-        storageKeys.forEach((key) => {
-          try {
-            const raw = localStorage.getItem(key);
-            if (raw) {
-              const arr = JSON.parse(raw);
-              if (Array.isArray(arr)) {
-                allStoredOrders.push(...arr);
-              }
-            }
-          } catch {
-            // ignore
-          }
-        });
-
-        if (allStoredOrders.length > 0) {
-          const cleanLower = cleanParamId.toLowerCase();
-          // Find by order id / code / or containing product id
-          localOrder =
-            allStoredOrders.find((o) => {
-              const oCode = (o.orderCode || '').replace('#', '').toLowerCase();
-              const oId = String(o._id || (o as unknown as { id?: string }).id || '').toLowerCase();
-              const codeMatch =
-                (oCode.length > 0 && oCode === cleanLower) ||
-                (oId.length > 0 && oId === cleanLower) ||
-                (oCode.length > 0 && cleanLower.includes(oCode)) ||
-                (oCode.length > 0 && oCode.includes(cleanLower));
-              const itemMatch =
-                targetProductId &&
-                o.items?.some(
-                  (it: StoredRentalOrderItem) =>
-                    String(it.productId || it.id || '').toLowerCase() === targetProductId.toLowerCase()
-                );
-              return codeMatch || itemMatch;
-            }) || null;
-
-          // If cleanParamId matches a product directly, check if there's an order containing that product
-          if (!localOrder && cleanParamId) {
-            localOrder =
-              allStoredOrders.find((o) =>
-                o.items?.some(
-                  (it: StoredRentalOrderItem) =>
-                    String(it.productId || it.id || '').toLowerCase() === cleanParamId.toLowerCase()
-                )
-              ) || null;
-          }
-
-          // If still not found and list has orders, take the most recent paid order as context
-          if (!localOrder && allStoredOrders.length > 0) {
-            const paidCandidate = allStoredOrders.find((o) =>
-              ['PAID', 'RENTING', 'READY_FOR_HANDOVER', 'HANDED_OVER', 'SHIPPING', 'DELIVERED'].includes(
-                o.status || o.paymentStatus || ''
-              )
-            );
-            if (paidCandidate) {
-              localOrder = paidCandidate;
-            }
-          }
-        }
-      } catch {
-        // ignore
-      }
-
-      // Check if backendOrder is stale seed mock (4.4M or empty items or items with title "Đơn hàng Thuê")
-      const isBackendStaleSeed =
-        backendOrder &&
-        (backendOrder.rentalFee === 4400000 ||
-          !backendOrder.items ||
-          backendOrder.items.length === 0 ||
-          backendOrder.items.some((it) => it.productName?.includes('Đơn hàng Thuê')));
-
-      if (isBackendStaleSeed && localOrder) {
-        backendOrder = null; // discard stale backend seed order in favor of real localOrder
-      }
-
-      // 3. Fallback: Check backend /my-orders
-      if (!backendOrder && !localOrder) {
+      if (uId) {
         try {
-          const myOrders = await getMyRentalOrdersApi();
-          if (Array.isArray(myOrders) && myOrders.length > 0) {
-            const validOrders = myOrders.filter((o) => {
-              const code = (o.orderCode || '').toLowerCase();
-              return !(code.includes('8845') && (!o.items || o.items.length === 0));
-            });
-            const pool = validOrders.length > 0 ? validOrders : myOrders;
-            backendOrder =
-              pool.find((o) => {
+          const userKey = `user_rental_orders_${uId}`;
+          const raw = localStorage.getItem(userKey);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const userOrders: StoredRentalOrderRecord[] = Array.isArray(parsed) ? parsed : [parsed];
+            const cleanLower = cleanParamId.toLowerCase();
+            localOrder =
+              userOrders.find((o) => {
                 const oCode = (o.orderCode || '').replace('#', '').toLowerCase();
-                const oId = String(o._id || '').toLowerCase();
-                const cleanLower = cleanParamId.toLowerCase();
-                const codeMatch =
+                const oId = String(o._id || (o as unknown as { id?: string }).id || '').toLowerCase();
+                return (
                   (oCode.length > 0 && oCode === cleanLower) ||
                   (oId.length > 0 && oId === cleanLower) ||
                   (oCode.length > 0 && cleanLower.includes(oCode)) ||
-                  (oCode.length > 0 && oCode.includes(cleanLower));
-                const itemMatch =
-                  targetProductId &&
-                  o.items?.some((it) => String(it.productId || '').toLowerCase() === targetProductId.toLowerCase());
-                return codeMatch || itemMatch;
-              }) || pool[0];
+                  (oCode.length > 0 && oCode.includes(cleanLower))
+                );
+              }) || null;
           }
         } catch {
           // ignore
         }
       }
 
+      // Enrich backendOrder with rich items from localOrder if backend items are generic
+      if (backendOrder && localOrder) {
+        const hasRichLocalItems =
+          localOrder.items &&
+          Array.isArray(localOrder.items) &&
+          localOrder.items.length > 0 &&
+          !localOrder.items.some((it) => (it.productName || it.title || '').includes('Đơn hàng Thuê'));
+
+        if (hasRichLocalItems) {
+          backendOrder = {
+            ...backendOrder,
+            items: localOrder.items as unknown as RentalOrderItemApi[],
+            depositAmount: localOrder.totalDeposit || localOrder.depositAmount || backendOrder.depositAmount || 0,
+            totalAmount: localOrder.totalPayment || localOrder.totalAmount || backendOrder.totalAmount || 0,
+            startDate: localOrder.startDate || backendOrder.startDate,
+            endDate: localOrder.endDate || backendOrder.endDate,
+            rentalDays: localOrder.rentalDays || backendOrder.rentalDays,
+          };
+        }
+      }
+
+      // If order is not found or not owned by user, abort resolution
+      if (!backendOrder && !localOrder) {
+        if (isMounted) {
+          setOrderData(null);
+          setLoading(false);
+        }
+        return;
+      }
+
       // 4. Transform raw source into OrderFullData
       const hasLocalItems = localOrder?.items && Array.isArray(localOrder.items) && localOrder.items.length > 0;
       const hasBackendItems = backendOrder?.items && Array.isArray(backendOrder.items) && backendOrder.items.length > 0;
-      const source = (hasLocalItems && (!hasBackendItems || isBackendStaleSeed))
+      const source = (hasLocalItems && !hasBackendItems)
         ? localOrder
         : (backendOrder || localOrder);
 
@@ -486,90 +454,121 @@ export const RentOrderDetail: React.FC = () => {
           );
           let image = it.imageUrl || it.image || '';
 
-          // If item is generic mock (e.g. from seeded 4.4M order)
-          if (itTitle.includes('Đơn hàng Thuê') || itTitle.includes('RH-RNT-') || price === 4400000) {
-            let foundProd = null;
-            try {
-              const sharedRaw = localStorage.getItem('reuse_shared_booked_dates');
-              if (sharedRaw) {
-                const list = JSON.parse(sharedRaw);
-                if (Array.isArray(list) && list.length > 0) {
-                  const last = list[list.length - 1];
-                  if (last?.title) {
-                    foundProd = RENT_PRODUCTS.find(
-                      (p) =>
-                        p.title.toLowerCase().includes(last.title.toLowerCase()) ||
-                        last.title.toLowerCase().includes(p.title.toLowerCase())
-                    ) || {
-                      id: last.productId || '6',
-                      title: last.title,
-                      price: 220000,
-                      deposit: '900000',
-                      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ',
-                    };
+          // If item is generic mock (e.g. from seeded 4.4M order or generic title)
+          let resolvedProd = null;
+          const isGenericMock =
+            !itTitle ||
+            itTitle.includes('Đơn hàng Thuê') ||
+            itTitle.includes('RH-RNT-') ||
+            price === 4400000;
+
+          if (isGenericMock || !image || image.includes('unsplash.com/photo-1516035069371') || deposit === 0) {
+            // 1. Try resolving by it.productId or targetProductId
+            const pId = String(targetProductId || it.productId || (it as { id?: string }).id || '');
+            if (pId && pId !== 'undefined' && !pId.startsWith('item-')) {
+              const found = getRentProductDetail(pId);
+              if (found && found.title && !found.title.includes('Thuê')) {
+                resolvedProd = found;
+              }
+            }
+
+            // 2. Try resolving from reuse_shared_booked_dates
+            if (!resolvedProd) {
+              try {
+                const sharedRaw = localStorage.getItem('reuse_shared_booked_dates');
+                if (sharedRaw) {
+                  const list = JSON.parse(sharedRaw);
+                  if (Array.isArray(list) && list.length > 0) {
+                    const cId = cleanParamId.toLowerCase();
+                    const sStart = (source?.startDate || '').slice(0, 10);
+                    const sEnd = (source?.endDate || '').slice(0, 10);
+
+                    const matchedBooking = list.find((b: { orderCode?: string; note?: string; title?: string; startDate?: string; endDate?: string }) => {
+                      const bCode = (b.orderCode || '').replace('#', '').toLowerCase();
+                      const bNote = (b.note || '').toLowerCase();
+                      const codeMatch = Boolean(cId && (bCode === cId || bNote.includes(cId)));
+                      const bStart = (b.startDate || '').slice(0, 10);
+                      const bEnd = (b.endDate || '').slice(0, 10);
+                      const dateMatch = Boolean(sStart && bStart && sStart === bStart) || Boolean(sEnd && bEnd && sEnd === bEnd);
+                      return codeMatch || dateMatch;
+                    }) || list[list.length - 1];
+
+                    if (matchedBooking?.productId || matchedBooking?.title) {
+                      resolvedProd = getRentProductDetail(matchedBooking.productId || matchedBooking.title);
+                    }
                   }
                 }
+              } catch {
+                // ignore
               }
-            } catch {
-              // ignore
             }
 
-            if (!foundProd) {
-              foundProd = RENT_PRODUCTS.find((p) => p.id === '6') || RENT_PRODUCTS[0];
+            // 3. Fallback to high-tier product
+            if (!resolvedProd) {
+              resolvedProd = getRentProductDetail('7');
             }
 
-            itTitle = foundProd.title;
-            price = foundProd.price || 220000;
-            deposit = typeof foundProd.deposit === 'string'
-              ? (Number(foundProd.deposit.replace(/\D/g, '')) || 900000)
-              : (foundProd.deposit || 900000);
-            image = foundProd.image;
+            if (resolvedProd) {
+              if (isGenericMock) {
+                itTitle = resolvedProd.title;
+              }
+              if (!price || price === 4400000 || price === 0) {
+                price = resolvedProd.pricePerDay || 350000;
+              }
+              if (!deposit || deposit === 0 || deposit === 22000000) {
+                deposit = resolvedProd.deposit || (resolvedProd.pricePerDay * 4) || 1500000;
+              }
+              if (!image || image.includes('unsplash.com/photo-1516035069371')) {
+                image = resolvedProd.images?.[0]?.src || image;
+              }
+            }
           }
 
-          if (!price) price = 220000;
-          if (!deposit) deposit = price * 4 || 900000;
+          if (!price) price = 350000;
+          if (!deposit) deposit = price * 4 || 1500000;
 
           if (!image) {
-            const foundInMarket = RENT_PRODUCTS.find(
-              (p) => p.id === itId || p.title.toLowerCase().includes(itTitle.toLowerCase())
-            );
-            if (foundInMarket?.image) {
-              image = foundInMarket.image;
-            } else {
-              const lower = itTitle.toLowerCase();
-              if (lower.includes('áo') || lower.includes('váy') || lower.includes('quần') || lower.includes('dạ') || lower.includes('wool') || lower.includes('đầm') || lower.includes('khoác')) {
-                image = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ';
-              } else if (lower.includes('lều') || lower.includes('tent') || lower.includes('cắm trại') || lower.includes('camping')) {
-                image = 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=600&q=80';
-              } else if (lower.includes('camera') || lower.includes('máy ảnh') || lower.includes('sony') || lower.includes('canon') || lower.includes('quang học')) {
-                image = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80';
-              } else {
-                image = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ';
-              }
-            }
+            image = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ';
           }
 
           const qty = it.quantity || (it as { qty?: number }).qty || 1;
           const itemTotal = it.itemRentTotal || (price * rentalDays * qty);
           const meta = getProductMetadata(itTitle, itId);
 
+          const finalCategory =
+            (it as { category?: string }).category ||
+            resolvedProd?.category ||
+            meta.category;
+          const finalWarehouse =
+            (it as { warehouse?: string }).warehouse ||
+            (resolvedProd?.location ? `Kho lưu ký: ${resolvedProd.location}` : meta.warehouse);
+          const finalGrade = it.grade || resolvedProd?.grade || meta.grade;
+          const finalAccessories =
+            (it as { accessoriesText?: string }).accessoriesText ||
+            (resolvedProd?.accessories?.length ? resolvedProd.accessories.join(', ') : meta.accessoriesText);
+          const finalBenchReport =
+            (it as { benchReportText?: string }).benchReportText ||
+            (resolvedProd?.auditItems?.length
+              ? resolvedProd.auditItems.map((a: { label: string; value: string }) => `${a.label}: ${a.value}`).join(' · ')
+              : (resolvedProd?.overview?.length ? resolvedProd.overview.join(' ') : meta.benchReportText));
+
           mappedItems.push({
             id: itId,
             productId: itId,
             title: itTitle,
-            category: (it as { category?: string }).category || meta.category,
-            warehouse: (it as { warehouse?: string }).warehouse || meta.warehouse,
+            category: finalCategory,
+            warehouse: finalWarehouse,
             shopName: it.shopName || (it as { shop?: string }).shop || meta.shopName,
             serialNumber: (it as { serialNumber?: string }).serialNumber || meta.serialNumber,
             sealId: (it as { sealId?: string }).sealId || meta.sealId,
-            grade: it.grade || meta.grade,
+            grade: finalGrade,
             dailyRate: price,
             deposit,
             quantity: qty,
             itemTotal,
             image,
-            accessoriesText: (it as { accessoriesText?: string }).accessoriesText || meta.accessoriesText,
-            benchReportText: (it as { benchReportText?: string }).benchReportText || meta.benchReportText,
+            accessoriesText: finalAccessories,
+            benchReportText: finalBenchReport,
           });
         });
       }
@@ -577,84 +576,73 @@ export const RentOrderDetail: React.FC = () => {
       // If items empty, check if targeted product was specified or fallback dynamically
       if (mappedItems.length === 0) {
         const searchId = targetProductId || cleanParamId;
-        const productFromMarket = searchId
-          ? RENT_PRODUCTS.find((p) => p.id === searchId || p.href.endsWith(`/${searchId}`))
-          : null;
+        let resolvedFallback = null;
 
-        if (productFromMarket) {
-          const meta = getProductMetadata(productFromMarket.title, productFromMarket.id);
-          const price = productFromMarket.price || 220000;
-          const deposit = Number(productFromMarket.deposit.replace(/\D/g, '')) || 900000;
-          mappedItems.push({
-            id: productFromMarket.id,
-            productId: productFromMarket.id,
-            title: productFromMarket.title,
-            category: meta.category,
-            warehouse: meta.warehouse,
-            shopName: meta.shopName,
-            serialNumber: meta.serialNumber,
-            sealId: meta.sealId,
-            grade: productFromMarket.conditionLabel?.includes('99') ? 'Grade A+' : 'Grade A',
-            dailyRate: price,
-            deposit,
-            quantity: 1,
-            itemTotal: price * rentalDays,
-            image: productFromMarket.image,
-            accessoriesText: meta.accessoriesText,
-            benchReportText: meta.benchReportText,
-          });
-        } else {
-          let foundProd = null;
+        if (searchId) {
+          const fromDetail = getRentProductDetail(searchId);
+          if (fromDetail && fromDetail.title && !fromDetail.title.includes('Thuê')) {
+            resolvedFallback = fromDetail;
+          }
+        }
+
+        if (!resolvedFallback) {
           try {
             const sharedRaw = localStorage.getItem('reuse_shared_booked_dates');
             if (sharedRaw) {
               const list = JSON.parse(sharedRaw);
               if (Array.isArray(list) && list.length > 0) {
-                const last = list[list.length - 1];
-                if (last?.title) {
-                  foundProd = RENT_PRODUCTS.find(
-                    (p) =>
-                      p.title.toLowerCase().includes(last.title.toLowerCase()) ||
-                      last.title.toLowerCase().includes(p.title.toLowerCase())
-                  );
+                const cId = cleanParamId.toLowerCase();
+                const sStart = (source?.startDate || '').slice(0, 10);
+                const sEnd = (source?.endDate || '').slice(0, 10);
+
+                const matchedBooking = list.find((b: { orderCode?: string; note?: string; title?: string; startDate?: string; endDate?: string }) => {
+                  const bCode = (b.orderCode || '').replace('#', '').toLowerCase();
+                  const bNote = (b.note || '').toLowerCase();
+                  const codeMatch = Boolean(cId && (bCode === cId || bNote.includes(cId)));
+                  const bStart = (b.startDate || '').slice(0, 10);
+                  const bEnd = (b.endDate || '').slice(0, 10);
+                  const dateMatch = Boolean(sStart && bStart && sStart === bStart) || Boolean(sEnd && bEnd && sEnd === bEnd);
+                  return codeMatch || dateMatch;
+                }) || list[list.length - 1];
+
+                if (matchedBooking?.productId || matchedBooking?.title) {
+                  resolvedFallback = getRentProductDetail(matchedBooking.productId || matchedBooking.title);
                 }
               }
             }
           } catch {
             // ignore
           }
-
-          if (!foundProd) {
-            foundProd = RENT_PRODUCTS.find((p) => p.id === '6') || RENT_PRODUCTS[0];
-          }
-
-          const fallbackTitle = foundProd?.title || 'Áo Khoác Dạ Wool Dáng Dài Cao Cấp';
-          const meta = getProductMetadata(fallbackTitle, foundProd?.id || cleanParamId);
-          const price = foundProd?.price || 220000;
-          const deposit = Number(foundProd?.deposit?.replace(/\D/g, '')) || 900000;
-          const image =
-            foundProd?.image ||
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuBmFHFDSIg4hOhOPqA36mT1kkDCl3WPEhUJRK08XZrwDTHzuiTwpPS19S9rp72RfWd75ovkeghRObBnjMEjwjM4C-han-LYxuwvvmbNoQxfmQdJ0b32KcCw-X0Jnqe_U23o9wu4QRqi1jvm0k2QIjvQX3uucHyHqIp2-wcXnh_PJzwTUThv7mBwqwtAjiXdUPGAdc-I8uwnLjfVeTg2aWPw2sXhSqhHAp-MSwbmguRZ';
-
-          mappedItems.push({
-            id: foundProd?.id || cleanParamId || 'item-1',
-            productId: foundProd?.id || cleanParamId || 'item-1',
-            title: fallbackTitle,
-            category: meta.category,
-            warehouse: meta.warehouse,
-            shopName: meta.shopName,
-            serialNumber: meta.serialNumber,
-            sealId: meta.sealId,
-            grade: 'Grade A+',
-            dailyRate: price,
-            deposit,
-            quantity: 1,
-            itemTotal: price * rentalDays,
-            image,
-            accessoriesText: meta.accessoriesText,
-            benchReportText: meta.benchReportText,
-          });
         }
+
+        if (!resolvedFallback) {
+          resolvedFallback = getRentProductDetail('7');
+        }
+
+        const fallbackTitle = resolvedFallback.title;
+        const meta = getProductMetadata(fallbackTitle, resolvedFallback.id);
+        const price = resolvedFallback.pricePerDay || 350000;
+        const deposit = resolvedFallback.deposit || 1500000;
+        const image = resolvedFallback.images?.[0]?.src || '';
+
+        mappedItems.push({
+          id: resolvedFallback.id || cleanParamId || 'item-1',
+          productId: resolvedFallback.id || cleanParamId || 'item-1',
+          title: fallbackTitle,
+          category: resolvedFallback.category || meta.category,
+          warehouse: resolvedFallback.location ? `Kho lưu ký: ${resolvedFallback.location}` : meta.warehouse,
+          shopName: meta.shopName,
+          serialNumber: meta.serialNumber,
+          sealId: meta.sealId,
+          grade: resolvedFallback.grade || 'Grade A+',
+          dailyRate: price,
+          deposit,
+          quantity: 1,
+          itemTotal: price * rentalDays,
+          image,
+          accessoriesText: resolvedFallback.accessories?.length ? resolvedFallback.accessories.join(', ') : meta.accessoriesText,
+          benchReportText: resolvedFallback.auditItems?.length ? resolvedFallback.auditItems.map((a: { label: string; value: string }) => `${a.label}: ${a.value}`).join(' · ') : meta.benchReportText,
+        });
       }
 
       // Calculations strictly calculated from actual order items
@@ -666,9 +654,9 @@ export const RentOrderDetail: React.FC = () => {
       const recordDeposit = recordSource?.totalDeposit;
 
       const totalRentalFee =
-        source?.rentalFee && source.rentalFee !== 4400000
+        source?.rentalFee && source.rentalFee !== 4400000 && source.rentalFee > 0
           ? source.rentalFee
-          : typeof recordRentFee === 'number' && recordRentFee !== 4400000
+          : typeof recordRentFee === 'number' && recordRentFee !== 4400000 && recordRentFee > 0
             ? recordRentFee
             : itemsRentalSum;
 
@@ -677,7 +665,7 @@ export const RentOrderDetail: React.FC = () => {
           ? source.depositAmount
           : typeof recordDeposit === 'number' && recordDeposit !== 22000000 && recordDeposit > 0
             ? recordDeposit
-            : itemsDepositSum;
+            : (itemsDepositSum > 0 ? itemsDepositSum : 1500000);
 
       const shippingFee = typeof source?.shippingFee === 'number' && source.shippingFee >= 0 ? source.shippingFee : 150000;
       const grandTotal = totalRentalFee + totalDeposit + shippingFee;
@@ -878,7 +866,7 @@ export const RentOrderDetail: React.FC = () => {
     }
   }, [simulationState, orderData]);
 
-  if (loading || !orderData) {
+    if (loading) {
     return (
       <div className="min-h-screen bg-[#FBF9F5] flex items-center justify-center py-24">
         <div className="flex flex-col items-center gap-3">
@@ -889,24 +877,60 @@ export const RentOrderDetail: React.FC = () => {
     );
   }
 
+  if (!orderData) {
+    return (
+      <div className="min-h-screen bg-[#FBF9F5] text-brand-charcoal flex flex-col justify-between">
+        <div className="max-w-xl mx-auto px-4 py-24 text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-stone-100 flex items-center justify-center mx-auto text-stone-500">
+            <span className="material-symbols-outlined text-3xl">inventory_2</span>
+          </div>
+          <h2 className="text-xl font-bold font-serif text-[#22201D]">Không tìm thấy thông tin đơn thuê</h2>
+          <p className="text-xs text-stone-600">Đơn thuê không tồn tại hoặc bạn không có quyền truy cập vào đơn hàng này.</p>
+          <Link
+            to="/rent/orders"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#22201D] text-white text-xs font-semibold hover:bg-black transition-colors"
+          >
+            Quay lại danh sách đơn thuê của tôi
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#FBF9F5] text-brand-charcoal antialiased selection:bg-[#E8E2D5]">
 
 
       {/* ── MAIN WORKSPACE CONTAINER WITH PERSISTENT SIDEBAR ── */}
-      <div className="flex-1 max-w-[1520px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 flex gap-8 items-start">
-        {/* User Navigation Sidebar */}
+      <div className="max-w-[1520px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 flex gap-8">
+        {/* User Navigation Sidebar (Fixed on left) */}
         <UserSidebar
           activeKey="rent-orders"
           avatarUrl={displayAvatar}
           displayName={displayName}
           displayEmail={displayEmail}
-          className="w-64 shrink-0 hidden lg:block border-none"
         />
 
         {/* ── MAIN CONTENT AREA ── */}
         <main className="flex-1 min-w-0 space-y-8">
           <div className="flex flex-col w-full space-y-8">
+            {/* Quick inline restore chip if user clicked 3-bar button to hide sidebar */}
+            {isSidebarCollapsed && (
+              <div className="flex items-center gap-2 -mb-4 animate-fade-in">
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('reuse_user_sidebar_toggle', { detail: false }))}
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-[#E8E4DC] text-xs font-semibold text-[#1C1A18] hover:bg-[#F6F3EE] hover:border-[#1C1A18]/40 transition-all shadow-2xs cursor-pointer group"
+                  title="Mở lại menu điều hướng (Dấu 3 gạch)"
+                >
+                  <span className="material-symbols-outlined text-[18px] text-[#5E6D5B] group-hover:scale-110 transition-transform">
+                    menu
+                  </span>
+                  <span>Hiện menu điều hướng</span>
+                </button>
+              </div>
+            )}
+
             {/* 1. BREADCRUMBS & TOP NAV CONTEXT */}
             <div className="flex flex-col gap-4">
               <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-stone-500 font-medium">

@@ -32,6 +32,8 @@ import CategoryDetail from "./pages/categories/detail/CategoryDetail";
 import UserDashboard from "./pages/home/User/UserDashboard";
 import Cart from "./pages/cart/Cart";
 import Profile from "./pages/profile/Profile";
+import Wishlist from "./pages/wishlist/Wishlist";
+import NotificationCenter from "./pages/notification/NotificationCenter";
 import PaymentReturn from "./pages/payment/PaymentReturn";
 import PaymentSuccess from "./pages/payment/PaymentSuccess";
 import PaymentFailed from "./pages/payment/PaymentFailed";
@@ -327,17 +329,17 @@ const App = () => {
 
             <Route
               path="/saved-items"
-              element={<SavedItemsPage />}
+              element={<Wishlist />}
             />
 
             <Route
               path="/wishlist"
-              element={<SavedItemsPage />}
+              element={<Wishlist />}
             />
 
             <Route
               path="/notifications"
-              element={<NotificationsPage />}
+              element={<NotificationCenter />}
             />
 
             <Route
@@ -347,7 +349,7 @@ const App = () => {
 
             <Route
               path="/my-orders"
-              element={<MyOrdersPage />}
+              element={<Navigate to="/rent/orders" replace />}
             />
           </Route>
         </Route>

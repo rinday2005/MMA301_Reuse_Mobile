@@ -23,8 +23,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Xóa cache dữ liệu của user cũ trước khi lưu thông tin user mới
     localStorage.removeItem("user_profile_data");
-    localStorage.removeItem("user_rental_orders");
-    localStorage.removeItem("user_thrift_orders");
 
     localStorage.setItem("token", result.accessToken);
     localStorage.setItem("user", JSON.stringify(result.user));
@@ -42,8 +40,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("user_profile_data");
-    localStorage.removeItem("user_rental_orders");
-    localStorage.removeItem("user_thrift_orders");
 
     setToken(null);
     setUser(null);

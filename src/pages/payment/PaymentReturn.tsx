@@ -59,10 +59,22 @@ interface StoredOrder {
     if (isSuccess && orderCode) {
       try {
         const cleanTarget = orderCode.replace('#', '').trim().toLowerCase();
+        let uId: string | null = null;
+        try {
+          const userRaw = localStorage.getItem('user');
+          if (userRaw) {
+            const u = JSON.parse(userRaw);
+            uId = u._id || u.id || null;
+          }
+        } catch {
+          // ignore
+        }
 
         // Update all rental and thrift orders storage keys
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
+          const isCurrentUserKey = uId && key && (key === `user_rental_orders_${uId}` || key === `user_thrift_orders_${uId}`);
+
           if (key && key.startsWith('user_rental_orders')) {
             const raw = localStorage.getItem(key);
             if (raw) {
@@ -72,10 +84,8 @@ interface StoredOrder {
                 const newOrders = orders.map((o: StoredOrder, idx: number) => {
                   const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
                   const isMatch =
-                    oCode === cleanTarget ||
-                    oCode.includes(cleanTarget) ||
-                    cleanTarget.includes(oCode) ||
-                    (idx === 0 && o.status === 'PENDING_PAYMENT');
+                    (cleanTarget && (oCode === cleanTarget || oCode.includes(cleanTarget) || cleanTarget.includes(oCode))) ||
+                    (isCurrentUserKey && idx === 0 && o.status === 'PENDING_PAYMENT');
 
                   if (isMatch) {
                     updated = true;
@@ -99,10 +109,8 @@ interface StoredOrder {
                 const newOrders = orders.map((o: StoredOrder, idx: number) => {
                   const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
                   const isMatch =
-                    oCode === cleanTarget ||
-                    oCode.includes(cleanTarget) ||
-                    cleanTarget.includes(oCode) ||
-                    (idx === 0 && o.status === 'PENDING_PAYMENT');
+                    (cleanTarget && (oCode === cleanTarget || oCode.includes(cleanTarget) || cleanTarget.includes(oCode))) ||
+                    (isCurrentUserKey && idx === 0 && o.status === 'PENDING_PAYMENT');
 
                   if (isMatch) {
                     updated = true;
