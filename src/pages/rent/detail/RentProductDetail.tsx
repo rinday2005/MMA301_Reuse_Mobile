@@ -116,6 +116,30 @@ export const RentProductDetail: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authActionName, setAuthActionName] = useState('');
 
+  // In-app Toast Feedback State
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    icon: string;
+    type?: 'success' | 'info' | 'error' | 'warning';
+  }>({
+    show: false,
+    message: '',
+    icon: 'check_circle',
+    type: 'success',
+  });
+
+  const showToast = (
+    message: string,
+    icon = 'check_circle',
+    type: 'success' | 'info' | 'error' | 'warning' = 'success'
+  ) => {
+    setToast({ show: true, message, icon, type });
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }));
+    }, 4000);
+  };
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
@@ -175,8 +199,10 @@ export const RentProductDetail: React.FC = () => {
 
   const handleRentNow = () => {
     if (hasDateRangeConflict(startDate, endDate, bookedDates)) {
-      alert(
-        `Khoảng thời gian bạn chọn (${startDate} → ${endDate}) có ngày đã được khách khác đặt thuê. Vui lòng chọn khoảng ngày còn trống trên lịch!`
+      showToast(
+        `Khoảng thời gian bạn chọn (${startDate} → ${endDate}) có ngày đã được khách khác đặt thuê. Vui lòng chọn ngày còn trống trên lịch!`,
+        'event_busy',
+        'warning'
       );
       return;
     }
@@ -201,8 +227,10 @@ export const RentProductDetail: React.FC = () => {
 
   const handleAddToCart = () => {
     if (hasDateRangeConflict(startDate, endDate, bookedDates)) {
-      alert(
-        `Khoảng thời gian bạn chọn (${startDate} → ${endDate}) có ngày đã được khách khác đặt thuê. Vui lòng chọn khoảng ngày còn trống trên lịch!`
+      showToast(
+        `Khoảng thời gian bạn chọn (${startDate} → ${endDate}) có ngày đã được khách khác đặt thuê. Vui lòng chọn ngày còn trống trên lịch!`,
+        'event_busy',
+        'warning'
       );
       return;
     }
@@ -220,6 +248,7 @@ export const RentProductDetail: React.FC = () => {
       endDate: endDate,
       gradeBadge: product.grade,
     });
+    showToast('Đã thêm sản phẩm vào giỏ hàng thuê tuần hoàn!', 'check_circle', 'success');
   };
 
   const handleChat = () => {
@@ -906,6 +935,31 @@ export const RentProductDetail: React.FC = () => {
             ))}
           </div>
         </section>
+      </div>
+      {/* In-app Toast Notification */}
+      <div
+        className={`fixed bottom-6 right-6 z-50 transform transition-all duration-300 pointer-events-none px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 text-xs sm:text-sm font-medium ${
+          toast.show ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-12 opacity-0 scale-95'
+        } ${
+          toast.type === 'error'
+            ? 'bg-rose-950 text-rose-100 border border-rose-800/80'
+            : toast.type === 'warning'
+            ? 'bg-amber-950 text-amber-100 border border-amber-800/80'
+            : 'bg-[#141310] text-[#FBF9F6] border border-stone-800'
+        }`}
+      >
+        <span
+          className={`material-symbols-outlined text-[20px] ${
+            toast.type === 'error'
+              ? 'text-rose-400'
+              : toast.type === 'warning'
+              ? 'text-amber-400'
+              : 'text-emerald-400'
+          }`}
+        >
+          {toast.icon}
+        </span>
+        <span>{toast.message}</span>
       </div>
     </div>
   );

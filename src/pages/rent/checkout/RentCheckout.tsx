@@ -13,6 +13,7 @@ import {
   hasDateRangeConflict,
   findEarliestAvailableRentalRange,
 } from '../../data/rent/rentOrderDetailData';
+import { getUserProfileAddress } from '../../../utils/address';
 
 export const RentCheckout: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -163,6 +164,8 @@ export const RentCheckout: React.FC = () => {
     }
   }, [user]);
 
+  const userProfileAddress = useMemo(() => getUserProfileAddress(user), [user]);
+
   const [custodyHolder, setCustodyHolder] = useState(() => {
     return (
       storedProfile.fullName ||
@@ -181,13 +184,7 @@ export const RentCheckout: React.FC = () => {
   });
 
   const [shippingAddress, setShippingAddress] = useState(() => {
-    if (storedProfile.address) {
-      const addr = storedProfile.address;
-      if (typeof addr === 'string') return addr;
-      const parts = [addr.detail, addr.ward, addr.district, addr.province].filter(Boolean);
-      if (parts.length > 0) return parts.join(', ');
-    }
-    return '48 Bạch Đằng, Tầng 4 Archive Suite, Phường Hải Châu 1, Quận Hải Châu, TP. Đà Nẵng';
+    return userProfileAddress.full;
   });
 
   const [isEditingAddress, setIsEditingAddress] = useState(false);
@@ -195,11 +192,45 @@ export const RentCheckout: React.FC = () => {
   const [tempHolder, setTempHolder] = useState(custodyHolder);
   const [tempPhone, setTempPhone] = useState(phone);
 
+  useEffect(() => {
+    const handleProfileSync = () => {
+      const fresh = getUserProfileAddress(user);
+      setShippingAddress(fresh.full);
+      setTempAddress(fresh.full);
+    };
+    window.addEventListener('user_profile_updated', handleProfileSync);
+    return () => {
+      window.removeEventListener('user_profile_updated', handleProfileSync);
+    };
+  }, [user]);
+
   const handleSaveAddress = () => {
     setShippingAddress(tempAddress);
     setCustodyHolder(tempHolder);
     setPhone(tempPhone);
     setIsEditingAddress(false);
+    try {
+      const uId = user?._id || user?.id;
+      if (uId) {
+        const raw = localStorage.getItem(`user_profile_${uId}`);
+        const currentProfile = raw ? JSON.parse(raw) : {};
+        localStorage.setItem(
+          `user_profile_${uId}`,
+          JSON.stringify({
+            ...currentProfile,
+            fullName: tempHolder || currentProfile.fullName,
+            phone: tempPhone || currentProfile.phone,
+            address: {
+              ...(typeof currentProfile.address === 'object' ? currentProfile.address : {}),
+              detail: tempAddress,
+            },
+          })
+        );
+        window.dispatchEvent(new Event('user_profile_updated'));
+      }
+    } catch {
+      // ignore
+    }
   };
 
   // ── 5. FINANCIAL CALCULATIONS & LEDGER ("tổng tiền cọc & một phí shipping") ──
@@ -264,10 +295,34 @@ export const RentCheckout: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStep, setSubmitStep] = useState('');
 
+  // In-app Toast Feedback State
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    icon: string;
+    type?: 'success' | 'info' | 'error' | 'warning';
+  }>({
+    show: false,
+    message: '',
+    icon: 'check_circle',
+    type: 'success',
+  });
+
+  const showToast = (
+    message: string,
+    icon = 'check_circle',
+    type: 'success' | 'info' | 'error' | 'warning' = 'success'
+  ) => {
+    setToast({ show: true, message, icon, type });
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }));
+    }, 4000);
+  };
+
   // Handle Order Placement & Direct VNPay Sandbox Redirect
   const handleProcessCheckout = async () => {
     if (!agreedTerms) {
-      alert('Vui lòng đồng ý với Quy ước Lưu giữ Bền vững và Điều khoản Ký quỹ Escrow để tiếp tục.');
+      showToast('Vui lòng đồng ý với Quy ước Lưu giữ Bền vững và Điều khoản Ký quỹ Escrow để tiếp tục.', 'info', 'warning');
       return;
     }
 
@@ -276,8 +331,10 @@ export const RentCheckout: React.FC = () => {
       return hasDateRangeConflict(startDate, endDate, bDates);
     });
     if (conflictItem) {
-      alert(
-        `Kỳ thuê bạn chọn (${startDate} → ${endDate}) của sản phẩm "${conflictItem.title}" bị trùng ngày đã có khách đặt trước. Vui lòng chọn lại kỳ thuê còn trống!`
+      showToast(
+        `Kỳ thuê bạn chọn (${startDate} → ${endDate}) của sản phẩm "${conflictItem.title}" bị trùng ngày đã có khách đặt trước. Vui lòng chọn lại kỳ thuê còn trống!`,
+        'event_busy',
+        'warning'
       );
       return;
     }
@@ -317,7 +374,14 @@ export const RentCheckout: React.FC = () => {
       createdAt: new Date().toISOString(),
       custodyHolder,
       phone,
-      shippingAddress,
+      shippingAddress: {
+        recipientName: custodyHolder || user?.fullName || 'Khách hàng',
+        recipientPhone: phone || user?.phoneNumber || user?.phone || '',
+        province: userProfileAddress.province,
+        district: userProfileAddress.district,
+        ward: userProfileAddress.ward,
+        detail: shippingAddress || userProfileAddress.detail,
+      },
       startDate,
       endDate,
       rentalDays,
@@ -360,10 +424,10 @@ export const RentCheckout: React.FC = () => {
         shippingAddress: {
           recipientName: custodyHolder || user?.fullName || 'Khách hàng',
           recipientPhone: phone || user?.phoneNumber || '0901234567',
-          province: 'Hồ Chí Minh',
-          district: 'Quận 1',
-          ward: 'Bến Nghé',
-          detail: shippingAddress || 'Địa chỉ nhận hàng',
+          province: userProfileAddress.province,
+          district: userProfileAddress.district,
+          ward: userProfileAddress.ward,
+          detail: shippingAddress || userProfileAddress.detail,
         },
         rentalFee: totalRentFee,
         depositAmount: totalDeposit,
@@ -1219,6 +1283,31 @@ export const RentCheckout: React.FC = () => {
           </div>
         </div>
       )}
+      {/* In-app Toast Notification */}
+      <div
+        className={`fixed bottom-6 right-6 z-50 transform transition-all duration-300 pointer-events-none px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 text-xs sm:text-sm font-medium ${
+          toast.show ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-12 opacity-0 scale-95'
+        } ${
+          toast.type === 'error'
+            ? 'bg-rose-950 text-rose-100 border border-rose-800/80'
+            : toast.type === 'warning'
+            ? 'bg-amber-950 text-amber-100 border border-amber-800/80'
+            : 'bg-[#141310] text-[#FBF9F6] border border-stone-800'
+        }`}
+      >
+        <span
+          className={`material-symbols-outlined text-[20px] ${
+            toast.type === 'error'
+              ? 'text-rose-400'
+              : toast.type === 'warning'
+              ? 'text-amber-400'
+              : 'text-emerald-400'
+          }`}
+        >
+          {toast.icon}
+        </span>
+        <span>{toast.message}</span>
+      </div>
     </div>
   );
 };

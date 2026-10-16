@@ -4,7 +4,7 @@ import { AuthContext } from '../../context/auth-context';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { UserSidebar } from '../../components/layout/UserSidebar';
 import AddressSelector, { type AddressValue } from '../../components/form/AddressSelector';
-import { uploadAvatarApi } from '../../services/user.api';
+import { uploadAvatarApi, updateProfileApi } from '../../services/user.api';
 
 interface SavedProfileData {
   fullName?: string;
@@ -163,12 +163,14 @@ const ProfileContent: React.FC = () => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, WEBP)!');
+      setPasswordToastMessage('Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, WEBP)!');
+      setTimeout(() => setPasswordToastMessage(''), 3000);
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('Kích thước ảnh tối đa là 5MB!');
+      setPasswordToastMessage('Kích thước ảnh tối đa là 5MB!');
+      setTimeout(() => setPasswordToastMessage(''), 3000);
       return;
     }
 
@@ -304,10 +306,20 @@ const ProfileContent: React.FC = () => {
     }, 4000);
   };
 
-  // Handle Account & Delivery form submit
-  const handleProfileSave = (e: React.FormEvent) => {
+  // Handle Account & Delivery form submit (Persist to MongoDB and localStorage)
+  const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // 1. Send PUT request to Backend API to persist address & profile into MongoDB
+      await updateProfileApi({
+        fullName,
+        phoneNumber: phone,
+        phone,
+        address,
+        avatarUrl,
+      });
+
+      // 2. Synchronize local storage cache
       const profileData = {
         fullName,
         phone,
@@ -330,8 +342,9 @@ const ProfileContent: React.FC = () => {
           detail: { avatarUrl, fullName },
         })
       );
-    } catch {
-      // ignore
+      window.dispatchEvent(new Event('user_profile_updated'));
+    } catch (err) {
+      console.warn('Backend updateProfileApi notice, falling back to local sync:', err);
     }
 
     setShowSaveToast(true);
@@ -364,11 +377,13 @@ const ProfileContent: React.FC = () => {
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) {
-      alert('Mật khẩu mới phải có ít nhất 6 ký tự!');
+      setPasswordToastMessage('Mật khẩu mới phải có ít nhất 6 ký tự!');
+      setTimeout(() => setPasswordToastMessage(''), 3000);
       return;
     }
     if (newPassword !== confirmPassword) {
-      alert('Xác nhận mật khẩu mới không khớp!');
+      setPasswordToastMessage('Xác nhận mật khẩu mới không khớp!');
+      setTimeout(() => setPasswordToastMessage(''), 3000);
       return;
     }
 

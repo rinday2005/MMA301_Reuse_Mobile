@@ -5,7 +5,7 @@ import { UserSidebar } from '../../components/layout/UserSidebar';
 import { resolveWishlistProduct, type ResolvedWishlistProduct } from '../../services/wishlistProductResolver';
 
 export const Wishlist: React.FC = () => {
-  const { wishlist, toggleWishlist, addToCart } = useCartWishlist();
+  const { wishlist, removeFromWishlist, clearWishlist, addToCart } = useCartWishlist();
 
   // Scroll to top on mount
   useEffect(() => {
@@ -36,7 +36,7 @@ export const Wishlist: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'ALL' | 'RENT' | 'THRIFT'>('ALL');
   // Sort: 'latest' | 'available' | 'price-asc' | 'price-desc'
   const [sortOption, setSortOption] = useState<string>('latest');
-  // Temporary toast feedback when added to cart
+  // Temporary toast feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // ── Resolve genuine products from wishlist IDs (NO mock fake data) ──
@@ -99,6 +99,20 @@ export const Wishlist: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const handleRemove = (id: string, title: string) => {
+    removeFromWishlist(id);
+    setToastMessage(`Đã xóa "${title}" khỏi mục yêu thích.`);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleClearAll = () => {
+    if (window.confirm('Bạn có chắc muốn xóa tất cả sản phẩm khỏi danh sách yêu thích?')) {
+      clearWishlist();
+      setToastMessage('Đã làm trống toàn bộ danh sách yêu thích.');
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
   return (
     <div className="w-full min-h-screen bg-[#FBF9F5] text-[#1C1A18] antialiased">
       {/* Toast Notification */}
@@ -131,7 +145,7 @@ export const Wishlist: React.FC = () => {
                   type="button"
                   onClick={() => window.dispatchEvent(new CustomEvent('reuse_user_sidebar_toggle', { detail: false }))}
                   className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-[#E8E4DC] text-xs font-semibold text-[#1C1A18] hover:bg-[#F6F3EE] hover:border-[#1C1A18]/40 transition-all shadow-2xs cursor-pointer group"
-                  title="Mở lại menu điều hướng (Dấu 3 gạch)"
+                  title="Hiện menu điều hướng"
                 >
                   <span className="material-symbols-outlined text-[18px] text-[#3A6843] group-hover:scale-110 transition-transform">
                     menu
@@ -142,7 +156,7 @@ export const Wishlist: React.FC = () => {
             )}
 
             {/* 1. TOP BREADCRUMB & EDITORIAL HEADER */}
-            <section className="mb-8">
+            <section className="mb-6">
               <div className="flex items-center gap-2 mb-3">
                 <Link
                   to="/"
@@ -171,40 +185,40 @@ export const Wishlist: React.FC = () => {
                       BỘ SƯU TẬP QUAN TÂM · LƯU TRỮ TUẦN HOÀN
                     </span>
                   </div>
-                  <h1 className="font-serif text-3xl sm:text-4xl lg:text-[40px] font-bold text-[#1C1A18] mb-3 tracking-tight">
+                  <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#1C1A18] mb-2 tracking-tight">
                     Danh sách yêu thích
                   </h1>
-                  <p className="text-sm text-[#76726B] leading-relaxed">
-                    Lưu giữ và theo dõi lịch còn hàng của thiết bị thuê cao cấp hoặc các món đồ archival THRIFT độc bản trước khi quyết định đồng hành cùng vòng đời sản phẩm.
+                  <p className="text-xs sm:text-sm text-[#76726B] leading-relaxed">
+                    Theo dõi tình trạng sẵn sàng của thiết bị thuê cao cấp hoặc các món đồ archival THRIFT độc bản trước khi quyết định đồng hành cùng vòng đời sản phẩm.
                   </p>
                 </div>
 
-                {/* Quick Metrics Pill */}
+                {/* Quick Metrics */}
                 <div className="flex items-center gap-3 bg-[#F5F3F0] p-2 rounded-2xl border border-[#E8E4DC]/60 shrink-0">
                   <div className="px-3.5 py-2 rounded-xl bg-white shadow-2xs border border-[#E8E4DC]/60 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-[#B9ECBD]/40 text-[#3A6843] flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[18px]">verified</span>
+                      <span className="material-symbols-outlined text-[18px]">favorite</span>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase font-bold tracking-wider text-[#76726B]">Kiểm định chuẩn</p>
-                      <p className="text-xs text-[#1C1A18] font-bold">100% Bench-checked</p>
+                      <p className="text-[10px] uppercase font-bold tracking-wider text-[#76726B]">Đang lưu</p>
+                      <p className="text-xs text-[#1C1A18] font-bold">{resolvedItems.length} sản phẩm</p>
                     </div>
                   </div>
 
                   <div className="px-3.5 py-2 rounded-xl bg-white shadow-2xs border border-[#E8E4DC]/60 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-[#EFEEEB] text-[#1C1A18] flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[18px]">lock_clock</span>
+                      <span className="material-symbols-outlined text-[18px]">verified_user</span>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase font-bold tracking-wider text-[#76726B]">Ký quỹ an tâm</p>
-                      <p className="text-xs text-[#1C1A18] font-bold">Smart Escrow 24/7</p>
+                      <p className="text-[10px] uppercase font-bold tracking-wider text-[#76726B]">Kiểm định</p>
+                      <p className="text-xs text-[#1C1A18] font-bold">100% Bench Lab</p>
                     </div>
                   </div>
                 </div>
               </div>
             </section>
 
-            {/* 2. INTERACTIVE CONTROLS: TABS & SORT */}
+            {/* 2. CONTROLS: TABS, SORT & CLEAR ALL */}
             <section className="mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 {/* Tabs Switcher */}
@@ -218,12 +232,8 @@ export const Wishlist: React.FC = () => {
                         : 'text-[#76726B] hover:text-[#1C1A18]'
                     }`}
                   >
-                    <span>Tất cả lưu trữ</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        activeTab === 'ALL' ? 'bg-[#3A6843]/10 text-[#3A6843]' : 'bg-[#E8E4DC]/60 text-[#76726B]'
-                      }`}
-                    >
+                    <span>Tất cả</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#EBE7DF] text-[#4A463F] font-mono">
                       {resolvedItems.length}
                     </span>
                   </button>
@@ -237,13 +247,8 @@ export const Wishlist: React.FC = () => {
                         : 'text-[#76726B] hover:text-[#1C1A18]'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-[16px] text-[#3A6843]">autorenew</span>
-                    <span>Thiết bị Thuê (RENT)</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        activeTab === 'RENT' ? 'bg-[#3A6843]/10 text-[#3A6843]' : 'bg-[#E8E4DC]/60 text-[#76726B]'
-                      }`}
-                    >
+                    <span>Đồ thuê (RENT)</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#EBE7DF] text-[#4A463F] font-mono">
                       {rentCount}
                     </span>
                   </button>
@@ -257,189 +262,167 @@ export const Wishlist: React.FC = () => {
                         : 'text-[#76726B] hover:text-[#1C1A18]'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-[16px]">archive</span>
-                    <span>Đồ sưu tầm (THRIFT)</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        activeTab === 'THRIFT' ? 'bg-[#3A6843]/10 text-[#3A6843]' : 'bg-[#E8E4DC]/60 text-[#76726B]'
-                      }`}
-                    >
+                    <span>Mua thanh lý (THRIFT)</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#EBE7DF] text-[#4A463F] font-mono">
                       {thriftCount}
                     </span>
                   </button>
                 </div>
 
-                {/* Secondary Filter / Quick Sort */}
+                {/* Right controls: Sort & Clear All */}
                 <div className="flex items-center gap-3">
-                  <span className="text-[11px] uppercase tracking-wider font-bold text-[#76726B] hidden md:inline">
-                    Sắp xếp:
-                  </span>
-                  <div className="relative">
+                  <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-[#E8E4DC] shadow-2xs">
+                    <span className="material-symbols-outlined text-[#76726B] text-[16px]">sort</span>
                     <select
                       value={sortOption}
                       onChange={(e) => setSortOption(e.target.value)}
-                      className="appearance-none bg-white text-[#1C1A18] text-xs font-medium pl-3.5 pr-9 py-2 rounded-xl border border-[#E8E4DC] cursor-pointer focus:outline-none focus:border-[#1C1A18] transition-all shadow-2xs"
+                      className="bg-transparent text-xs font-semibold text-[#1C1A18] focus:outline-none cursor-pointer"
                     >
-                      <option value="latest">Mới lưu gần đây</option>
-                      <option value="available">Có sẵn ngay trước</option>
+                      <option value="latest">Mới thêm gần đây</option>
+                      <option value="available">Ưu tiên còn hàng</option>
                       <option value="price-asc">Giá: Thấp đến cao</option>
                       <option value="price-desc">Giá: Cao đến thấp</option>
                     </select>
-                    <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[#76726B] text-[18px] pointer-events-none">
-                      expand_more
-                    </span>
                   </div>
+
+                  {resolvedItems.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAll}
+                      className="text-xs text-[#76726B] hover:text-rose-600 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E8E4DC] hover:border-rose-200 shadow-2xs cursor-pointer font-medium"
+                      title="Xóa tất cả sản phẩm khỏi yêu thích"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">delete_sweep</span>
+                      <span>Xóa tất cả</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </section>
 
-            {/* 3. PRODUCT CARDS GRID OR EMPTY STATE */}
+            {/* 3. PRODUCT LIST VIEW (DẠNG LIST NHƯ CART) */}
             {displayedItems.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="flex flex-col gap-4">
                 {displayedItems.map((item) => {
                   const isRent = item.mode === 'rent';
 
                   return (
                     <article
                       key={item.id}
-                      className="group bg-white rounded-2xl p-4 flex flex-col shadow-2xs hover:shadow-md border border-[#E8E4DC]/80 hover:border-[#1C1A18]/40 transition-all duration-300"
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 p-5 rounded-2xl bg-white hover:bg-[#FAF8F5] transition-all border border-[#E8E4DC]/80 shadow-2xs group"
                     >
-                      {/* Visual & Top Badges */}
-                      <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-[#F5F3F0] mb-4 border border-[#E8E4DC]/60">
-                        <img
-                          src={item.image}
-                          alt={item.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
-
-                        {/* Top-Left Pill */}
-                        {isRent ? (
-                          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/95 backdrop-blur-md text-[#1C1A18] text-[10px] font-bold uppercase tracking-wider shadow-xs">
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                item.available ? 'bg-[#3A6843] animate-pulse' : 'bg-amber-500'
-                              }`}
-                            />
-                            <span>{item.availabilityLabel}</span>
-                          </div>
-                        ) : (
-                          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1C1A18] text-white text-[10px] font-bold uppercase tracking-wider shadow-xs">
-                            <span className="material-symbols-outlined text-[13px] text-[#BBEFC0]">auto_awesome</span>
-                            <span>1-OF-1 ARCHIVE · ĐỘC BẢN</span>
-                          </div>
-                        )}
-
-                        {/* Top-Right Remove Wishlist Button */}
-                        <button
-                          type="button"
-                          onClick={() => toggleWishlist(item.id)}
-                          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-[#BA1A1A] flex items-center justify-center hover:bg-white hover:scale-110 shadow-xs transition-all cursor-pointer"
-                          title="Bỏ khỏi danh sách yêu thích"
-                          aria-label="Bỏ khỏi danh sách yêu thích"
-                        >
-                          <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                            favorite
-                          </span>
-                        </button>
-
-                        {/* Bottom Overlay Info Tag */}
-                        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white text-[10px] font-medium">
-                          <span className="bg-black/70 backdrop-blur-xs px-2 py-0.5 rounded">
-                            {item.location} · {item.origin}
-                          </span>
-                          <span className="bg-[#3A6843]/90 px-2 py-0.5 rounded font-semibold">
-                            {item.certLabel}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Meta Category & Grade */}
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#3A6843]">
-                          {item.category}
-                        </span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 bg-[#EFEEEB] text-[#4A463F] rounded-md">
-                          {item.gradeBadge}
-                        </span>
-                      </div>
-
-                      {/* Title */}
-                      <h3 className="font-serif text-lg font-bold text-[#1C1A18] mb-2 leading-snug group-hover:text-[#3A6843] transition-colors line-clamp-1">
-                        <Link to={item.href}>{item.title}</Link>
-                      </h3>
-
-                      {/* Description */}
-                      <p className="text-xs text-[#76726B] mb-4 line-clamp-2 leading-relaxed">
-                        {item.description}
-                      </p>
-
-                      {/* Pricing Box */}
-                      {isRent ? (
-                        <div className="p-3 bg-[#F5F3F0] rounded-xl mb-4 space-y-2 border border-[#E8E4DC]/60">
-                          <div className="flex items-baseline justify-between">
-                            <span className="text-xs text-[#76726B]">Giá thuê lưu hành:</span>
-                            <div className="text-right">
-                              <span className="font-serif text-base font-bold text-[#1C1A18]">
-                                {formatVND(item.price)}
+                      {/* Left: Product Thumbnail */}
+                      <div className="flex items-center gap-4 w-full sm:w-auto">
+                        <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-xl overflow-hidden shrink-0 bg-[#EBE8E1] border border-[#E8E4DC]">
+                          <img
+                            src={item.image}
+                            alt={item.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            loading="lazy"
+                          />
+                          {/* Mode Badge Tag */}
+                          <div className="absolute top-2 left-2">
+                            {isRent ? (
+                              <span className="px-2 py-0.5 rounded-md bg-[#1C1A18]/90 backdrop-blur-xs text-white text-[9px] font-bold uppercase tracking-wider">
+                                RENT
                               </span>
-                              <span className="text-[10px] uppercase text-[#76726B] font-medium"> / ngày</span>
-                            </div>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-md bg-[#3A6843]/90 backdrop-blur-xs text-white text-[9px] font-bold uppercase tracking-wider">
+                                THRIFT
+                              </span>
+                            )}
                           </div>
-
-                          <div className="flex items-center justify-between text-xs pt-1.5 border-t border-[#E8E4DC]/80">
-                            <span className="flex items-center gap-1 text-[#76726B]">
-                              <span className="material-symbols-outlined text-[15px] text-[#3A6843]">verified_user</span>
-                              Cọc bảo chứng Smart Escrow
-                            </span>
-                            <span className="text-xs font-bold text-[#1C1A18]">{formatVND(item.deposit)}</span>
-                          </div>
-                          <p className="text-[10px] text-[#3A6843] italic">
-                            Hoàn lại 100% qua Smart Contract sau khi bàn giao
-                          </p>
                         </div>
-                      ) : (
-                        <div className="p-3 bg-[#F5F3F0] rounded-xl mb-4 space-y-1.5 border border-[#E8E4DC]/60">
-                          <div className="flex items-center justify-between text-[11px] text-[#76726B]">
-                            <span>Nguồn gốc lưu trữ:</span>
-                            <span className="text-[#1C1A18] font-semibold">{item.origin}</span>
-                          </div>
-                          <div className="flex items-baseline justify-between pt-1 border-t border-[#E8E4DC]/80">
-                            <span className="text-xs text-[#76726B]">Giá chuyển giao:</span>
-                            <span className="font-serif text-base font-bold text-[#1C1A18]">
-                              {formatVND(item.price)}
+
+                        {/* Center / Body Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#3A6843] bg-[#EBF3ED] px-2 py-0.5 rounded">
+                              {item.categoryLabel || item.category}
+                            </span>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 bg-[#EFEEEB] text-[#4A463F] rounded">
+                              {item.gradeBadge}
+                            </span>
+                            <span className="text-[10px] text-[#76726B] flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[13px]">location_on</span>
+                              {item.location}
                             </span>
                           </div>
-                          <p className="text-[10px] text-[#3A6843] italic">
-                            Đã gồm phí kiểm định độc lập &amp; thùng đóng gói chân không
+
+                          <h3 className="font-serif text-base sm:text-lg font-bold text-[#1C1A18] mb-1.5 leading-snug group-hover:text-[#3A6843] transition-colors line-clamp-1">
+                            <Link to={item.href}>{item.title}</Link>
+                          </h3>
+
+                          <p className="text-xs text-[#76726B] line-clamp-2 mb-2 max-w-xl">
+                            {item.description}
                           </p>
+
+                          {/* Price Display */}
+                          <div className="flex items-center gap-4 flex-wrap text-xs">
+                            {isRent ? (
+                              <>
+                                <div className="flex items-baseline gap-1">
+                                  <span className="text-[11px] text-[#76726B]">Giá thuê:</span>
+                                  <span className="font-serif text-base font-bold text-[#1C1A18]">
+                                    {formatVND(item.price)}
+                                  </span>
+                                  <span className="text-[10px] text-[#76726B]">/ngày</span>
+                                </div>
+                                <div className="flex items-center gap-1 text-[11px] text-[#5E6D5B] bg-[#F5F8F5] px-2 py-0.5 rounded border border-[#E0E8E1]">
+                                  <span className="material-symbols-outlined text-[14px]">lock</span>
+                                  <span>Cọc Escrow: {formatVND(item.deposit)}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-[11px] text-[#76726B]">Giá bán:</span>
+                                <span className="font-serif text-base font-bold text-[#1C1A18]">
+                                  {formatVND(item.price)}
+                                </span>
+                                <span className="text-[10px] text-[#3A6843] font-semibold bg-[#EBF3ED] px-2 py-0.5 rounded">
+                                  Độc bản 1-of-1
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
+                      </div>
 
-                      {/* Action Row */}
-                      <div className="mt-auto pt-2 flex items-center gap-2">
-                        <Link
-                          to={item.href}
-                          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold text-center transition-all flex items-center justify-center gap-2 shadow-2xs cursor-pointer ${
-                            isRent
-                              ? 'bg-[#1C1A18] text-white hover:bg-black'
-                              : 'bg-[#3A6843] text-white hover:bg-[#2F5436]'
-                          }`}
-                        >
-                          <span>{isRent ? 'Thuê ngay' : 'Mua đứt độc bản'}</span>
-                          <span className="material-symbols-outlined text-[17px]">
-                            {isRent ? 'calendar_month' : 'verified'}
-                          </span>
-                        </Link>
+                      {/* Right: Actions Column (Thuê ngay / Thêm giỏ / Xóa khỏi yêu thích) */}
+                      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2.5 w-full sm:w-auto shrink-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-[#E8E4DC]/60">
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <Link
+                            to={item.href}
+                            className={`px-4 py-2 rounded-xl text-xs font-semibold text-center transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer ${
+                              isRent
+                                ? 'bg-[#1C1A18] text-white hover:bg-black'
+                                : 'bg-[#3A6843] text-white hover:bg-[#2F5436]'
+                            }`}
+                          >
+                            <span>{isRent ? 'Thuê ngay' : 'Mua ngay'}</span>
+                            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                          </Link>
 
+                          <button
+                            type="button"
+                            onClick={() => handleAddToCart(item)}
+                            className="p-2 bg-[#F5F3F0] hover:bg-[#EAE8E5] text-[#1C1A18] rounded-xl transition-colors flex items-center justify-center border border-[#E8E4DC] cursor-pointer"
+                            title="Thêm vào giỏ hàng"
+                            aria-label="Thêm vào giỏ hàng"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
+                          </button>
+                        </div>
+
+                        {/* Dedicated Remove Button */}
                         <button
                           type="button"
-                          onClick={() => handleAddToCart(item)}
-                          className="p-2.5 bg-[#F5F3F0] hover:bg-[#EAE8E5] text-[#1C1A18] rounded-xl transition-colors flex items-center justify-center border border-[#E8E4DC]/80 cursor-pointer"
-                          title="Thêm vào giỏ hàng tuần hoàn"
-                          aria-label="Thêm vào giỏ hàng tuần hoàn"
+                          onClick={() => handleRemove(item.id, item.title)}
+                          className="text-xs text-[#76726B] hover:text-rose-600 transition-colors flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-rose-50 cursor-pointer font-medium"
+                          title="Xóa khỏi mục yêu thích"
                         >
-                          <span className="material-symbols-outlined text-[19px]">shopping_bag</span>
+                          <span className="material-symbols-outlined text-[16px] text-rose-500">delete</span>
+                          <span>Xóa khỏi yêu thích</span>
                         </button>
                       </div>
                     </article>
@@ -463,7 +446,7 @@ export const Wishlist: React.FC = () => {
 
                   <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#F5F3F0] rounded-full mb-3 border border-[#E8E4DC]">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#76726B]">
-                      LƯU TRỮ ĐANG CHỜ
+                      LƯU TRỮ ĐANG TRỐNG
                     </span>
                   </div>
 
@@ -476,7 +459,7 @@ export const Wishlist: React.FC = () => {
                   </h2>
 
                   <p className="text-xs sm:text-sm text-[#76726B] max-w-md mx-auto mb-7 leading-relaxed">
-                    Bạn chưa lưu sản phẩm nào vào danh mục theo dõi. Hãy khám phá kho thiết bị công nghệ cao để thuê theo dịp, hoặc săn tìm các món đồ thời trang archival độc bản 1-of-1 trường tồn cùng thời gian.
+                    Bạn chưa lưu sản phẩm nào vào danh mục theo dõi. Hãy khám phá kho thiết bị công nghệ cao để thuê theo dịp, hoặc săn tìm các món đồ thời trang archival độc bản trường tồn cùng thời gian.
                   </p>
 
                   <div className="flex flex-col sm:flex-row items-center justify-center gap-3">

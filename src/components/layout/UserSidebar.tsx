@@ -396,6 +396,37 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           Đơn hàng &amp; Tiện ích
         </div>
 
+        {/* Smart Escrow Wallet / Ví lưu ký hoàn cọc */}
+        <Link
+          to="/user/wallet"
+          onClick={handleLinkClick}
+          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-colors group ${
+            isCurrent('wallet', '/user/wallet') || currentPath === '/wallet'
+              ? 'bg-[#1C1A18] text-white'
+              : 'text-[#1C1A18] hover:bg-white border border-transparent hover:border-[#E8E4DC]/60'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <svg
+              className="w-4 h-4 text-[#76726B] group-hover:text-[#1C1A18]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.8"
+              />
+            </svg>
+            <span>Ví cọc &amp; Hoàn tiền (Escrow)</span>
+          </div>
+          <span className="text-[10px] text-[#4A6B53] bg-[#EBF3ED] px-1.5 py-0.5 rounded font-bold">
+            900.000₫
+          </span>
+        </Link>
+
         {/* My Rentals */}
         <Link
           to="/rent/orders"

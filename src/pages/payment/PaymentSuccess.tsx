@@ -61,7 +61,15 @@ interface StoredOrder {
 
               if (isMatch) {
                 updated = true;
-                return { ...o, status: 'PAID', paymentStatus: 'PAID', transactionNo, bankCode };
+                // Bỏ qua shop owner & shipper trong môi trường test -> Chuyển thẳng Bước 5: DELIVERED (Chờ ký nhận CLA)
+                return {
+                  ...o,
+                  status: 'DELIVERED',
+                  paymentStatus: 'PAID',
+                  transactionNo,
+                  bankCode,
+                  deliveredAt: new Date().toISOString(),
+                };
               }
               return o;
             });

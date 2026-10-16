@@ -35,6 +35,7 @@ interface CartWishlistContextType {
   toggleWishlist: (id: string) => boolean;
   addToWishlist: (id: string) => void;
   removeFromWishlist: (id: string) => void;
+  clearWishlist: () => void;
 
   cart: CartItem[];
   cartCount: number;
@@ -212,6 +213,10 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
     setWishlist((prev) => prev.filter((item) => item !== id));
   };
 
+  const clearWishlist = () => {
+    setWishlist([]);
+  };
+
   // ── Cart Operations (Local State + MongoDB API Sync) ──
   const addToCart = (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
     const qty = item.quantity && item.quantity > 0 ? item.quantity : 1;
@@ -327,6 +332,7 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
       toggleWishlist,
       addToWishlist,
       removeFromWishlist,
+      clearWishlist,
       cart,
       cartCount,
       addToCart,

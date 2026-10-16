@@ -228,7 +228,7 @@ export const ThriftCheckout: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#FDF9F2] text-[#1C1C18] font-sans antialiased selection:bg-[#D8E3CE] selection:text-[#5B6655] min-h-screen flex flex-col">
+    <div className="bg-[#FBF9F5] text-[#1C1C18] font-sans antialiased selection:bg-[#D8E3CE] selection:text-[#5B6655] min-h-screen flex flex-col">
       {/* ── TOP ANNOUNCEMENT BAR ── */}
       <aside className="bg-[#141310] text-[#E7E1DD] text-[11px] tracking-wider font-semibold uppercase py-2 text-center px-4">
         RENT WHAT YOU NEED. REUSE WHAT ALREADY EXISTS. COMPLIMENTARY INSURED SHIPPING ON VERIFIED RENTALS.
@@ -249,7 +249,7 @@ export const ThriftCheckout: React.FC = () => {
       </div>
 
       {/* ── HEADER ĐƠN MUA THRIFT ── */}
-      <section className="w-full px-4 sm:px-8 pt-8 pb-6 border-b border-[#E6E2DB]/80 bg-[#FDF9F2]">
+      <section className="w-full px-4 sm:px-8 pt-8 pb-6 border-b border-[#E6E2DB]/80 bg-[#FBF9F5]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#EBE8E1] text-[#4A463F] mb-2.5 text-[11px] font-bold uppercase tracking-widest">

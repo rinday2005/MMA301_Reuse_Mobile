@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { loginApi } from "../services/auth.api";
 import { AuthContext } from "./auth-context";
@@ -17,6 +17,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     return savedUser ? JSON.parse(savedUser) : null;
   });
+
+  useEffect(() => {
+    const handleProfileSync = () => {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        try {
+          setUser(JSON.parse(savedUser));
+        } catch {
+          // ignore
+        }
+      }
+    };
+    window.addEventListener("user_profile_updated", handleProfileSync);
+    window.addEventListener("profile_updated", handleProfileSync);
+    return () => {
+      window.removeEventListener("user_profile_updated", handleProfileSync);
+      window.removeEventListener("profile_updated", handleProfileSync);
+    };
+  }, []);
 
   const login = async (data: Parameters<typeof loginApi>[0]) => {
     const result = await loginApi(data);

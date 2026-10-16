@@ -18,7 +18,7 @@ export const MasterLayout: React.FC<MasterLayoutProps> = ({
   const showAdminShopSidebar = userRole === 'ADMIN' || userRole === 'SHOP';
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fdf9f2] text-stone-900 antialiased">
+    <div className="min-h-screen flex flex-col bg-[#FBF9F5] text-stone-900 antialiased">
       {/* Header */}
       <Header userRole={userRole} onLogout={onLogout} />
 
