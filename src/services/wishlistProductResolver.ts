@@ -26,6 +26,7 @@ export interface ResolvedWishlistProduct {
   deposit: number;
   available: boolean;
   availabilityLabel: string;
+  availabilityBadge?: string;
   location: string;
   origin: string;
   certLabel: string;

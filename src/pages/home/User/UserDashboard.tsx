@@ -944,9 +944,9 @@ export const UserDashboard: React.FC = () => {
                         <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-[#1C1A18] text-white text-[9px] font-bold">
                           {item.mode === 'rent' ? 'RENT' : 'THRIFT'}
                         </span>
-                        {item.availabilityBadge && (
+                        {(item.availabilityBadge || item.availabilityLabel) && (
                           <span className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-white/90 text-[#1C1A18] text-[9px] font-semibold">
-                            {item.availabilityLabel}
+                            {item.availabilityBadge || item.availabilityLabel}
                           </span>
                         )}
                       </div>
