@@ -90,31 +90,6 @@ const AppLayout = ({
   );
 };
 
-const SavedItemsPage = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-    <h1 className="text-2xl font-bold text-gray-800">
-      Danh Sách Yêu Thích (Wishlist)
-    </h1>
-  </div>
-);
-
-const NotificationsPage = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-    <h1 className="text-2xl font-bold text-gray-800">
-      Thông Báo Của Tôi
-    </h1>
-  </div>
-);
-
-
-const MyOrdersPage = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-    <h1 className="text-2xl font-bold text-gray-800">
-      Đơn Hàng Của Tôi
-    </h1>
-  </div>
-);
-
 const ShopDashboard = () => (
   <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
     <h1 className="text-2xl font-bold text-gray-800">

@@ -67,7 +67,9 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
   try {
     localStorage.removeItem('user_wishlist');
     localStorage.removeItem('reuse_hub_wishlist');
-  } catch {}
+  } catch {
+    // ignore
+  }
   const WISHLIST_KEY = `reuse_hub_wishlist_${currentUserId}`;
   const CART_KEY = `reuse_hub_cart_${currentUserId}`;
   // ── Wishlist State ──

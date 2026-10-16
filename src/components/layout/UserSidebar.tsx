@@ -21,7 +21,6 @@ const HEADER_H = 112;
 export const UserSidebar: React.FC<UserSidebarProps> = ({
   className = '',
   activeKey,
-  mode: _unusedMode = 'static',
   avatarUrl: propAvatarUrl,
   displayName: propDisplayName,
   displayEmail: propDisplayEmail,
@@ -30,7 +29,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   hideFloatingToggle = false,
 }) => {
   const { user } = useAuth();
-  const { cartCount, wishlistCount } = useCartWishlist();
+  const { wishlistCount } = useCartWishlist();
   const location = useLocation();
 
   // Internal collapse state (Default: false = EXPANDED / SHOWN)
@@ -131,11 +130,8 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   const [apiRentCount, setApiRentCount] = useState<number | null>(null);
 
   React.useEffect(() => {
+    if (!uId) return;
     let isMounted = true;
-    if (!uId) {
-      setApiRentCount(0);
-      return;
-    }
     getMyRentalOrdersApi().then((res) => {
       if (!isMounted) return;
       if (Array.isArray(res)) {
@@ -149,33 +145,37 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   }, [uId, syncVersion]);
 
   const { rentalOrdersCount, thriftOrdersCount } = useMemo(() => {
+    // Explicitly reference syncVersion and location.pathname to re-calculate on route changes or sync events
+    void syncVersion;
+    void location.pathname;
     try {
+      if (!uId) {
+        return { rentalOrdersCount: 0, thriftOrdersCount: 0 };
+      }
       let rCount = 0;
       let tCount = 0;
 
       // 1. Rental orders count strictly scoped to current user
-      if (uId) {
-        const rKey = `user_rental_orders_${uId}`;
-        const rRaw = localStorage.getItem(rKey);
-        if (rRaw) {
-          const arr = JSON.parse(rRaw);
-          if (Array.isArray(arr)) {
-            const active = arr.filter((o: { status?: string }) =>
-              ['PAID', 'RENTING', 'READY_FOR_HANDOVER', 'HANDED_OVER', 'SHIPPING', 'DELIVERED'].includes(o.status || '')
-            );
-            rCount = active.length;
-          }
+      const rKey = `user_rental_orders_${uId}`;
+      const rRaw = localStorage.getItem(rKey);
+      if (rRaw) {
+        const arr = JSON.parse(rRaw);
+        if (Array.isArray(arr)) {
+          const active = arr.filter((o: { status?: string }) =>
+            ['PAID', 'RENTING', 'READY_FOR_HANDOVER', 'HANDED_OVER', 'SHIPPING', 'DELIVERED'].includes(o.status || '')
+          );
+          rCount = active.length;
         }
+      }
 
-        // 2. Thrift orders count strictly scoped to current user
-        const tKey = `user_thrift_orders_${uId}`;
-        const tRaw = localStorage.getItem(tKey);
-        if (tRaw) {
-          const arr = JSON.parse(tRaw);
-          if (Array.isArray(arr)) {
-            const valid = arr.filter((o: { status?: string }) => o.status !== 'CANCELLED');
-            tCount = valid.length;
-          }
+      // 2. Thrift orders count strictly scoped to current user
+      const tKey = `user_thrift_orders_${uId}`;
+      const tRaw = localStorage.getItem(tKey);
+      if (tRaw) {
+        const arr = JSON.parse(tRaw);
+        if (Array.isArray(arr)) {
+          const valid = arr.filter((o: { status?: string }) => o.status !== 'CANCELLED');
+          tCount = valid.length;
         }
       }
 
@@ -219,7 +219,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   }, []);
 
   const currentPath = location.pathname;
-  const isDashboard = currentPath.startsWith('/user/dashboard') || currentPath === '/dashboard';
 
   const isCurrent = (key: string, path: string) => {
     if (activeKey) return activeKey === key;

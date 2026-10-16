@@ -8,8 +8,8 @@ export interface CreateVnPayUrlRequest {
   productId?: string;
   startDate?: string;
   endDate?: string;
-  items?: any[];
-  shippingAddress?: any;
+  items?: unknown[];
+  shippingAddress?: unknown;
   rentalFee?: number;
   depositAmount?: number;
   shippingFee?: number;

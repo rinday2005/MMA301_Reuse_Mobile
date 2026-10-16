@@ -26,7 +26,7 @@ export const Profile: React.FC = () => {
 const ProfileContent: React.FC = () => {
   const auth = useContext(AuthContext);
   const navigate = useNavigate();
-  const { cart, cartCount, wishlist, wishlistCount } = useCartWishlist();
+  const { cart, cartCount, wishlistCount } = useCartWishlist();
 
   const currentUserId = auth?.user?._id || auth?.user?.id || '';
   const profileStorageKey = currentUserId ? `user_profile_${currentUserId}` : '';
