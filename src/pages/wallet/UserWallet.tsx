@@ -196,9 +196,9 @@ export const UserWallet: React.FC = () => {
     orders.forEach((o) => {
       const cleanCode = (o.orderCode || '').replace('#', '').trim();
       const displayCode = `#${cleanCode}`;
-      const title =
+      const title: string =
         o.items?.[0]?.productName ||
-        o.items?.[0]?.productTitle ||
+        (o.items?.[0] as { productTitle?: string })?.productTitle ||
         (o.items?.[0] as { title?: string })?.title ||
         'Thiết bị thuê cao cấp';
       const dep = o.depositAmount || 0;
@@ -324,8 +324,8 @@ export const UserWallet: React.FC = () => {
         {/* User Navigation Sidebar */}
         <UserSidebar
           activeKey="wallet"
-          propDisplayName={displayName}
-          propDisplayEmail={displayEmail}
+          displayName={displayName}
+          displayEmail={displayEmail}
         />
 
         {/* ── MAIN WALLET CONTENT AREA ── */}

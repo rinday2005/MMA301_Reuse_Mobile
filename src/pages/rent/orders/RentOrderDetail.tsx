@@ -516,7 +516,11 @@ export const RentOrderDetail: React.FC = () => {
           signerName: backendOrder.claProof.signerName || displayName,
           signerPhone: backendOrder.claProof.signerPhone || user?.phoneNumber || user?.phone || '',
           note: backendOrder.claProof.note || '',
-          photos: backendOrder.claProof.photos || { slot1: '', slot2: '', slot3: '' },
+          photos: {
+            slot1: backendOrder.claProof.photos?.slot1 || '',
+            slot2: backendOrder.claProof.photos?.slot2 || '',
+            slot3: backendOrder.claProof.photos?.slot3 || '',
+          },
         };
       } else {
         const candidateKeys = [
@@ -2418,11 +2422,11 @@ export const RentOrderDetail: React.FC = () => {
             <div className="bg-stone-50 rounded-2xl p-4.5 space-y-3 text-xs border border-stone-200/70">
               <div className="flex items-center justify-between pb-2 border-b border-stone-200/60">
                 <span className="text-stone-500 font-medium">Mã đơn thuê:</span>
-                <span className="font-mono font-bold text-stone-800">{orderData.orderCode}</span>
+                <span className="font-mono font-bold text-stone-800">{orderData.code}</span>
               </div>
               <div className="flex items-center justify-between pb-2 border-b border-stone-200/60">
                 <span className="text-stone-500 font-medium">Mã xác thực CLA:</span>
-                <span className="font-mono text-emerald-700 font-semibold">{orderData.claTrackingCode}</span>
+                <span className="font-mono text-emerald-700 font-semibold">{orderData.trackingCode}</span>
               </div>
               <div className="flex items-center justify-between pb-2 border-b border-stone-200/60">
                 <span className="text-stone-500 font-medium">Người ký nhận:</span>
