@@ -134,10 +134,10 @@ export const Home: React.FC = () => {
                   <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </Link>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 <Link
                   className="group bg-white rounded-lg border border-[#E7E2DA] overflow-hidden p-3 hover:border-[#1C1A18] transition-colors flex flex-col"
-                  to="/categories/cameras"
+                  to="/categories/camera"
                 >
                   <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
                     <img
@@ -146,38 +146,8 @@ export const Home: React.FC = () => {
                       src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-UHO6tsX0sMFex89OKO4Z-w_ShVuR9ye-q8jHlxKLabB4fX03IKz3GwLFdt0tErN6zyIIjPHl2DBj0ov7hNrFg47IiSm0KAiHQ_2-XTAJ11c9hdYpd8NtRCZWo3E3uqCub_wG4OPONy--TIp0pYcuxipvpfvUcfkNNeVXhItVO0u62PdJItZLvhFGsaRmNm3tHjo-pYEsswOvApbEfmiqMOPqORD885xgtltPTBpV"
                     />
                   </div>
-                  <h3 className="font-semibold text-xs text-[#1C1A18]">Camera &amp; Lens</h3>
-                  <span className="text-[11px] text-[#78736A] mt-0.5">340+ món</span>
-                </Link>
-
-                <Link
-                  className="group bg-white rounded-lg border border-[#E7E2DA] overflow-hidden p-3 hover:border-[#1C1A18] transition-colors flex flex-col"
-                  to="/categories/fashion"
-                >
-                  <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
-                    <img
-                      alt="Quần áo thiết kế"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuAc_NEOAcWg2z30w_eikWvaCcPRd2XLRbEb12GdUQiunNKM61HtPjRjvKXft01sm1RmfnaGn1nJqqajVexSDSkQADIrFM48Ajpwz3SHYeDNLU_VT1x57f77CVngb-HttwOgNKnXcFW-N8P9J54Qp3JAovcWThv0kLB3ihcaF-RqZBw0Q3VWOs-auoIYfBoA1bD6aTTYLDTuUmnNDfzx8zYtzMMtOJ5xH-HdcDZZP_CP"
-                    />
-                  </div>
-                  <h3 className="font-semibold text-xs text-[#1C1A18]">Trang phục sự kiện</h3>
-                  <span className="text-[11px] text-[#78736A] mt-0.5">520+ món</span>
-                </Link>
-
-                <Link
-                  className="group bg-white rounded-lg border border-[#E7E2DA] overflow-hidden p-3 hover:border-[#1C1A18] transition-colors flex flex-col"
-                  to="/categories/camping"
-                >
-                  <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
-                    <img
-                      alt="Đồ cắm trại dã ngoại"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhq9rUsLqHk-irxUNYTF7Ah5jMO5aswyjF74RmXy152o2w6pq0G09f6eQQm83ME_wiWm9QfPiW3XSQZ2SGcw5rtFGRE7pRZr0EneD6Oq6f6YdF-qoRo6xQ95pDgKiR94K6Gbqixn8gCeOoh-fFeUQx1m3fRMqNw24y3dwciaowAjuKCNuxghnhIebAhAfdjnb03CIH0pmvvn2p3nhuVe_vrQDSbLxTKOs8gwQ3Ejz5"
-                    />
-                  </div>
-                  <h3 className="font-semibold text-xs text-[#1C1A18]">Đồ cắm trại</h3>
-                  <span className="text-[11px] text-[#78736A] mt-0.5">180+ món</span>
+                  <h3 className="font-semibold text-xs text-[#1C1A18]">Camera</h3>
+                  <span className="text-[11px] text-[#78736A] mt-0.5">86+ thiết bị</span>
                 </Link>
 
                 <Link
@@ -186,43 +156,58 @@ export const Home: React.FC = () => {
                 >
                   <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
                     <img
-                      alt="Giày da và phụ kiện"
+                      alt="Giày dép"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8dpFCRWWk7LW0bghdob3zWt4GE3Ev4OGoRAQ0ky5bTpFrisi3ix5NruyeQNZ8vyMKorWth4o2-Xc2la-xxnfRwyefE-vT1Z8Hi6boFFrZ70Wr8Zl4eX8FLs9ePWkX5_eyFgDH_xEUczYoKP6O1sSnV0xnMvK2qMvART-GOc8F4QEKY3ADOtyfCQcsE-dVfdmWfeCHbeJw5Kwoa9p139bi_49OYvuHf3i_c_S5tG37"
                     />
                   </div>
-                  <h3 className="font-semibold text-xs text-[#1C1A18]">Giày dép &amp; Da</h3>
-                  <span className="text-[11px] text-[#78736A] mt-0.5">290+ món</span>
+                  <h3 className="font-semibold text-xs text-[#1C1A18]">Giày dép</h3>
+                  <span className="text-[11px] text-[#78736A] mt-0.5">70+ đôi</span>
                 </Link>
 
                 <Link
                   className="group bg-white rounded-lg border border-[#E7E2DA] overflow-hidden p-3 hover:border-[#1C1A18] transition-colors flex flex-col"
-                  to="/categories/electronics"
+                  to="/categories/dam-du-tiec"
                 >
                   <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
                     <img
-                      alt="Thiết bị âm thanh công nghệ"
+                      alt="Đầm dự tiệc"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBBqlhkGeDjGJUOQ0ldgP0rEsQeZe3EE1vajkxcTRjeNcvtkD7Y4SeJ8oBygpMprjtwW-H8ZQJDpW1F22gc87bQVTprziREZPCirHHUKtAiHrly303knMOlwOVNZp4HhZfOHZuP1_Xy2WGouVPSncWxUBelmSLcybbwC6QBGLEdU8TJqY7KG7Q2OJwzcDLTsXjADPl78uElpHxOPYrnc0zE2rOCKJcf5RYwySE92p6O"
+                      src="https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&auto=format&fit=crop&q=60"
                     />
                   </div>
-                  <h3 className="font-semibold text-xs text-[#1C1A18]">Thiết bị âm thanh</h3>
+                  <h3 className="font-semibold text-xs text-[#1C1A18]">Đầm dự tiệc</h3>
+                  <span className="text-[11px] text-[#78736A] mt-0.5">50+ mẫu</span>
+                </Link>
+
+                <Link
+                  className="group bg-white rounded-lg border border-[#E7E2DA] overflow-hidden p-3 hover:border-[#1C1A18] transition-colors flex flex-col"
+                  to="/categories/clothing"
+                >
+                  <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
+                    <img
+                      alt="Quần áo"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuAc_NEOAcWg2z30w_eikWvaCcPRd2XLRbEb12GdUQiunNKM61HtPjRjvKXft01sm1RmfnaGn1nJqqajVexSDSkQADIrFM48Ajpwz3SHYeDNLU_VT1x57f77CVngb-HttwOgNKnXcFW-N8P9J54Qp3JAovcWThv0kLB3ihcaF-RqZBw0Q3VWOs-auoIYfBoA1bD6aTTYLDTuUmnNDfzx8zYtzMMtOJ5xH-HdcDZZP_CP"
+                    />
+                  </div>
+                  <h3 className="font-semibold text-xs text-[#1C1A18]">Quần áo</h3>
                   <span className="text-[11px] text-[#78736A] mt-0.5">140+ món</span>
                 </Link>
 
                 <Link
                   className="group bg-white rounded-lg border border-[#E7E2DA] overflow-hidden p-3 hover:border-[#1C1A18] transition-colors flex flex-col"
-                  to="/categories/lifestyle"
+                  to="/categories/phu-kien"
                 >
                   <div className="aspect-square rounded overflow-hidden bg-[#F4F0EA] mb-2.5">
                     <img
-                      alt="Đồ trang trí studio và phong cách sống"
+                      alt="Phụ kiện"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlMw4-MXTkbk0Uzfk8FM52ydS0JUdMq5ZndgqnjawE5U_hftTjPEV4fdCcHVV_e95LKmKF0-44E6lCchEfZIjfQbk23Scvhn0OPIe1xXb3MvQg9Y02OBxarNift8ZhggaxEJV8K3EbxQRqvqRmIPfsdocezACw4AXfOEqq5sLhVS88STJ9nVu7N4ENCRzwJ303898jE7oNenHk3Mod9uU5-cL1q91bXFXJSNokZ2xC"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBBqlhkGeDjGJUOQ0ldgP0rEsQeZe3EE1vajkxcTRjeNcvtkD7Y4SeJ8oBygpMprjtwW-H8ZQJDpW1F22gc87bQVTprziREZPCirHHUKtAiHrly303knMOlwOVNZp4HhZfOHZuP1_Xy2WGouVPSncWxUBelmSLcybbwC6QBGLEdU8TJqY7KG7Q2OJwzcDLTsXjADPl78uElpHxOPYrnc0zE2rOCKJcf5RYwySE92p6O"
                     />
                   </div>
-                  <h3 className="font-semibold text-xs text-[#1C1A18]">Đồ trang trí &amp; Setup</h3>
-                  <span className="text-[11px] text-[#78736A] mt-0.5">210+ món</span>
+                  <h3 className="font-semibold text-xs text-[#1C1A18]">Phụ kiện</h3>
+                  <span className="text-[11px] text-[#78736A] mt-0.5">64+ món</span>
                 </Link>
               </div>
             </section>

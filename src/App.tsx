@@ -21,6 +21,8 @@ import RentProductDetail from "./pages/rent/detail/RentProductDetail";
 import RentOrderDetail from "./pages/rent/orders/RentOrderDetail";
 import MyRentOrders from "./pages/rent/orders/MyRentOrders";
 import RentCheckout from "./pages/rent/checkout/RentCheckout";
+import ReturnRequest from "./pages/rent/return/ReturnRequest";
+import UserWallet from "./pages/wallet/UserWallet";
 
 import ThriftMarketplace from "./pages/thrift/marketplace/ThriftMarketplace";
 import ThriftDetail from "./pages/thrift/detail/ThriftDetail";
@@ -151,6 +153,14 @@ const App = () => {
           <Route
             path="/rent/orders/:id"
             element={<RentOrderDetail />}
+          />
+          <Route
+            path="/rent/orders/:id/return"
+            element={<ReturnRequest />}
+          />
+          <Route
+            path="/rent/return-inspection/:id"
+            element={<ReturnRequest />}
           />
 
           <Route
@@ -325,6 +335,16 @@ const App = () => {
             <Route
               path="/my-orders"
               element={<Navigate to="/rent/orders" replace />}
+            />
+
+            <Route
+              path="/wallet"
+              element={<UserWallet />}
+            />
+
+            <Route
+              path="/user/wallet"
+              element={<UserWallet />}
             />
           </Route>
         </Route>
