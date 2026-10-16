@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
+import { UserSidebar } from '../../../components/layout/UserSidebar';
 import {
     THRIFT_PRODUCTS,
     THRIFT_CATEGORY_OPTIONS,
@@ -33,6 +34,26 @@ export const ThriftMarketplace: React.FC = () => {
     // Pagination (mock pagination: 8 items per page)
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8;
+
+    // Track sidebar collapsed state to display inline restore chip when collapsed
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+        try {
+            return localStorage.getItem('reuse_user_sidebar_collapsed') === 'true';
+        } catch {
+            return false;
+        }
+    });
+
+    useEffect(() => {
+        const handleSync = (e: Event) => {
+            const customEvent = e as CustomEvent<boolean>;
+            if (typeof customEvent.detail === 'boolean') {
+                setIsSidebarCollapsed(customEvent.detail);
+            }
+        };
+        window.addEventListener('reuse_user_sidebar_toggle', handleSync);
+        return () => window.removeEventListener('reuse_user_sidebar_toggle', handleSync);
+    }, []);
 
     // Auth requirement modal state
     const [authModal, setAuthModal] = useState<{
@@ -241,8 +262,29 @@ export const ThriftMarketplace: React.FC = () => {
                 </div>
             )}
 
-            {/* Main Container */}
-            <div className="max-w-7xl mx-auto px-6 lg:px-12 py-0">
+            {/* ── MAIN WORKSPACE CONTAINER WITH PERSISTENT SIDEBAR ── */}
+            <div className="max-w-[1520px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 flex gap-8">
+                {/* User Navigation Sidebar (Fixed on left) */}
+                <UserSidebar activeKey="thrift" />
+
+                {/* ── MAIN CONTENT AREA ── */}
+                <main className="flex-1 min-w-0 space-y-8">
+                    {/* Quick inline restore chip if user clicked 3-bar button to hide sidebar */}
+                    {isSidebarCollapsed && (
+                        <div className="flex items-center gap-2 -mb-4 animate-fade-in">
+                            <button
+                                type="button"
+                                onClick={() => window.dispatchEvent(new CustomEvent('reuse_user_sidebar_toggle', { detail: false }))}
+                                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-[#E8E4DC] text-xs font-semibold text-[#1C1A18] hover:bg-[#F6F3EE] hover:border-[#1C1A18]/40 transition-all shadow-2xs cursor-pointer group"
+                                title="Mở lại menu điều hướng (Dấu 3 gạch)"
+                            >
+                                <span className="material-symbols-outlined text-[18px] text-[#5E6D5B] group-hover:scale-110 transition-transform">
+                                    menu
+                                </span>
+                                <span>Hiện menu điều hướng</span>
+                            </button>
+                        </div>
+                    )}
                 {/* BEGIN: HeroArchiveHeader */}
                 <section className="pt-10 pb-8 mb-0 reveal-on-scroll" data-reveal>
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-[#E6E2DC]">
@@ -645,7 +687,7 @@ export const ThriftMarketplace: React.FC = () => {
                 {/* END: PaginationBar */}
 
                 {/* BEGIN: CircularGuaranteeSection */}
-                <section className="w-full bg-[#F4F0EA]/40 py-14 mb-8 -mx-6 lg:-mx-12 px-6 lg:px-12 reveal-on-scroll" data-reveal>
+                <section className="w-full bg-[#F4F0EA]/60 rounded-3xl p-6 sm:p-8 mb-8 border border-[#E6E2DC] reveal-on-scroll" data-reveal>
                     <div className="max-w-2xl mb-8">
                         <span className="text-[10px] font-mono tracking-widest text-[#79716B] uppercase block mb-1">
                             QUY TRÌNH THẨM ĐỊNH THRIFT CHẶT CHẼ
@@ -680,6 +722,7 @@ export const ThriftMarketplace: React.FC = () => {
                     </div>
                 </section>
                 {/* END: CircularGuaranteeSection */}
+                </main>
             </div>
         </div>
     );

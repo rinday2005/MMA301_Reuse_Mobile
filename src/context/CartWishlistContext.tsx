@@ -6,6 +6,7 @@ import {
   removeCartItemApi,
 } from '../services/cart.api';
 import { AuthContext } from './auth-context';
+import { resolveWishlistProduct } from '../services/wishlistProductResolver';
 
 export interface CartItem {
   id: string;
@@ -63,6 +64,12 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
   children,
   currentUserId,
 }) => {
+  try {
+    localStorage.removeItem('user_wishlist');
+    localStorage.removeItem('reuse_hub_wishlist');
+  } catch {
+    // ignore
+  }
   const WISHLIST_KEY = `reuse_hub_wishlist_${currentUserId}`;
   const CART_KEY = `reuse_hub_cart_${currentUserId}`;
   // ── Wishlist State ──
@@ -304,7 +311,10 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
     setCart([]);
   };
 
-  const wishlistCount = wishlist.length;
+  const validWishlist = useMemo(() => {
+    return wishlist.filter((id) => resolveWishlistProduct(id) !== null);
+  }, [wishlist]);
+  const wishlistCount = validWishlist.length;
   const cartCount = useMemo(() => {
     return cart.reduce((total, item) => total + (item.quantity || 1), 0);
   }, [cart]);

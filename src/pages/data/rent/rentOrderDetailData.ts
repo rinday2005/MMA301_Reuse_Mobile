@@ -737,6 +737,88 @@ export function recordBookedDates(productId: string, startDate: string, endDate:
   }
 }
 
+// Helper kiểm tra một ngày cụ thể có bị trùng lịch đã đặt hay không
+export function isDateBooked(dateStr: string, bookedRanges: BookedDateRange[] = []): boolean {
+  if (!dateStr || !Array.isArray(bookedRanges) || bookedRanges.length === 0) return false;
+  return bookedRanges.some((range) => {
+    if (!range.startDate || !range.endDate) return false;
+    return dateStr >= range.startDate && dateStr <= range.endDate;
+  });
+}
+
+// Helper kiểm tra khoảng ngày [startDate, endDate] có bị trùng bất kỳ ngày nào đã đặt hay không
+export function hasDateRangeConflict(
+  startDate: string,
+  endDate: string,
+  bookedRanges: BookedDateRange[] = []
+): boolean {
+  if (!startDate || !endDate || !Array.isArray(bookedRanges) || bookedRanges.length === 0) return false;
+  const start = startDate <= endDate ? startDate : endDate;
+  const end = startDate <= endDate ? endDate : startDate;
+
+  return bookedRanges.some((range) => {
+    if (!range.startDate || !range.endDate) return false;
+    // Overlap condition: start <= range.endDate && end >= range.startDate
+    return !(end < range.startDate || start > range.endDate);
+  });
+}
+
+// Helper tìm khoảng ngày trống hợp lệ đầu tiên (không trùng quá khứ và không trùng bất kỳ lịch đã đặt nào)
+export function findEarliestAvailableRentalRange(
+  bookedRanges: BookedDateRange[] = [],
+  durationDays: number = 3,
+  minStartDate?: string
+): { startDate: string; endDate: string; days: number } {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const formatYMD = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  let candidateDate = new Date(tomorrow);
+  if (minStartDate) {
+    const [y, m, d] = minStartDate.split('-').map(Number);
+    if (y && m && d) {
+      const minD = new Date(y, m - 1, d);
+      if (minD > candidateDate) {
+        candidateDate = minD;
+      }
+    }
+  }
+
+  const daysToRent = Math.max(1, durationDays);
+
+  // Duyệt tối đa 120 ngày để tìm khoảng ngày trống liên tục
+  for (let i = 0; i < 120; i++) {
+    const curStartStr = formatYMD(candidateDate);
+    const candidateEndDate = new Date(candidateDate);
+    candidateEndDate.setDate(candidateEndDate.getDate() + daysToRent);
+    const curEndStr = formatYMD(candidateEndDate);
+
+    if (!hasDateRangeConflict(curStartStr, curEndStr, bookedRanges)) {
+      return {
+        startDate: curStartStr,
+        endDate: curEndStr,
+        days: daysToRent,
+      };
+    }
+
+    // Tịnh tiến sang ngày tiếp theo
+    candidateDate.setDate(candidateDate.getDate() + 1);
+  }
+
+  // Fallback an toàn nếu không tìm thấy
+  const defaultStart = formatYMD(tomorrow);
+  const defaultEndDate = new Date(tomorrow);
+  defaultEndDate.setDate(defaultEndDate.getDate() + daysToRent);
+  return {
+    startDate: defaultStart,
+    endDate: formatYMD(defaultEndDate),
+    days: daysToRent,
+  };
+}
+
 // Helper tạo chi tiết chuẩn cho bất kỳ sản phẩm nào từ dữ liệu tóm tắt
 export function createRentProductDetail(source: Partial<RentProductDetailData> & { id: string; title: string }): RentProductDetailData {
   const price = source.pricePerDay || 450000;

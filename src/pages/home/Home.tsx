@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 export const Home: React.FC = () => {
   const { user } = useAuth();
-  const wishlistTarget = user ? '/saved-items' : '/login';
+  const wishlistTarget = user ? '/wishlist' : '/login';
 
   return (
     <div className="w-full min-h-screen bg-[#FBF9F5] text-[#1C1A18] antialiased selection:bg-[#1C1A18] selection:text-[#FBF9F5] home-container">
