@@ -69,7 +69,7 @@ export const ThriftDetail: React.FC = () => {
   };
 
   const handleWishlist = () => {
-    toggleWishlist(product.id);
+    toggleWishlist(product.id, 'THRIFT');
   };
 
   const handleChat = () =>

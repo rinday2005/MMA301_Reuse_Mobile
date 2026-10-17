@@ -32,6 +32,7 @@ interface StoredOrder {
   useEffect(() => {
     try {
       const cleanTarget = orderCode.replace('#', '').trim().toLowerCase();
+      const isThrift = cleanTarget.includes('trf');
 
       let uId = '';
       try {
@@ -45,36 +46,74 @@ interface StoredOrder {
       }
 
       if (uId) {
-        const rentKey = `user_rental_orders_${uId}`;
-        const raw = localStorage.getItem(rentKey);
-        if (raw) {
-          const orders: StoredOrder[] = JSON.parse(raw);
-          if (Array.isArray(orders)) {
-            let updated = false;
-            const newOrders = orders.map((o: StoredOrder, idx: number) => {
-              const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
-              const isMatch =
-                oCode === cleanTarget ||
-                oCode.includes(cleanTarget) ||
-                cleanTarget.includes(oCode) ||
-                (idx === 0 && o.status === 'PENDING_PAYMENT');
+        if (isThrift) {
+          // Cập nhật đơn hàng THRIFT
+          const thriftKey = `user_thrift_orders_${uId}`;
+          const rawThrift = localStorage.getItem(thriftKey);
+          if (rawThrift) {
+            const thriftOrders: StoredOrder[] = JSON.parse(rawThrift);
+            if (Array.isArray(thriftOrders)) {
+              let updated = false;
+              const newThriftOrders = thriftOrders.map((o: StoredOrder, idx: number) => {
+                const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
+                const isMatch =
+                  oCode === cleanTarget ||
+                  oCode.includes(cleanTarget) ||
+                  cleanTarget.includes(oCode) ||
+                  (idx === 0 && o.status === 'PENDING_PAYMENT');
 
-              if (isMatch) {
-                updated = true;
-                // Bỏ qua shop owner & shipper trong môi trường test -> Chuyển thẳng Bước 5: DELIVERED (Chờ ký nhận CLA)
-                return {
-                  ...o,
-                  status: 'DELIVERED',
-                  paymentStatus: 'PAID',
-                  transactionNo,
-                  bankCode,
-                  deliveredAt: new Date().toISOString(),
-                };
+                if (isMatch) {
+                  updated = true;
+                  return {
+                    ...o,
+                    status: 'PAID',
+                    paymentStatus: 'PAID',
+                    escrowStatus: 'HELD_72H',
+                    transactionNo,
+                    bankCode,
+                    paidAt: new Date().toISOString(),
+                  };
+                }
+                return o;
+              });
+              if (updated) {
+                localStorage.setItem(thriftKey, JSON.stringify(newThriftOrders));
               }
-              return o;
-            });
-            if (updated) {
-              localStorage.setItem(rentKey, JSON.stringify(newOrders));
+            }
+          }
+        } else {
+          // Cập nhật đơn hàng RENT
+          const rentKey = `user_rental_orders_${uId}`;
+          const raw = localStorage.getItem(rentKey);
+          if (raw) {
+            const orders: StoredOrder[] = JSON.parse(raw);
+            if (Array.isArray(orders)) {
+              let updated = false;
+              const newOrders = orders.map((o: StoredOrder, idx: number) => {
+                const oCode = (o.orderCode || '').replace('#', '').trim().toLowerCase();
+                const isMatch =
+                  oCode === cleanTarget ||
+                  oCode.includes(cleanTarget) ||
+                  cleanTarget.includes(oCode) ||
+                  (idx === 0 && o.status === 'PENDING_PAYMENT');
+
+                if (isMatch) {
+                  updated = true;
+                  // Bỏ qua shop owner & shipper trong môi trường test -> Chuyển thẳng Bước 5: DELIVERED (Chờ ký nhận CLA)
+                  return {
+                    ...o,
+                    status: 'DELIVERED',
+                    paymentStatus: 'PAID',
+                    transactionNo,
+                    bankCode,
+                    deliveredAt: new Date().toISOString(),
+                  };
+                }
+                return o;
+              });
+              if (updated) {
+                localStorage.setItem(rentKey, JSON.stringify(newOrders));
+              }
             }
           }
         }
@@ -99,13 +138,17 @@ interface StoredOrder {
 
           <div className="space-y-2">
             <span className="inline-block text-[10px] uppercase tracking-widest font-extrabold text-[#2D5A43] bg-[#E8EFE9] px-3 py-1 rounded-full">
-              GIAO DỊCH VNPAY THÀNH CÔNG · SMART ESCROW KÍCH HOẠT
+              {orderCode.toUpperCase().includes('TRF')
+                ? 'GIAO DỊCH THRIFT THÀNH CÔNG · SMART ESCROW 72H KÍCH HOẠT'
+                : 'GIAO DỊCH VNPAY THÀNH CÔNG · SMART ESCROW KÍCH HOẠT'}
             </span>
             <h1 className="font-serif text-3xl font-bold text-[#1E1E1E]">
               Thanh toán thành công!
             </h1>
             <p className="text-xs text-stone-600 max-w-md mx-auto leading-relaxed">
-              Hệ thống ReUse Hub đã xác nhận khoản thanh toán qua cổng VNPay Sandbox. Tiền cọc được bảo chứng an toàn và đơn hàng đang được chuẩn bị.
+              {orderCode.toUpperCase().includes('TRF')
+                ? 'Hệ thống ReUse Hub đã xác nhận thanh toán mua hiện vật THRIFT qua cổng VNPay Sandbox. Tiền đã được ký quỹ bảo chứng an toàn 72H trước khi giải ngân.'
+                : 'Hệ thống ReUse Hub đã xác nhận khoản thanh toán qua cổng VNPay Sandbox. Tiền cọc được bảo chứng an toàn và đơn hàng đang được chuẩn bị.'}
             </p>
           </div>
 
@@ -143,10 +186,10 @@ interface StoredOrder {
               Về User Dashboard
             </button>
             <Link
-              to="/rent/orders"
+              to={orderCode.toUpperCase().includes('TRF') ? '/thrift/orders' : '/rent/orders'}
               className="flex-1 py-3.5 px-4 rounded-xl bg-[#F5F2EB] text-[#1E1E1E] hover:bg-[#EAE5DB] text-xs font-bold uppercase tracking-wider transition-all text-center border border-[#E5E0D8]"
             >
-              Xem Hồ sơ &amp; Đơn hàng
+              {orderCode.toUpperCase().includes('TRF') ? 'Xem Đơn Mua & Ký Quỹ Escrow' : 'Xem Hồ sơ & Đơn hàng'}
             </Link>
           </div>
         </div>
