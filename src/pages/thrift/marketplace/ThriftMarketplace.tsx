@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
+import { getPublicThriftListingsApi } from '../../../services/thrift.api';
 import { UserSidebar } from '../../../components/layout/UserSidebar';
 import {
     THRIFT_PRODUCTS,
@@ -31,6 +32,45 @@ export const ThriftMarketplace: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { isWishlisted, toggleWishlist, addToCart } = useCartWishlist();
+    const [dbProducts, setDbProducts] = useState<ThriftProduct[]>([]);
+
+    useEffect(() => {
+        let isMounted = true;
+        getPublicThriftListingsApi()
+            .then((items) => {
+                if (!isMounted) return;
+                if (Array.isArray(items) && items.length > 0) {
+                    const mapped: ThriftProduct[] = items.map((item) => {
+                        const catSlug = typeof item.categoryId === 'object' && item.categoryId?.slug ? item.categoryId.slug : 'lifestyle';
+                        const catName = typeof item.categoryId === 'object' && item.categoryId?.name ? item.categoryId.name : 'Đồ phong cách sống';
+                        const img = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : '';
+                        return {
+                            id: item._id,
+                            slug: item.slug || item._id,
+                            title: item.name,
+                            category: (catSlug === 'camera' || catSlug === 'fashion' || catSlug === 'electronics' ? catSlug : 'lifestyle') as ThriftProduct['category'],
+                            categoryLabel: catName,
+                            location: item.location || 'TP. Hồ Chí Minh',
+                            rating: 5.0,
+                            reviewCount: 1,
+                            condition: item.condition || 'Rất tốt (95%)',
+                            conditionLevel: '95',
+                            source: 'used',
+                            sourceLabel: 'Đồ cũ',
+                            price: Number(item.price) || 0,
+                            href: `/thrift/products/${item._id}`,
+                            image: img,
+                            verifiedBy: 'ReUse Hub Kiểm định',
+                        };
+                    });
+                    setDbProducts(mapped);
+                }
+            })
+            .catch((err) => {
+                console.warn('Could not load thrift products from API:', err);
+            });
+        return () => { isMounted = false; };
+    }, []);
     const [searchParams] = useSearchParams();
     const urlCat = searchParams.get('category')?.toLowerCase();
 
@@ -129,12 +169,13 @@ export const ThriftMarketplace: React.FC = () => {
     };
 
     const handleToggleWishlist = (product: ThriftProduct) => {
-        toggleWishlist(product.id);
+        toggleWishlist(product.id, 'THRIFT');
     };
 
     // Filter & sort logic
     const filteredProducts = useMemo(() => {
-        const list = THRIFT_PRODUCTS.filter((item) => {
+        const sourceProducts = dbProducts.length > 0 ? dbProducts : THRIFT_PRODUCTS;
+        const list = sourceProducts.filter((item) => {
             // Search text
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
@@ -200,6 +241,7 @@ export const ThriftMarketplace: React.FC = () => {
 
         return list;
     }, [
+        dbProducts,
         searchQuery,
         selectedCategory,
         selectedPrice,

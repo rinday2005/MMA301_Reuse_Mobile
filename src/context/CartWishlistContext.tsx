@@ -7,6 +7,13 @@ import {
 } from '../services/cart.api';
 import { AuthContext } from './auth-context';
 import { resolveWishlistProduct } from '../services/wishlistProductResolver';
+import {
+  getWishlistApi,
+  toggleWishlistApi,
+  addToWishlistApi,
+  removeFromWishlistApi,
+  clearWishlistApi,
+} from '../services/wishlist.api';
 
 export interface CartItem {
   id: string;
@@ -32,8 +39,8 @@ interface CartWishlistContextType {
   wishlist: string[];
   wishlistCount: number;
   isWishlisted: (id: string) => boolean;
-  toggleWishlist: (id: string) => boolean;
-  addToWishlist: (id: string) => void;
+  toggleWishlist: (id: string, type?: "RENT" | "THRIFT") => boolean;
+  addToWishlist: (id: string, type?: "RENT" | "THRIFT") => void;
   removeFromWishlist: (id: string) => void;
   clearWishlist: () => void;
 
@@ -117,6 +124,24 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
     if (!token) return;
 
     let isMounted = true;
+    // Đồng bộ Wishlist từ MongoDB
+    getWishlistApi()
+      .then((serverWishlist) => {
+        if (!isMounted || !serverWishlist) return;
+        if (Array.isArray(serverWishlist.items)) {
+          const ids = serverWishlist.items
+            .map((item) => {
+              const p = item.productId;
+              return typeof p === 'object' && p?._id ? String(p._id) : String(p || '');
+            })
+            .filter(Boolean);
+          setWishlist(ids);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not sync wishlist from MongoDB:', err);
+      });
+
     getCartApi()
       .then((serverCart) => {
         if (!isMounted || !serverCart) return;
@@ -191,7 +216,7 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
     [wishlist]
   );
 
-  const toggleWishlist = (id: string): boolean => {
+  const toggleWishlist = (id: string, type?: "RENT" | "THRIFT"): boolean => {
     let nextState = false;
     setWishlist((prev) => {
       if (prev.includes(id)) {
@@ -202,19 +227,32 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
         return [...prev, id];
       }
     });
+    // Gọi API đồng bộ với MongoDB
+    toggleWishlistApi(id, type).catch((err) => {
+      console.warn('Could not toggle wishlist on backend:', err);
+    });
     return nextState;
   };
 
-  const addToWishlist = (id: string) => {
+  const addToWishlist = (id: string, type?: "RENT" | "THRIFT") => {
     setWishlist((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    addToWishlistApi(id, type).catch((err) => {
+      console.warn('Could not add to wishlist on backend:', err);
+    });
   };
 
   const removeFromWishlist = (id: string) => {
     setWishlist((prev) => prev.filter((item) => item !== id));
+    removeFromWishlistApi(id).catch((err) => {
+      console.warn('Could not remove from wishlist on backend:', err);
+    });
   };
 
   const clearWishlist = () => {
     setWishlist([]);
+    clearWishlistApi().catch((err) => {
+      console.warn('Could not clear wishlist on backend:', err);
+    });
   };
 
   // ── Cart Operations (Local State + MongoDB API Sync) ──

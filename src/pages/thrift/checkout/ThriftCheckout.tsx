@@ -7,6 +7,11 @@ import {
   THRIFT_SHIPPING_FEE,
 } from '../../data/thrift/thriftCheckoutData';
 import { redirectToVnPayGateway } from '../../../services/payment.api';
+import {
+  createThriftOrderApi,
+  updateThriftOrderStatusApi,
+  type ThriftOrderApi,
+} from '../../../services/thriftOrder.api';
 
 export const ThriftCheckout: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -170,50 +175,108 @@ export const ThriftCheckout: React.FC = () => {
   // Session Order Code
   const orderSessionCode = '#TRF-2026-9048';
 
-  // ── 6. DIRECT VNPAY SANDBOX REDIRECT ──
+  // ── 6. DIRECT VNPAY SANDBOX & MODAL SIMULATION ──
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVnPayModalOpen, setIsVnPayModalOpen] = useState(false);
+  const [isSimulatingSuccess, setIsSimulatingSuccess] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState<ThriftOrderApi | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const handleVNPayCheckout = async () => {
-    setIsSubmitting(true);
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // Helper to ensure order exists in DB
+  const getOrCreateOrder = async () => {
+    if (createdOrder) return createdOrder;
+
+    const payload = {
+      items: itemizedList.map((item) => ({
+        listingId: item.id,
+        quantity: item.qty,
+        productName: item.title,
+        price: item.price,
+        imageUrl: item.image,
+        condition: item.grade,
+        vaultOrigin: item.vaultOrigin,
+        warranty: item.warranty,
+      })),
+      shippingAddress: {
+        recipientName: consigneeName,
+        recipientPhone: phone,
+        detail: shippingAddress,
+        province: 'Đà Nẵng',
+        district: 'Hải Châu',
+        ward: 'Hải Châu 1',
+      },
+      paymentMethod: 'VNPAY',
+    };
+
+    const orderRes = await createThriftOrderApi(payload);
+    setCreatedOrder(orderRes);
 
     // Clear checked thrift items from cart
     thriftItems.forEach((ti) => {
       removeFromCart(ti.id);
     });
 
-    // Save Pending Order to localStorage
-    const newOrder = {
-      orderCode: orderSessionCode,
-      type: 'THRIFT',
-      createdAt: new Date().toISOString(),
-      consigneeName,
-      phone,
-      shippingAddress,
-      items: itemizedList,
-      itemsSubtotal,
-      shippingFee: THRIFT_SHIPPING_FEE,
-      grandTotal,
-      paymentMethod: 'VNPAY',
-      status: 'PENDING_PAYMENT',
-      provenanceVaultCertId: `PRV-CERT-${Math.floor(100000 + Math.random() * 900000)}`,
-    };
-
+    // Save to localStorage for instant client cache
     try {
-      const existing = JSON.parse(localStorage.getItem('user_thrift_orders') || '[]');
-      localStorage.setItem('user_thrift_orders', JSON.stringify([newOrder, ...existing]));
+      const uId = user?._id || user?.id;
+      const key = uId ? `user_thrift_orders_${uId}` : 'user_thrift_orders';
+      const existing = JSON.parse(localStorage.getItem(key) || '[]');
+      localStorage.setItem(key, JSON.stringify([orderRes, ...existing]));
     } catch {
       // ignore
     }
 
-    // Direct redirect to VNPay Sandbox via Backend API
+    return orderRes;
+  };
+
+  const handleVNPayCheckout = async () => {
+    setIsSubmitting(true);
+
     try {
-      const targetOrderId = id || (location.state as { orderId?: string })?.orderId || '';
+      let orderRes: ThriftOrderApi | null = createdOrder;
+      try {
+        orderRes = await getOrCreateOrder();
+      } catch (err) {
+        console.warn('Initial order creation warning, redirecting to VNPay Gateway directly:', err);
+      }
+
+      // Clear checked thrift items from cart
+      thriftItems.forEach((ti) => {
+        removeFromCart(ti.id);
+      });
+
+      const effectiveOrderCode = (orderRes?.orderCode || orderSessionCode).replace('#', '');
+      const effectiveAmount = orderRes?.totalAmount || grandTotal;
 
       await redirectToVnPayGateway({
-        orderId: targetOrderId,
-        orderCode: orderSessionCode.replace('#', ''),
-        amount: grandTotal,
+        orderId: orderRes?._id,
+        orderCode: effectiveOrderCode,
+        amount: effectiveAmount,
         type: 'THRIFT',
+        items: itemizedList.map((item) => ({
+          listingId: item.id,
+          productId: item.id,
+          productName: item.title,
+          price: item.price,
+          quantity: item.qty,
+          imageUrl: item.image,
+          condition: item.grade,
+          vaultOrigin: item.vaultOrigin,
+        })),
+        shippingAddress: {
+          recipientName: consigneeName,
+          recipientPhone: phone,
+          detail: shippingAddress,
+          province: 'Đà Nẵng',
+          district: 'Hải Châu',
+          ward: 'Hải Châu 1',
+        },
+        shippingFee: THRIFT_SHIPPING_FEE,
       });
     } catch (error: unknown) {
       console.error('Error redirecting to VNPay:', error);
@@ -224,6 +287,57 @@ export const ThriftCheckout: React.FC = () => {
         err.message ||
         'Có lỗi khi tạo liên kết thanh toán VNPay Sandbox. Vui lòng thử lại!';
       navigate(`/payment-failed?orderCode=${encodeURIComponent(orderSessionCode)}&message=${encodeURIComponent(errMsg)}`);
+    }
+  };
+
+  const handleOpenVnPayModal = async () => {
+    setIsSubmitting(true);
+    try {
+      await getOrCreateOrder();
+      setIsVnPayModalOpen(true);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      showToast(e.response?.data?.message || e.message || 'Không thể khởi tạo đơn hàng.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSimulatePaymentSuccess = async () => {
+    setIsSimulatingSuccess(true);
+    try {
+      const orderRes = await getOrCreateOrder();
+
+      // Update status to PAID in BE
+      await updateThriftOrderStatusApi(orderRes._id, { status: 'PAID' });
+
+      // Update in localStorage
+      try {
+        const uId = user?._id || user?.id;
+        const key = uId ? `user_thrift_orders_${uId}` : 'user_thrift_orders';
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const list: ThriftOrderApi[] = JSON.parse(raw);
+          const updated = list.map((o) =>
+            o._id === orderRes._id || o.orderCode === orderRes.orderCode
+              ? { ...o, status: 'PAID', paymentStatus: 'PAID' }
+              : o
+          );
+          localStorage.setItem(key, JSON.stringify(updated));
+        }
+      } catch {
+        // ignore
+      }
+
+      setIsVnPayModalOpen(false);
+      showToast('Giao dịch THRIFT thành công! Đã cấp chứng thư sở hữu Provenance Vault™.');
+      setTimeout(() => {
+        navigate(`/thrift/orders?orderCode=${encodeURIComponent(orderRes.orderCode)}`);
+      }, 1000);
+    } catch (err) {
+      console.error(err);
+      setIsSimulatingSuccess(false);
+      showToast('Có lỗi xảy ra khi xác thực Smart Escrow.');
     }
   };
 
@@ -695,6 +809,16 @@ export const ThriftCheckout: React.FC = () => {
                     )}
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={handleOpenVnPayModal}
+                    disabled={isSubmitting || thriftItems.length === 0}
+                    className="w-full bg-[#F7F3EC] text-[#141310] hover:bg-[#EBE8E1] border border-[#E6E2DB] text-xs uppercase tracking-wider py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">qr_code_scanner</span>
+                    <span>MỞ MÃ QUÉT VNPAY-QR SANDBOX</span>
+                  </button>
+
                   <Link
                     to="/cart"
                     className="w-full text-center py-2 text-xs text-[#7B766F] hover:text-[#141310] uppercase tracking-wider transition-colors inline-block font-semibold"
@@ -736,6 +860,98 @@ export const ThriftCheckout: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* ── TOAST NOTIFICATION ── */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 bg-[#141310] text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border border-[#31302C] animate-slide-in">
+          <span className="material-symbols-outlined text-[#8FBC8F] text-[20px]">verified</span>
+          <p className="text-xs font-semibold">{toastMessage}</p>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="text-stone-400 hover:text-white ml-2 text-sm"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ── MODAL GIẢ LẬP CỔNG VNPAY (THEO GIAO DIỆN MẪU) ── */}
+      {isVnPayModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-[#141310]/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setIsVnPayModalOpen(false)}
+        >
+          <div
+            className="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 relative flex flex-col gap-4 border border-[#E6E2DB]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[#F1EDE6]">
+              <div className="flex items-center gap-2">
+                <span className="font-serif font-bold text-base text-[#141310]">CỔNG THANH TOÁN VNPAY</span>
+                <span className="px-2 py-0.5 rounded bg-[#D8E3CE] text-[#5B6655] text-[10px] font-bold uppercase">
+                  SANDBOX SECURE
+                </span>
+              </div>
+              <button
+                type="button"
+                className="text-stone-400 hover:text-[#141310] cursor-pointer"
+                onClick={() => setIsVnPayModalOpen(false)}
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <div className="bg-[#F7F3EC] rounded-xl p-4 text-center border border-[#E6E2DB]/70">
+              <p className="text-xs text-[#7B766F]">
+                Đơn hàng THRIFT {createdOrder?.orderCode || orderSessionCode}
+              </p>
+              <p className="font-serif text-2xl font-bold text-[#141310] mt-1">
+                {formatCurrency(createdOrder?.totalAmount || grandTotal)}
+              </p>
+              <p className="text-[11px] text-[#576151] mt-1 font-semibold">
+                Bảo lãnh chuyển nhượng vĩnh viễn {itemizedList.length} hiện vật tuyển chọn
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center justify-center py-4 bg-[#FBF9F5] rounded-xl border border-[#E6E2DB]">
+              <div className="w-44 h-44 bg-white p-2 rounded-xl shadow-xs flex items-center justify-center border border-[#E6E2DB]">
+                <svg className="w-full h-full text-[#141310]" fill="currentColor" viewBox="0 0 100 100">
+                  <path d="M10 10h30v30h-30z M15 15v20h20v-20z M60 10h30v30h-30z M65 15v20h20v-20z M10 60h30v30h-30z M15 65v20h20v-20z M20 20h10v10h-10z M70 20h10v10h-10z M20 70h10v10h-10z M45 15h10v10h-10z M45 35h10v10h-10z M45 60h10v10h-10z M60 50h15v10h-15z M75 65h15v15h-15z M60 80h10v10h-10z"></path>
+                </svg>
+              </div>
+              <p className="text-[11px] text-[#7B766F] mt-3 uppercase tracking-wider font-semibold">
+                Quét mã bằng ứng dụng Ngân hàng hoặc Ví VNPay
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                type="button"
+                disabled={isSimulatingSuccess}
+                onClick={handleSimulatePaymentSuccess}
+                className="w-full bg-[#576151] text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-[#434b3e] transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-sm disabled:opacity-60"
+              >
+                {isSimulatingSuccess ? (
+                  <>
+                    <span className="material-symbols-outlined text-[18px] animate-spin">sync</span>
+                    <span>ĐANG XÁC THỰC SMART ESCROW...</span>
+                  </>
+                ) : (
+                  <span>Xác nhận Đã Chuyển Khoản Thành Công</span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsVnPayModalOpen(false)}
+                className="w-full bg-[#F7F3EC] py-2.5 rounded-xl text-xs font-bold text-[#7B766F] hover:text-[#141310] uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Huỷ giao dịch
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── MODAL: CẬP NHẬT ĐỊA CHỈ GIAO NHẬN ── */}
       {isEditingAddress && (
