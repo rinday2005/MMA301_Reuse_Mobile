@@ -117,10 +117,17 @@ const ProductCard: React.FC<{
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-[11px] text-[#78736A]">
             <span className="uppercase tracking-wider font-semibold">{categoryLabel}</span>
-            <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[13px]">location_on</span>
-              {location}
-            </span>
+            <div className="flex items-center gap-2">
+              {product.size && product.category !== 'camera' && !/canon|sony|nikon|fujifilm|dji/i.test(product.name || '') && (
+                <span className="text-[10px] font-bold text-white bg-[#1C1A18] px-1.5 py-0.5 rounded shadow-2xs">
+                  Size {product.size}
+                </span>
+              )}
+              <span className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-[13px]">location_on</span>
+                {location}
+              </span>
+            </div>
           </div>
           <h2 className="font-serif text-base font-bold text-[#1C1A18] group-hover:text-amber-800 transition-colors line-clamp-1">
             <Link
@@ -235,6 +242,8 @@ const RentMarketplace: React.FC = () => {
               available: (item.totalQuantity || 1) > 0,
               href: `/rent/products/${item._id}`,
               image: img,
+              size: item.size || 'L',
+              sizes: Array.isArray(item.sizes) && item.sizes.length > 0 ? item.sizes : ['S', 'M', 'L', 'XL'],
             };
           });
           setDbProducts(mapped);
@@ -263,6 +272,7 @@ const RentMarketplace: React.FC = () => {
   const [priceRange, setPriceRange] = useState('all');
   const [condition, setCondition] = useState('all');
   const [location, setLocation] = useState('all');
+  const [selectedSize, setSelectedSize] = useState('all');
   const [sort, setSort] = useState<SortKey>('recommended');
 
   // Track sidebar collapsed state to display inline restore chip when collapsed
@@ -351,19 +361,34 @@ const RentMarketplace: React.FC = () => {
       if (priceRange === 'under200') matchPrice = p.price < 200000;
       else if (priceRange === '200to500') matchPrice = p.price >= 200000 && p.price <= 500000;
       else if (priceRange === 'above500') matchPrice = p.price > 500000;
-      return matchQuery && matchCat && matchCond && matchLoc && matchPrice;
+
+      let matchSize = true;
+      if (selectedSize !== 'all') {
+        const pRecord = p as unknown as { size?: string; sizes?: string[] };
+        const pSize = pRecord.size;
+        const pSizes = pRecord.sizes;
+        if (pSize && pSize.toUpperCase() === selectedSize.toUpperCase()) {
+          matchSize = true;
+        } else if (Array.isArray(pSizes) && pSizes.map((s: string) => s.toUpperCase()).includes(selectedSize.toUpperCase())) {
+          matchSize = true;
+        } else {
+          matchSize = false;
+        }
+      }
+
+      return matchQuery && matchCat && matchCond && matchLoc && matchPrice && matchSize;
     });
     if (sort === 'price-asc') list = [...list].sort((a, b) => a.price - b.price);
     else if (sort === 'price-desc') list = [...list].sort((a, b) => b.price - a.price);
     else if (sort === 'rating') list = [...list].sort((a, b) => b.rating - a.rating);
     return list;
-  }, [dbProducts, query, category, priceRange, condition, location, sort]);
+  }, [dbProducts, query, category, priceRange, condition, location, selectedSize, sort]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
   // Auto reset to page 1 whenever any filter changes
-  const filterKey = `${query}|${category}|${priceRange}|${condition}|${location}|${sort}`;
+  const filterKey = `${query}|${category}|${priceRange}|${condition}|${location}|${selectedSize}|${sort}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (prevFilterKey !== filterKey) {
     setPrevFilterKey(filterKey);
@@ -404,6 +429,7 @@ const RentMarketplace: React.FC = () => {
     setPriceRange('all');
     setCondition('all');
     setLocation('all');
+    setSelectedSize('all');
     setSort('recommended');
   };
 
@@ -566,7 +592,7 @@ const RentMarketplace: React.FC = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 pt-1 text-xs">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Danh mục</label>
               <div className="relative">
@@ -616,6 +642,21 @@ const RentMarketplace: React.FC = () => {
                   <option value="Đà Nẵng">Đà Nẵng</option>
                   <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
                   <option value="Hà Nội">Hà Nội</option>
+                </select>
+                <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Kích cỡ (Size)</label>
+              <div className="relative">
+                <select value={selectedSize} onChange={(e) => setSelectedSize(e.target.value)} className={sel}>
+                  <option value="all">Tất cả size</option>
+                  <option value="S">Size S</option>
+                  <option value="M">Size M</option>
+                  <option value="L">Size L</option>
+                  <option value="XL">Size XL</option>
+                  <option value="FREE_SIZE">Free Size</option>
                 </select>
                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
               </div>
