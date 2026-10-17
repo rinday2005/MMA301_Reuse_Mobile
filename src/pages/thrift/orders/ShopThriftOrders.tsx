@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import type {
   ThriftOrder,
   ThriftOrderStatus,
@@ -11,7 +11,6 @@ import {
 } from '../../data/shop/thriftOrdersData';
 
 export const ShopThriftOrders: React.FC = () => {
-  const location = useLocation();
 
   // State danh sách đơn hàng THRIFT (đọc và lưu bền vững vào localStorage)
   const [orders, setOrders] = useState<ThriftOrder[]>(() => {
