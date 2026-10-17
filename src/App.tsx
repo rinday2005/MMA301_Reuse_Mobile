@@ -21,6 +21,8 @@ import RentProductDetail from "./pages/rent/detail/RentProductDetail";
 import RentOrderDetail from "./pages/rent/orders/RentOrderDetail";
 import MyRentOrders from "./pages/rent/orders/MyRentOrders";
 import RentCheckout from "./pages/rent/checkout/RentCheckout";
+import ReturnRequest from "./pages/rent/return/ReturnRequest";
+import UserWallet from "./pages/wallet/UserWallet";
 
 import ThriftMarketplace from "./pages/thrift/marketplace/ThriftMarketplace";
 import ThriftDetail from "./pages/thrift/detail/ThriftDetail";
@@ -32,6 +34,8 @@ import CategoryDetail from "./pages/categories/detail/CategoryDetail";
 import UserDashboard from "./pages/home/User/UserDashboard";
 import Cart from "./pages/cart/Cart";
 import Profile from "./pages/profile/Profile";
+import Wishlist from "./pages/wishlist/Wishlist";
+import NotificationCenter from "./pages/notification/NotificationCenter";
 import PaymentReturn from "./pages/payment/PaymentReturn";
 import PaymentSuccess from "./pages/payment/PaymentSuccess";
 import PaymentFailed from "./pages/payment/PaymentFailed";
@@ -88,6 +92,7 @@ const AppLayout = ({
   );
 };
 
+<<<<<<< HEAD
 const SavedItemsPage = () => (
   <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
     <h1 className="text-2xl font-bold text-gray-800">
@@ -116,6 +121,8 @@ const MyOrdersPage = () => (
 import Dashboard from "./pages/admin/Dashboard";
 import { AdminLayout } from "./components/layout/admin/AdminLayout";
 
+=======
+>>>>>>> b648e6bb7eae0a65ba880bfbeaf818236cb6dfc9
 const ShopDashboard = () => (
   <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
     <h1 className="text-2xl font-bold text-gray-800">
@@ -170,6 +177,14 @@ const App = () => {
           <Route
             path="/rent/orders/:id"
             element={<RentOrderDetail />}
+          />
+          <Route
+            path="/rent/orders/:id/return"
+            element={<ReturnRequest />}
+          />
+          <Route
+            path="/rent/return-inspection/:id"
+            element={<ReturnRequest />}
           />
 
           <Route
@@ -323,17 +338,17 @@ const App = () => {
 
             <Route
               path="/saved-items"
-              element={<SavedItemsPage />}
+              element={<Wishlist />}
             />
 
             <Route
               path="/wishlist"
-              element={<SavedItemsPage />}
+              element={<Wishlist />}
             />
 
             <Route
               path="/notifications"
-              element={<NotificationsPage />}
+              element={<NotificationCenter />}
             />
 
             <Route
@@ -343,7 +358,17 @@ const App = () => {
 
             <Route
               path="/my-orders"
-              element={<MyOrdersPage />}
+              element={<Navigate to="/rent/orders" replace />}
+            />
+
+            <Route
+              path="/wallet"
+              element={<UserWallet />}
+            />
+
+            <Route
+              path="/user/wallet"
+              element={<UserWallet />}
             />
           </Route>
         </Route>

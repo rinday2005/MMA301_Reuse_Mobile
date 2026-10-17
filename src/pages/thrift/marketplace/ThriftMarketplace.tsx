@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
+import { UserSidebar } from '../../../components/layout/UserSidebar';
 import {
     THRIFT_PRODUCTS,
     THRIFT_CATEGORY_OPTIONS,
@@ -12,6 +13,19 @@ import {
     THRIFT_CIRCULAR_STEPS,
 } from '../../data/thrift/thriftMarketplaceData';
 import type { ThriftProduct, ThriftSortKey } from '../../data/thrift/thriftMarketplaceData';
+
+function getPageNumbers(current: number, total: number): (number | string)[] {
+    if (total <= 5) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (current <= 3) {
+        return [1, 2, 3, '...', total];
+    }
+    if (current >= total - 2) {
+        return [1, '...', total - 2, total - 1, total];
+    }
+    return [1, '...', current, '...', total];
+}
 
 export const ThriftMarketplace: React.FC = () => {
     const { user } = useAuth();
@@ -33,6 +47,26 @@ export const ThriftMarketplace: React.FC = () => {
     // Pagination (mock pagination: 8 items per page)
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8;
+
+    // Track sidebar collapsed state to display inline restore chip when collapsed
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+        try {
+            return localStorage.getItem('reuse_user_sidebar_collapsed') === 'true';
+        } catch {
+            return false;
+        }
+    });
+
+    useEffect(() => {
+        const handleSync = (e: Event) => {
+            const customEvent = e as CustomEvent<boolean>;
+            if (typeof customEvent.detail === 'boolean') {
+                setIsSidebarCollapsed(customEvent.detail);
+            }
+        };
+        window.addEventListener('reuse_user_sidebar_toggle', handleSync);
+        return () => window.removeEventListener('reuse_user_sidebar_toggle', handleSync);
+    }, []);
 
     // Auth requirement modal state
     const [authModal, setAuthModal] = useState<{
@@ -110,9 +144,23 @@ export const ThriftMarketplace: React.FC = () => {
                 if (!matchTitle && !matchCat && !matchLoc) return false;
             }
 
-            // Category
-            if (selectedCategory !== 'all' && item.category !== selectedCategory) {
-                return false;
+            // Category (5 major categories: camera, shoes, dam-du-tiec, clothing, phu-kien)
+            if (selectedCategory !== 'all') {
+                const target = selectedCategory.toLowerCase();
+                const pCat = (item.category || '').toLowerCase();
+                const pTitle = (item.title || '').toLowerCase();
+
+                if (target === 'camera') {
+                    if (!pCat.includes('camera') && !pTitle.includes('camera') && !pTitle.includes('leica') && !pTitle.includes('contax')) return false;
+                } else if (target === 'shoes') {
+                    if (!pCat.includes('shoe') && !pTitle.includes('sneaker') && !item.id.includes('sneaker')) return false;
+                } else if (target === 'dam-du-tiec') {
+                    if (!pCat.includes('dam') && !pTitle.includes('đầm') && !pTitle.includes('dress')) return false;
+                } else if (target === 'clothing' || target === 'fashion') {
+                    if (!pCat.includes('fashion') && !pCat.includes('clothing') && !pTitle.includes('jacket') && !pTitle.includes('wool') && !pTitle.includes('áo')) return false;
+                } else if (target === 'phu-kien' || target === 'lifestyle' || target === 'electronics') {
+                    if (!pCat.includes('lifestyle') && !pCat.includes('electronics') && !pTitle.includes('backpack') && !pTitle.includes('op-1')) return false;
+                }
             }
 
             // Price range
@@ -161,6 +209,27 @@ export const ThriftMarketplace: React.FC = () => {
         currentSort,
     ]);
 
+    const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
+
+    const paginatedProducts = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredProducts.slice(start, start + itemsPerPage);
+    }, [filteredProducts, currentPage, itemsPerPage]);
+
+    const filterKey = `${searchQuery}|${selectedCategory}|${selectedPrice}|${selectedCondition}|${selectedLocation}|${selectedSource}|${currentSort}`;
+    const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+    if (prevFilterKey !== filterKey) {
+        setPrevFilterKey(filterKey);
+        setCurrentPage(1);
+    }
+
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+            window.scrollTo({ top: 380, behavior: 'smooth' });
+        }
+    };
+
     const handleResetFilters = () => {
         setSearchQuery('');
         setUserCategory('all');
@@ -177,7 +246,7 @@ export const ThriftMarketplace: React.FC = () => {
     };
 
     return (
-        <div className="w-full min-h-screen text-[#1C1A18] antialiased">
+        <div className="w-full min-h-screen bg-[#FBF9F5] text-[#1C1A18] antialiased">
 
             {/* Guest Auth Required Modal */}
             {authModal.open && (
@@ -241,8 +310,29 @@ export const ThriftMarketplace: React.FC = () => {
                 </div>
             )}
 
-            {/* Main Container */}
-            <div className="max-w-7xl mx-auto px-6 lg:px-12 py-0">
+            {/* ── MAIN WORKSPACE CONTAINER WITH PERSISTENT SIDEBAR ── */}
+            <div className="max-w-[1520px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 flex gap-8">
+                {/* User Navigation Sidebar (Fixed on left) */}
+                <UserSidebar activeKey="thrift" />
+
+                {/* ── MAIN CONTENT AREA ── */}
+                <main className="flex-1 min-w-0 space-y-8">
+                    {/* Quick inline restore chip if user clicked 3-bar button to hide sidebar */}
+                    {isSidebarCollapsed && (
+                        <div className="flex items-center gap-2 -mb-4 animate-fade-in">
+                            <button
+                                type="button"
+                                onClick={() => window.dispatchEvent(new CustomEvent('reuse_user_sidebar_toggle', { detail: false }))}
+                                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-[#E8E4DC] text-xs font-semibold text-[#1C1A18] hover:bg-[#F6F3EE] hover:border-[#1C1A18]/40 transition-all shadow-2xs cursor-pointer group"
+                                title="Mở lại menu điều hướng (Dấu 3 gạch)"
+                            >
+                                <span className="material-symbols-outlined text-[18px] text-[#5E6D5B] group-hover:scale-110 transition-transform">
+                                    menu
+                                </span>
+                                <span>Hiện menu điều hướng</span>
+                            </button>
+                        </div>
+                    )}
                 {/* BEGIN: HeroArchiveHeader */}
                 <section className="pt-10 pb-8 mb-0 reveal-on-scroll" data-reveal>
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-[#E6E2DC]">
@@ -434,7 +524,7 @@ export const ThriftMarketplace: React.FC = () => {
                 {/* BEGIN: ProductGrid */}
                 {filteredProducts.length > 0 ? (
                     <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                        {filteredProducts.map((product) => {
+                        {paginatedProducts.map((product) => {
                             const isSaved = isWishlisted(product.id);
 
                             return (
@@ -584,68 +674,65 @@ export const ThriftMarketplace: React.FC = () => {
                 {/* END: ProductGrid */}
 
                 {/* BEGIN: PaginationBar */}
-                <nav aria-label="Phân trang" className="flex items-center justify-between border-t border-[#E6E2DC] pt-6 mb-16 text-xs text-[#79716B]">
+                <nav aria-label="Phân trang" className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#E6E2DC] pt-6 mb-16 text-xs text-[#79716B]">
                     <span className="font-medium">
-                        Hiển thị 1 - {Math.min(itemsPerPage, filteredProducts.length)} trong tổng số {filteredProducts.length} sản phẩm
+                        Hiển thị{' '}
+                        <span className="font-bold text-[#1C1A18]">
+                            {filteredProducts.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} – {Math.min(currentPage * itemsPerPage, filteredProducts.length)}
+                        </span>{' '}
+                        trong tổng số <span className="font-bold text-[#1C1A18]">{filteredProducts.length}</span> món đồ
                     </span>
-                    <div className="flex items-center gap-1">
-                        <button
-                            type="button"
-                            disabled={currentPage <= 1}
-                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                            className="p-2 border border-[#E6E2DC] rounded-lg text-stone-300 disabled:cursor-not-allowed hover:bg-[#F0ECE1] transition-colors"
-                        >
-                            <svg className="w-4 h-4 text-[#1C1A18]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                <polyline points="15 18 9 12 15 6"></polyline>
-                            </svg>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setCurrentPage(1)}
-                            className={`w-8 h-8 rounded-lg font-semibold flex items-center justify-center transition-colors cursor-pointer ${currentPage === 1 ? 'bg-[#1C1A18] text-white' : 'hover:bg-[#F0ECE1] text-[#1C1A18]'
-                                }`}
-                        >
-                            1
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setCurrentPage(2)}
-                            className={`w-8 h-8 rounded-lg font-medium flex items-center justify-center transition-colors cursor-pointer ${currentPage === 2 ? 'bg-[#1C1A18] text-white' : 'hover:bg-[#F0ECE1] text-[#1C1A18]'
-                                }`}
-                        >
-                            2
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setCurrentPage(3)}
-                            className={`w-8 h-8 rounded-lg font-medium flex items-center justify-center transition-colors cursor-pointer ${currentPage === 3 ? 'bg-[#1C1A18] text-white' : 'hover:bg-[#F0ECE1] text-[#1C1A18]'
-                                }`}
-                        >
-                            3
-                        </button>
-                        <span className="px-1 text-stone-400">...</span>
-                        <button
-                            type="button"
-                            onClick={() => setCurrentPage(43)}
-                            className="w-8 h-8 rounded-lg hover:bg-[#F0ECE1] text-[#1C1A18] font-medium flex items-center justify-center transition-colors cursor-pointer"
-                        >
-                            43
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setCurrentPage((p) => p + 1)}
-                            className="p-2 border border-[#E6E2DC] rounded-lg text-[#1C1A18] hover:bg-[#F0ECE1] transition-colors cursor-pointer"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            </svg>
-                        </button>
-                    </div>
+                    {totalPages > 1 && (
+                        <div className="flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                disabled={currentPage <= 1}
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                className="p-2 border border-[#E6E2DC] rounded-lg text-[#1C1A18] bg-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#F0ECE1] transition-colors cursor-pointer"
+                                title="Trang trước"
+                            >
+                                <svg className="w-4 h-4 text-[#1C1A18]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            {getPageNumbers(currentPage, totalPages).map((p, idx) =>
+                                typeof p === 'number' ? (
+                                    <button
+                                        key={`page-${p}`}
+                                        type="button"
+                                        onClick={() => handlePageChange(p)}
+                                        className={`w-8 h-8 rounded-lg font-medium flex items-center justify-center transition-colors cursor-pointer ${
+                                            currentPage === p
+                                                ? 'bg-[#1C1A18] text-white font-bold'
+                                                : 'bg-white hover:bg-[#F0ECE1] text-[#1C1A18] border border-[#E6E2DC]'
+                                        }`}
+                                    >
+                                        {p}
+                                    </button>
+                                ) : (
+                                    <span key={`ellipsis-${idx}`} className="px-1 text-[#79716B] font-medium">
+                                        ...
+                                    </span>
+                                )
+                            )}
+                            <button
+                                type="button"
+                                disabled={currentPage >= totalPages}
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                className="p-2 border border-[#E6E2DC] rounded-lg text-[#1C1A18] bg-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#F0ECE1] transition-colors cursor-pointer"
+                                title="Trang kế tiếp"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    )}
                 </nav>
                 {/* END: PaginationBar */}
 
                 {/* BEGIN: CircularGuaranteeSection */}
-                <section className="w-full bg-[#F4F0EA]/40 py-14 mb-8 -mx-6 lg:-mx-12 px-6 lg:px-12 reveal-on-scroll" data-reveal>
+                <section className="w-full bg-[#F4F0EA]/60 rounded-3xl p-6 sm:p-8 mb-8 border border-[#E6E2DC] reveal-on-scroll" data-reveal>
                     <div className="max-w-2xl mb-8">
                         <span className="text-[10px] font-mono tracking-widest text-[#79716B] uppercase block mb-1">
                             QUY TRÌNH THẨM ĐỊNH THRIFT CHẶT CHẼ
@@ -680,6 +767,7 @@ export const ThriftMarketplace: React.FC = () => {
                     </div>
                 </section>
                 {/* END: CircularGuaranteeSection */}
+                </main>
             </div>
         </div>
     );

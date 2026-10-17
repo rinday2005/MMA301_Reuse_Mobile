@@ -6,6 +6,7 @@ import {
   removeCartItemApi,
 } from '../services/cart.api';
 import { AuthContext } from './auth-context';
+import { resolveWishlistProduct } from '../services/wishlistProductResolver';
 
 export interface CartItem {
   id: string;
@@ -34,6 +35,7 @@ interface CartWishlistContextType {
   toggleWishlist: (id: string) => boolean;
   addToWishlist: (id: string) => void;
   removeFromWishlist: (id: string) => void;
+  clearWishlist: () => void;
 
   cart: CartItem[];
   cartCount: number;
@@ -63,6 +65,12 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
   children,
   currentUserId,
 }) => {
+  try {
+    localStorage.removeItem('user_wishlist');
+    localStorage.removeItem('reuse_hub_wishlist');
+  } catch {
+    // ignore
+  }
   const WISHLIST_KEY = `reuse_hub_wishlist_${currentUserId}`;
   const CART_KEY = `reuse_hub_cart_${currentUserId}`;
   // ── Wishlist State ──
@@ -205,6 +213,10 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
     setWishlist((prev) => prev.filter((item) => item !== id));
   };
 
+  const clearWishlist = () => {
+    setWishlist([]);
+  };
+
   // ── Cart Operations (Local State + MongoDB API Sync) ──
   const addToCart = (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
     const qty = item.quantity && item.quantity > 0 ? item.quantity : 1;
@@ -304,7 +316,10 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
     setCart([]);
   };
 
-  const wishlistCount = wishlist.length;
+  const validWishlist = useMemo(() => {
+    return wishlist.filter((id) => resolveWishlistProduct(id) !== null);
+  }, [wishlist]);
+  const wishlistCount = validWishlist.length;
   const cartCount = useMemo(() => {
     return cart.reduce((total, item) => total + (item.quantity || 1), 0);
   }, [cart]);
@@ -317,6 +332,7 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
       toggleWishlist,
       addToWishlist,
       removeFromWishlist,
+      clearWishlist,
       cart,
       cartCount,
       addToCart,

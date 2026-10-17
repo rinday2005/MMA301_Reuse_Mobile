@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
 import { getPublicRentProductsApi } from '../../../services/rentProduct.api';
+import { UserSidebar } from '../../../components/layout/UserSidebar';
 import {
   RENT_PRODUCTS,
   RENT_SORT_OPTIONS,
@@ -264,6 +265,26 @@ const RentMarketplace: React.FC = () => {
   const [location, setLocation] = useState('all');
   const [sort, setSort] = useState<SortKey>('recommended');
 
+  // Track sidebar collapsed state to display inline restore chip when collapsed
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('reuse_user_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleSync = (e: Event) => {
+      const customEvent = e as CustomEvent<boolean>;
+      if (typeof customEvent.detail === 'boolean') {
+        setIsSidebarCollapsed(customEvent.detail);
+      }
+    };
+    window.addEventListener('reuse_user_sidebar_toggle', handleSync);
+    return () => window.removeEventListener('reuse_user_sidebar_toggle', handleSync);
+  }, []);
+
   const handleRequireAuth = (actionTitle: string, targetHref: string) => {
     setAuthModal({
       open: true,
@@ -338,7 +359,46 @@ const RentMarketplace: React.FC = () => {
     return list;
   }, [dbProducts, query, category, priceRange, condition, location, sort]);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
+  // Auto reset to page 1 whenever any filter changes
+  const filterKey = `${query}|${category}|${priceRange}|${condition}|${location}|${sort}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey);
+    setCurrentPage(1);
+  }
+
+  const totalItems = visibleProducts.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return visibleProducts.slice(start, start + itemsPerPage);
+  }, [visibleProducts, currentPage, itemsPerPage]);
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages || page === currentPage) return;
+    setCurrentPage(page);
+    window.scrollTo({ top: 380, behavior: 'smooth' });
+  };
+
+  const getPageNumbers = (current: number, total: number) => {
+    if (total <= 5) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (current <= 3) {
+      return [1, 2, 3, 4, '...', total];
+    }
+    if (current >= total - 2) {
+      return [1, '...', total - 3, total - 2, total - 1, total];
+    }
+    return [1, '...', current - 1, current, current + 1, '...', total];
+  };
+
   const resetAll = () => {
+    setCurrentPage(1);
     setQuery('');
     setUserCategory('all');
     setPriceRange('all');
@@ -351,7 +411,7 @@ const RentMarketplace: React.FC = () => {
     'w-full py-2 pl-3 pr-7 bg-[#F4F0EA]/50 rounded-lg text-[#1C1A18] focus:outline-none focus:bg-[#F4F0EA] text-xs font-medium cursor-pointer appearance-none';
 
   return (
-    <div className="flex flex-col w-full relative">
+    <div className="flex flex-col w-full min-h-screen bg-[#FBF9F5] text-[#1C1A18] antialiased relative">
       {/* Guest Auth Required Modal */}
       {authModal.open && (
         <div
@@ -414,7 +474,31 @@ const RentMarketplace: React.FC = () => {
       )}
 
       {/* ── EDITORIAL HEADER ── */}
-      <section className="w-full px-6 lg:px-12 pt-10 pb-8 max-w-7xl mx-auto">
+      {/* ── MAIN WORKSPACE CONTAINER WITH PERSISTENT SIDEBAR ── */}
+      <div className="max-w-[1520px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 flex gap-8">
+        {/* User Navigation Sidebar (Fixed on left) */}
+        <UserSidebar activeKey="rent" />
+
+        {/* ── MAIN CONTENT AREA ── */}
+        <main className="flex-1 min-w-0 space-y-8">
+          {/* Quick inline restore chip if user clicked 3-bar button to hide sidebar */}
+          {isSidebarCollapsed && (
+            <div className="flex items-center gap-2 -mb-4 animate-fade-in">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('reuse_user_sidebar_toggle', { detail: false }))}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-[#E8E4DC] text-xs font-semibold text-[#1C1A18] hover:bg-[#F6F3EE] hover:border-[#1C1A18]/40 transition-all shadow-2xs cursor-pointer group"
+                title="Mở lại menu điều hướng (Dấu 3 gạch)"
+              >
+                <span className="material-symbols-outlined text-[18px] text-[#5E6D5B] group-hover:scale-110 transition-transform">
+                  menu
+                </span>
+                <span>Hiện menu điều hướng</span>
+              </button>
+            </div>
+          )}
+
+          <section className="w-full pt-2 pb-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8">
           <div className="max-w-2xl space-y-3">
             <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#79716B] mb-2">
@@ -459,7 +543,7 @@ const RentMarketplace: React.FC = () => {
       </section>
 
       {/* ── SEARCH & FILTER ── */}
-      <section className="w-full px-6 lg:px-12 pb-8 max-w-7xl mx-auto">
+      <section className="w-full pb-8">
         <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
 
           <div className="relative w-full">
@@ -576,7 +660,7 @@ const RentMarketplace: React.FC = () => {
       <section className="w-full px-6 lg:px-12 pb-16 max-w-7xl mx-auto">
         {visibleProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {visibleProducts.map((p) => (
+            {paginatedProducts.map((p) => (
               <ProductCard key={p.id} product={p} onRequireAuth={handleRequireAuth} />
             ))}
           </div>
@@ -602,41 +686,59 @@ const RentMarketplace: React.FC = () => {
           </div>
         )}
 
-        <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 text-xs text-[#5E5A53]">
+        <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-[#E8E4DC]/80 text-xs text-[#5E5A53]">
           <div>
             Hiển thị{' '}
-            <span className="font-bold text-[#1C1A18]">1 – {visibleProducts.length}</span> trong tổng số{' '}
-            <span className="font-bold text-[#1C1A18]">148</span> món đồ
+            <span className="font-bold text-[#1C1A18]">{totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} – {Math.min(currentPage * itemsPerPage, totalItems)}</span> trong tổng số{' '}
+            <span className="font-bold text-[#1C1A18]">{totalItems}</span> món đồ
           </div>
-          <div className="flex items-center gap-1.5">
-            <button type="button" disabled className="p-2 rounded-lg bg-[#F4F0EA] text-[#78736A] cursor-not-allowed">
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => handlePageChange(currentPage - 1)}
+                className="p-2 rounded-lg border border-[#E8E4DC] bg-white text-[#1C1A18] hover:bg-[#F4F0EA] disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
+                title="Trang trước"
+              >
               <span className="material-symbols-outlined text-[18px]">chevron_left</span>
             </button>
-            {[1, 2, 3].map((page) => (
-              <button
-                key={page}
-                type="button"
-                className={`w-8 h-8 rounded-lg font-medium ${page === 1
-                  ? 'bg-[#1C1A18] text-white'
-                  : 'bg-white text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors shadow-sm'
+            {getPageNumbers(currentPage, totalPages).map((p, idx) =>
+              typeof p === 'number' ? (
+                <button
+                  key={`page-${p}`}
+                  type="button"
+                  onClick={() => handlePageChange(p)}
+                  className={`w-8 h-8 rounded-lg font-medium transition-all shadow-2xs cursor-pointer ${
+                    currentPage === p
+                      ? 'bg-[#1C1A18] text-white font-bold'
+                      : 'bg-white text-[#1C1A18] hover:bg-[#F4F0EA] border border-[#E8E4DC]'
                   }`}
-              >
-                {page}
-              </button>
-            ))}
-            <span className="px-1 text-[#78736A]">...</span>
-            <button type="button" className="w-8 h-8 rounded-lg bg-white text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors font-medium shadow-sm">
-              12
-            </button>
-            <button type="button" className="p-2 rounded-lg bg-white text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors shadow-sm">
+                >
+                  {p}
+                </button>
+              ) : (
+                <span key={`ellipsis-${idx}`} className="px-1 text-[#78736A] font-medium">
+                  ...
+                </span>
+              )
+            )}
+            <button
+              type="button"
+              disabled={currentPage >= totalPages}
+              onClick={() => handlePageChange(currentPage + 1)}
+              className="p-2 rounded-lg border border-[#E8E4DC] bg-white text-[#1C1A18] hover:bg-[#F4F0EA] disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
+              title="Trang kế tiếp"
+            >
               <span className="material-symbols-outlined text-[18px]">chevron_right</span>
             </button>
           </div>
-        </div>
+        )}
+      </div>
       </section>
 
       {/* ── HOW RENT WORKS ── */}
-      <section className="w-full bg-[#F4F0EA]/40 py-14 px-6 lg:px-12">
+      <section className="w-full bg-[#F4F0EA]/60 rounded-3xl p-6 sm:p-8 mb-8 border border-[#E8E4DC]">
         <div className="max-w-7xl mx-auto space-y-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4">
             <div>
@@ -664,6 +766,8 @@ const RentMarketplace: React.FC = () => {
           </div>
         </div>
       </section>
+        </main>
+      </div>
 
     </div>
   );

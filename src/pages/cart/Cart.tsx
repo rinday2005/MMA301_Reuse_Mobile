@@ -4,7 +4,7 @@ import { useCartWishlist, type CartItem } from '../../context/CartWishlistContex
 import { AuthContext } from '../../context/auth-context';
 import { DEFAULT_DEMO_CART_ITEMS } from '../data/cart/defaultCartData';
 import { RentalCalendarPicker } from '../../components/rent/RentalCalendarPicker';
-import { getProductBookedDates } from '../data/rent/rentOrderDetailData';
+import { getProductBookedDates, hasDateRangeConflict } from '../data/rent/rentOrderDetailData';
 
 export const Cart: React.FC = () => {
   const navigate = useNavigate();
@@ -230,6 +230,10 @@ export const Cart: React.FC = () => {
   // Save edited rental days via Calendar
   const handleSaveRentalDays = () => {
     if (!editingRentItem) return;
+    if (hasDateRangeConflict(editStartDate, editEndDate, editingBookedDates)) {
+      showToast('Khoảng ngày bạn chọn có ngày đã có khách đặt! Vui lòng chọn khoảng ngày còn trống.', 'warning');
+      return;
+    }
     updateCartItem(editingRentItem.id, {
       startDate: editStartDate,
       endDate: editEndDate,
@@ -243,10 +247,10 @@ export const Cart: React.FC = () => {
   const isViewEmpty = simState === 'empty' || cart.length === 0;
 
   return (
-    <div className="w-full min-h-[calc(100vh-12rem)] bg-[#FDF9F2] text-[#1C1C18] antialiased">
+    <div className="w-full min-h-[calc(100vh-12rem)] bg-[#FBF9F5] text-[#1C1C18] antialiased">
       {/* Toast Notification */}
       <div
-        className={`fixed bottom-6 right-6 z-50 transform transition-all duration-300 pointer-events-none bg-[#1C1A18] text-[#FDF9F2] px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-medium ${
+        className={`fixed bottom-6 right-6 z-50 transform transition-all duration-300 pointer-events-none bg-[#1C1A18] text-[#FBF9F5] px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-medium ${
           toast.show ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-12 opacity-0 scale-95'
         }`}
       >
@@ -501,7 +505,7 @@ export const Cart: React.FC = () => {
                       return (
                         <div
                           key={item.id}
-                          className="flex flex-col sm:flex-row items-start gap-4 p-4 rounded-2xl bg-[#FDF9F2]/70 hover:bg-[#F7F3EC]/80 transition-colors border border-[#F1EDE6]"
+                          className="flex flex-col sm:flex-row items-start gap-4 p-4 rounded-2xl bg-[#FBF9F5]/70 hover:bg-[#F7F3EC]/80 transition-colors border border-[#F1EDE6]"
                         >
                           <div className="pt-1">
                             <input
@@ -671,7 +675,7 @@ export const Cart: React.FC = () => {
                       return (
                         <div
                           key={item.id}
-                          className="flex flex-col sm:flex-row items-start gap-4 p-4 rounded-2xl bg-[#FDF9F2]/70 hover:bg-[#F7F3EC]/80 transition-colors border border-[#F1EDE6]"
+                          className="flex flex-col sm:flex-row items-start gap-4 p-4 rounded-2xl bg-[#FBF9F5]/70 hover:bg-[#F7F3EC]/80 transition-colors border border-[#F1EDE6]"
                         >
                           <div className="pt-1">
                             <input
@@ -905,6 +909,21 @@ export const Cart: React.FC = () => {
                       onClick={() => {
                         if (!user) {
                           navigate('/login', { state: { from: '/rent/checkout' } });
+                          return;
+                        }
+                        const conflictItem = selectedRentItems.find((item) => {
+                          const bDates = getProductBookedDates({ id: item.id, title: item.title });
+                          return (
+                            item.startDate &&
+                            item.endDate &&
+                            hasDateRangeConflict(item.startDate, item.endDate, bDates)
+                          );
+                        });
+                        if (conflictItem) {
+                          showToast(
+                            `Thiết bị "${conflictItem.title}" bị trùng ngày đã có khách đặt! Hãy bấm "Sửa ngày" trước khi thuê.`,
+                            'event_busy'
+                          );
                           return;
                         }
                         navigate('/rent/checkout', {

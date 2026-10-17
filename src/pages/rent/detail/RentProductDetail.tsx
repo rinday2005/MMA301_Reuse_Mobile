@@ -7,6 +7,8 @@ import {
   getRentProductDetail,
   createRentProductDetail,
   getProductBookedDates,
+  findEarliestAvailableRentalRange,
+  hasDateRangeConflict,
   QUALITY_COMMITMENTS,
   RENT_8_STEPS_LIFECYCLE,
   RELATED_RENT_PRODUCTS,
@@ -88,29 +90,21 @@ export const RentProductDetail: React.FC = () => {
   const activeThumb = thumbState.id === id ? thumbState.index : 0;
   const setActiveThumb = (index: number) => setThumbState({ id, index });
 
-  // Rental duration & quantities
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 4);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  });
-  const [quantity, setQuantity] = useState(1);
-
   // Booked dates in future for this product
   const bookedDates = useMemo(() => {
     return getProductBookedDates(product);
   }, [product]);
+
+  // Rental duration & quantities - Tự động tính khoảng ngày trống đầu tiên, không mặc định rơi vào ngày bị khóa (ví dụ 15, 16, 17)
+  const [startDate, setStartDate] = useState(() => {
+    const initialBooked = getProductBookedDates(product);
+    return findEarliestAvailableRentalRange(initialBooked, 3).startDate;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const initialBooked = getProductBookedDates(product);
+    return findEarliestAvailableRentalRange(initialBooked, 3).endDate;
+  });
+  const [quantity, setQuantity] = useState(1);
 
   // Tabs
   const [activeTab, setActiveTab] = useState<TabKey>('desc');
@@ -122,9 +116,48 @@ export const RentProductDetail: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authActionName, setAuthActionName] = useState('');
 
+  // In-app Toast Feedback State
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    icon: string;
+    type?: 'success' | 'info' | 'error' | 'warning';
+  }>({
+    show: false,
+    message: '',
+    icon: 'check_circle',
+    type: 'success',
+  });
+
+  const showToast = (
+    message: string,
+    icon = 'check_circle',
+    type: 'success' | 'info' | 'error' | 'warning' = 'success'
+  ) => {
+    setToast({ show: true, message, icon, type });
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }));
+    }, 4000);
+  };
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
+
+  // Tự động điều chỉnh ngày sang khoảng trống nếu danh sách ngày đã đặt thay đổi
+  const [prevBooked, setPrevBooked] = useState(bookedDates);
+  if (prevBooked !== bookedDates) {
+    setPrevBooked(bookedDates);
+    if (hasDateRangeConflict(startDate, endDate, bookedDates)) {
+      const earliest = findEarliestAvailableRentalRange(bookedDates, 3);
+      setStartDate(earliest.startDate);
+      setEndDate(earliest.endDate);
+    }
+  }
+
+  const isRangeConflicted = useMemo(() => {
+    return hasDateRangeConflict(startDate, endDate, bookedDates);
+  }, [startDate, endDate, bookedDates]);
 
   // Calculate rental days
   const days = useMemo(() => {
@@ -165,6 +198,14 @@ export const RentProductDetail: React.FC = () => {
   };
 
   const handleRentNow = () => {
+    if (hasDateRangeConflict(startDate, endDate, bookedDates)) {
+      showToast(
+        `Khoảng thời gian bạn chọn (${startDate} → ${endDate}) có ngày đã được khách khác đặt thuê. Vui lòng chọn ngày còn trống trên lịch!`,
+        'event_busy',
+        'warning'
+      );
+      return;
+    }
     handleProtectedAction('thuê thiết bị này', () => {
       addToCart({
         id: product.id,
@@ -185,6 +226,14 @@ export const RentProductDetail: React.FC = () => {
   };
 
   const handleAddToCart = () => {
+    if (hasDateRangeConflict(startDate, endDate, bookedDates)) {
+      showToast(
+        `Khoảng thời gian bạn chọn (${startDate} → ${endDate}) có ngày đã được khách khác đặt thuê. Vui lòng chọn ngày còn trống trên lịch!`,
+        'event_busy',
+        'warning'
+      );
+      return;
+    }
     addToCart({
       id: product.id,
       title: product.title,
@@ -199,6 +248,7 @@ export const RentProductDetail: React.FC = () => {
       endDate: endDate,
       gradeBadge: product.grade,
     });
+    showToast('Đã thêm sản phẩm vào giỏ hàng thuê tuần hoàn!', 'check_circle', 'success');
   };
 
   const handleChat = () => {
@@ -570,11 +620,27 @@ export const RentProductDetail: React.FC = () => {
 
             {/* CỤM NÚT HÀNH ĐỘNG DÀNH CHO KHÁCH & CUSTOMER */}
             <div className="space-y-3 pt-1">
+              {isRangeConflicted && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5 animate-fade-in shadow-xs">
+                  <span className="material-symbols-outlined text-[18px] text-rose-600 shrink-0 mt-0.5">event_busy</span>
+                  <div className="flex-1">
+                    <p className="font-bold">Lịch thuê ({startDate} → {endDate}) đang trùng ngày đã có khách đặt!</p>
+                    <p className="text-[11px] text-rose-700 mt-0.5">Vui lòng bấm vào ô "Ngày nhận máy" ở trên để chọn khoảng ngày trống trước khi đặt thuê.</p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={handleRentNow}
-                  className="w-full py-3.5 px-6 rounded-full bg-[#1C1A18] hover:bg-[#292724] text-white text-xs font-bold tracking-wider uppercase text-center transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                  disabled={isRangeConflicted}
+                  className={`w-full py-3.5 px-6 rounded-full text-xs font-bold tracking-wider uppercase text-center transition-all shadow-md flex items-center justify-center gap-2 ${
+                    isRangeConflicted
+                      ? 'bg-stone-300 text-stone-500 cursor-not-allowed opacity-60'
+                      : 'bg-[#1C1A18] hover:bg-[#292724] text-white hover:shadow-lg cursor-pointer'
+                  }`}
+                  title={isRangeConflicted ? 'Không thể thuê do khoảng ngày chọn đã có khách đặt' : 'Tiến hành thuê ngay'}
                 >
                   <span className="material-symbols-outlined text-[18px]">cached</span>
                   Thuê ngay
@@ -582,7 +648,13 @@ export const RentProductDetail: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleAddToCart}
-                  className="w-full py-3.5 px-6 rounded-full bg-white hover:bg-[#F4F0EA] text-[#1C1A18] text-xs font-bold tracking-wider uppercase text-center transition-all shadow-sm border border-[#E7E2DA] flex items-center justify-center gap-2 cursor-pointer"
+                  disabled={isRangeConflicted}
+                  className={`w-full py-3.5 px-6 rounded-full text-xs font-bold tracking-wider uppercase text-center transition-all shadow-sm border border-[#E7E2DA] flex items-center justify-center gap-2 ${
+                    isRangeConflicted
+                      ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed opacity-60'
+                      : 'bg-white hover:bg-[#F4F0EA] text-[#1C1A18] cursor-pointer'
+                  }`}
+                  title={isRangeConflicted ? 'Không thể thêm vào giỏ do khoảng ngày chọn đã có khách đặt' : 'Thêm vào giỏ hàng'}
                 >
                   <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
                   Thêm vào giỏ
@@ -863,6 +935,31 @@ export const RentProductDetail: React.FC = () => {
             ))}
           </div>
         </section>
+      </div>
+      {/* In-app Toast Notification */}
+      <div
+        className={`fixed bottom-6 right-6 z-50 transform transition-all duration-300 pointer-events-none px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 text-xs sm:text-sm font-medium ${
+          toast.show ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-12 opacity-0 scale-95'
+        } ${
+          toast.type === 'error'
+            ? 'bg-rose-950 text-rose-100 border border-rose-800/80'
+            : toast.type === 'warning'
+            ? 'bg-amber-950 text-amber-100 border border-amber-800/80'
+            : 'bg-[#141310] text-[#FBF9F6] border border-stone-800'
+        }`}
+      >
+        <span
+          className={`material-symbols-outlined text-[20px] ${
+            toast.type === 'error'
+              ? 'text-rose-400'
+              : toast.type === 'warning'
+              ? 'text-amber-400'
+              : 'text-emerald-400'
+          }`}
+        >
+          {toast.icon}
+        </span>
+        <span>{toast.message}</span>
       </div>
     </div>
   );
