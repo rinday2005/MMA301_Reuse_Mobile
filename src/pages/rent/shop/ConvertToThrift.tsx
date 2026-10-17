@@ -234,51 +234,6 @@ export const ConvertToThrift: React.FC = () => {
 
       {/* Main Inner Container */}
       <div className="max-w-[1536px] mx-auto px-4 lg:px-8 py-6 w-full flex flex-col">
-        {/* Sub-navigation Tabs */}
-        <div className="w-full bg-surface-container-low px-space-md py-space-xs rounded-lg mb-space-md shadow-sm border border-outline-variant/40">
-          <div className="flex items-center gap-space-sm overflow-x-auto text-nowrap">
-            <Link
-              to="/shop/rent/products"
-              className="px-space-md py-space-xs font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors rounded"
-            >
-              SẢN PHẨM RENT
-            </Link>
-            <Link
-              to="/shop/rent/inventory"
-              className="px-space-md py-space-xs font-label-md text-label-md bg-surface-container-high text-on-surface font-semibold rounded shadow-sm flex items-center gap-1.5"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-              KHO HIỆN VẬT
-            </Link>
-            <Link
-              to="/shop/orders"
-              className="px-space-md py-space-xs font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors rounded"
-            >
-              ĐƠN THUÊ RENT
-            </Link>
-            <span className="text-outline-variant select-none">|</span>
-            <Link
-              to="/shop/thrift/listings"
-              className="px-space-md py-space-xs font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors rounded"
-            >
-              MỤC ĐĂNG THRIFT
-            </Link>
-            <Link
-              to="/shop/thrift/orders"
-              className="px-space-md py-space-xs font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors rounded"
-            >
-              ĐƠN BÁN THRIFT
-            </Link>
-            <span className="text-outline-variant select-none">|</span>
-            <Link
-              to="/shop/revenue"
-              className="px-space-md py-space-xs font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors rounded"
-            >
-              DOANH THU
-            </Link>
-          </div>
-        </div>
-
         {/* Breadcrumb & Specimen Quick Switcher */}
         <div className="flex flex-col gap-space-xs mb-space-lg">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-wrap">

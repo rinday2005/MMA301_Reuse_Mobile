@@ -214,6 +214,7 @@ const App = () => {
             {/* Quản lý mục đăng & đơn bán THRIFT */}
             <Route path="/shop/thrift/listings" element={<ShopThriftListings />} />
             <Route path="/shop/thrift/orders" element={<ShopThriftOrders />} />
+            <Route path="/shop/orders/thrift" element={<ShopThriftOrders />} />
             <Route path="/shop/revenue" element={<ShopDashboard />} />
           </Route>
 
