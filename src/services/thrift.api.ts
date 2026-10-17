@@ -10,7 +10,12 @@ export interface ThriftListingItemApi {
   images: string[];
   location?: string;
   categoryId?: { _id: string; name: string; slug: string } | string;
+  category?: { _id: string; name: string; slug: string } | string;
   status: string;
+  sourceType?: string;
+  quantity?: number;
+  sizes?: string[];
+  size?: string;
   createdAt?: string;
 }
 

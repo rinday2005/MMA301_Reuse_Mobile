@@ -2,6 +2,7 @@ import React, { useContext, useState, useMemo, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/auth-context';
 import { useCartWishlist } from '../../context/CartWishlistContext';
+import { getMyThriftOrdersApi } from '../../services/thriftOrder.api';
 import { UserSidebar } from '../../components/layout/UserSidebar';
 import AddressSelector, { type AddressValue } from '../../components/form/AddressSelector';
 import { uploadAvatarApi, updateProfileApi } from '../../services/user.api';
@@ -149,6 +150,21 @@ const ProfileContent: React.FC = () => {
   // Rental & Thrift count from cart or active orders
   const rentItemsCount = cart.filter((i) => i.mode === 'rent' || !i.mode).length;
   const thriftItemsCount = cart.filter((i) => i.mode === 'thrift').length;
+  const [dbThriftOrdersCount, setDbThriftOrdersCount] = useState<number>(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    getMyThriftOrdersApi()
+      .then((res) => {
+        if (!isMounted) return;
+        const total = res?.orders?.length || 0;
+        setDbThriftOrdersCount(total);
+      })
+      .catch((err) => {
+        console.warn('Could not load thrift orders count:', err);
+      });
+    return () => { isMounted = false; };
+  }, []);
   const activeWishlistCount = wishlistCount;
 
   // Address string representation
@@ -660,7 +676,7 @@ const ProfileContent: React.FC = () => {
                   Đơn THRIFT sở hữu
                 </p>
                 <p className="font-serif text-2xl text-[#141310] font-bold flex items-baseline gap-1.5">
-                  {thriftItemsCount < 10 ? `0${thriftItemsCount}` : thriftItemsCount}{' '}
+                  {dbThriftOrdersCount > 0 ? (dbThriftOrdersCount < 10 ? `0${dbThriftOrdersCount}` : dbThriftOrdersCount) : (thriftItemsCount < 10 ? `0${thriftItemsCount}` : thriftItemsCount)}{' '}
                   <span className="font-sans text-xs text-[#7B766F] font-normal">
                     di sản lưu trữ
                   </span>

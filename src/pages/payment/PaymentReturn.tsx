@@ -126,7 +126,7 @@ interface StoredOrder {
 
                   if (isMatch) {
                     updated = true;
-                    return { ...o, status: 'PAID', paymentStatus: 'PAID', transactionNo, bankCode };
+                    return { ...o, status: isThriftOrder ? 'DELIVERED' : 'PAID', paymentStatus: 'PAID', escrowStatus: 'HELD_72H', transactionNo, bankCode };
                   }
                   return o;
                 });
@@ -146,7 +146,7 @@ interface StoredOrder {
       setIsProcessing(false);
     }, 600);
     return () => clearTimeout(timer);
-  }, [isSuccess, orderCode, transactionNo, bankCode]);
+  }, [isSuccess, orderCode, transactionNo, bankCode, isThriftOrder]);
 
   return (
     <div className="min-h-screen bg-[#FBF9F5] text-[#1E1E1E] font-sans antialiased flex flex-col justify-between">

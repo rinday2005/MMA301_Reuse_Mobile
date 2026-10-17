@@ -14,6 +14,7 @@ import {
   findEarliestAvailableRentalRange,
 } from '../../data/rent/rentOrderDetailData';
 import { getUserProfileAddress } from '../../../utils/address';
+import { resolveWishlistProduct } from '../../../services/wishlistProductResolver';
 
 export const RentCheckout: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -665,7 +666,13 @@ export const RentCheckout: React.FC = () => {
                         <img
                           alt={item.title}
                           className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                          src={item.image}
+                          src={item.image || resolveWishlistProduct(item.id)?.image || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80'}
+                          onError={(e) => {
+                            const res = resolveWishlistProduct(item.id);
+                            if (res?.image && e.currentTarget.src !== res.image) {
+                              e.currentTarget.src = res.image;
+                            }
+                          }}
                         />
                         <span className="absolute bottom-1.5 left-1.5 bg-[#1E1E1E]/90 text-white text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded backdrop-blur-xs">
                           {category}

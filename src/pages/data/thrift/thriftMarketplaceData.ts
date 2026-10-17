@@ -15,6 +15,12 @@ export interface ThriftProduct {
   href: string;
   image: string;
   verifiedBy: string;
+  quantity?: number;
+  size?: string;
+  sizes?: string[];
+  status?: string;
+  sourceType?: string;
+  name?: string;
 }
 
 export type ThriftSortKey = 'recommended' | 'price-asc' | 'price-desc' | 'latest';
