@@ -5,6 +5,7 @@ import Footer from './Footer';
 import { Sidebar } from './Sidebar';
 import { GuestSidebar } from './GuestSidebar';
 import { UserSidebar } from './UserSidebar';
+import AdminLayout from './admin/AdminLayout';
 
 interface MasterLayoutProps {
   children: React.ReactNode;
@@ -17,7 +18,12 @@ export const MasterLayout: React.FC<MasterLayoutProps> = ({
   userRole = 'GUEST',
   onLogout
 }) => {
-  const showAdminShopSidebar = userRole === 'ADMIN' || userRole === 'SHOP';
+  // Dedicated layout for ADMIN role
+  if (userRole === 'ADMIN') {
+    return <AdminLayout>{children}</AdminLayout>;
+  }
+
+  const showShopSidebar = userRole === 'SHOP';
   const showGuestSidebar = userRole === 'GUEST';
   const showUserSidebar = userRole === 'USER';
 
@@ -28,9 +34,9 @@ export const MasterLayout: React.FC<MasterLayoutProps> = ({
 
       {/* Body Content */}
       <div className="flex flex-1 w-full">
-        {/* Sidebar ADMIN / SHOP — luôn hiện bên trái */}
-        {showAdminShopSidebar && (
-          <Sidebar role={userRole === 'ADMIN' ? 'ADMIN' : 'SHOP'} />
+        {/* Sidebar SHOP — luôn hiện bên trái */}
+        {showShopSidebar && (
+          <Sidebar role="SHOP" />
         )}
 
         {/* Sidebar GUEST — toggle overlay khi role GUEST */}
@@ -39,7 +45,7 @@ export const MasterLayout: React.FC<MasterLayoutProps> = ({
         {/* Sidebar CUSTOMER / USER — toggle overlay khi role CUSTOMER */}
         {showUserSidebar && <UserSidebar mode="drawer" />}
 
-        <main className={`flex-1 w-full pt-28 ${showAdminShopSidebar ? 'px-4 lg:px-8' : ''}`}>
+        <main className={`flex-1 w-full pt-28 ${showShopSidebar ? 'px-4 lg:px-8' : ''}`}>
           {children}
         </main>
       </div>
@@ -50,4 +56,4 @@ export const MasterLayout: React.FC<MasterLayoutProps> = ({
   );
 };
 
-export default MasterLayout;
+export default MasterLayout;
