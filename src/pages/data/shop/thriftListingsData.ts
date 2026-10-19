@@ -22,7 +22,7 @@ export interface ThriftListingItem {
   rentHistoryUrl?: string;
   status: ThriftListingStatus;
   statusLabel: string;
-  stockStatus: string;
+  stockStatus?: string;
   conditionGrade: string;
   conditionScore: number;
   price: number;
@@ -158,6 +158,7 @@ export const INITIAL_THRIFT_LISTINGS: ThriftListingItem[] = [
     rentHistoryUrl: '/shop/rent/inventory/specimen-eames',
     status: 'REJECTED',
     statusLabel: 'Từ Chối Duyệt',
+    stockStatus: 'Tạm ngưng duyệt (Chờ bổ sung tem đáy)',
     rejectionReason: 'Cần bổ sung ảnh tem đáy gỗ',
     conditionGrade: 'Good Vintage 85%',
     conditionScore: 85.0,
@@ -181,6 +182,7 @@ export const INITIAL_THRIFT_LISTINGS: ThriftListingItem[] = [
     rentalCycles: 0,
     status: 'DRAFT',
     statusLabel: 'BẢN NHÁP (Draft)',
+    stockStatus: 'Bản nháp (Đang kiểm chuẩn)',
     draftNotes: 'Cần hoàn tất hồ sơ đo điện áp và giấy chứng thực',
     conditionGrade: 'Excellent 90%',
     conditionScore: 90.0,
@@ -318,6 +320,7 @@ export const INITIAL_THRIFT_LISTINGS: ThriftListingItem[] = [
     rentalCycles: 0,
     status: 'DRAFT',
     statusLabel: 'BẢN NHÁP (Draft)',
+    stockStatus: 'Bản nháp (Đang kiểm tra kỹ thuật)',
     draftNotes: 'Chờ kết quả đo tần số đáp ứng 20Hz-22kHz',
     conditionGrade: 'Very Good 88%',
     conditionScore: 88.0,
