@@ -450,9 +450,16 @@ export const ShopThriftOrders: React.FC = () => {
                 {/* 1. Order Header */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-outline-variant/30">
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="font-title-md text-base font-bold text-on-surface font-mono tracking-tight">
-                      {order.id}
-                    </span>
+                    <Link
+                      to={`/shop/thrift/orders/${encodeURIComponent(order.id.replace('#', ''))}`}
+                      className="font-title-md text-base font-bold text-primary hover:text-on-surface font-mono tracking-tight hover:underline flex items-center gap-1 group"
+                      title="Mở sổ lệnh chi tiết"
+                    >
+                      <span>{order.id}</span>
+                      <span className="material-symbols-outlined text-[15px] text-outline group-hover:text-primary transition-colors">
+                        open_in_new
+                      </span>
+                    </Link>
 
                     {/* Status Badge */}
                     {isPaid && (
@@ -487,10 +494,18 @@ export const ShopThriftOrders: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <span className="text-xs uppercase tracking-wider text-on-surface-variant font-medium">
                       Quy trình: {isPaid ? '1/3 Chuẩn bị kiện hàng' : isShipped ? '2/3 Đang vận chuyển bọc chì' : '3/3 Hoàn tất đối soát'}
                     </span>
+                    <span className="text-outline-variant hidden sm:inline">·</span>
+                    <Link
+                      to={`/shop/thrift/orders/${encodeURIComponent(order.id.replace('#', ''))}`}
+                      className="inline-flex items-center gap-1 text-xs text-primary font-semibold hover:underline"
+                    >
+                      <span>Sổ lệnh chi tiết</span>
+                      <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                    </Link>
                   </div>
                 </div>
 
@@ -728,6 +743,14 @@ export const ShopThriftOrders: React.FC = () => {
                           Đã thanh toán Escrow vào ví Shop
                         </div>
                       )}
+
+                      <Link
+                        to={`/shop/thrift/orders/${encodeURIComponent(order.id.replace('#', ''))}`}
+                        className="w-full py-2 px-3 bg-surface hover:bg-surface-container text-on-surface text-xs font-semibold rounded border border-outline-variant/60 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-[16px] text-primary">receipt_long</span>
+                        <span>Xem Sổ Lệnh Chi Tiết</span>
+                      </Link>
                     </div>
                   </div>
                 </div>

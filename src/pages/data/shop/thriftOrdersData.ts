@@ -46,6 +46,49 @@ export const SHOP_THRIFT_ORDERS_STORAGE_KEY = 'SHOP_THRIFT_ORDERS_DATA';
 
 export const INITIAL_MOCK_THRIFT_ORDERS: ThriftOrder[] = [
   {
+    id: '#RH-THF-2024-9108',
+    createdAt: '20/11/2024 · 14:30 ICT',
+    buyer: {
+      name: 'Elena Rostova',
+      phone: '+84 908 421 892 (Đã mã hóa vi phốt)',
+      email: 'elena.rostova@atelier-archive.com',
+      shippingAddress: '48 Bạch Đằng, Tầng 4 Archive Suite, Phường Hải Châu 1, Quận Hải Châu, TP. Đà Nẵng',
+      kycTier: 'KYC XÁC THỰC CCCD · TIER 2',
+    },
+    listings: [
+      {
+        id: 'lst-9108-1',
+        title: 'Hasselblad 907X 50C + Kit Lens XCD 45mm f/4 P (Ex-Rental Archive Mint-)',
+        serialNumber: '#HB-907-88201',
+        grade: 'GRADE 1 · MINT- 98.0%',
+        price: 122000000,
+        imageUrl:
+          'https://lh3.googleusercontent.com/aida-public/AB6AXuDYydmGRqY4zwFl781ea4H-ntPqYHI_6xcrVyjWxCmxmDMhdScxJ-jTrrdZeaBpTDqzSKihBOsPQiF3iwrC9S_22R4LhhlVrG_c4doE9wA6FnhYV7h_DgDfsXrZhjoWLak0-5b39FTRXZ7u5jmOjKdeEjUFklU4H5kr-U1PitmXTfH9jl9s4-HAP-9acQReix8gt4_BiRR-tnrNGef093mRvkIXSFFrcM4VIv1oyQim',
+      },
+      {
+        id: 'lst-9108-2',
+        title: 'B+W Master MRC Nano 77mm Protection Filter (Archival Sealed)',
+        serialNumber: 'SEALED VAULT',
+        grade: 'GRADE 1 · NEW SEALED 100%',
+        price: 1850000,
+        imageUrl:
+          'https://lh3.googleusercontent.com/aida-public/AB6AXuBnHK414_PsQYKWyRV6pWbc25iMmw6GF3xCb6r8BoI2m--Y-IwY_SCsquLCYJp7_i2EAMJb6I8OByX5gkrfx13ezEENKo5cW_oE-DKEPNl7H6KZI0_MZfXjEG0QMkwByfw27DB0JUwsoIwYKW0CylXTuZDJ7YqyUwkPKNMDsX38g2iFVBQvzLyeC3wlAoU3iV8UAnJSX3L8ywPzLcbAUWjWkVenvcQ-Gmzt_iiCqngc',
+      },
+    ],
+    pricing: {
+      subtotal: 123850000,
+      shippingFee: 150000,
+      totalAmount: 124000000,
+    },
+    status: 'PAID',
+    shippingInfo: {
+      carrier: 'Insured Nanuk Crate Courier',
+      trackingCode: '#VN-883910-TH',
+      dispatchedAt: '20/11/2024 · 14:35',
+      notes: 'Bưu tá White-Glove kiểm soát rung chấn G-Force. Thùng kín 22°C, 45% RH.',
+    },
+  },
+  {
     id: '#TO-2024-9102',
     createdAt: '21/11/2024 14:32',
     buyer: {

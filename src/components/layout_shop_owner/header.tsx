@@ -1,20 +1,68 @@
 import React, { useContext } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { AuthContext } from "../../context/auth-context";
 import { defaultShopProfile } from "../../pages/data/shop/dashboardData";
 
-// Danh mục điều hướng làm việc của Shop Owner
+// Danh mục điều hướng chuẩn duy nhất của Shop Owner
 const shopNavItems = [
-  { to: "/shop/dashboard", label: "Dashboard", icon: "dashboard" },
-  { to: "/shop/rent/products", label: "Kho đồ RENT", icon: "camera" },
-  { to: "/shop/orders", label: "Đơn thuê RENT", icon: "assignment" },
-  { to: "/shop/thrift/listings", label: "Đồ bán THRIFT", icon: "sell" },
-  { to: "/shop/thrift/orders", label: "Đơn bán THRIFT", icon: "local_shipping" },
-  { to: "/shop/revenue", label: "Doanh thu", icon: "payments" },
+  {
+    to: "/shop/dashboard",
+    label: "Dashboard",
+    icon: "dashboard",
+    matcher: (path: string) => path === "/shop" || path === "/shop/dashboard",
+  },
+  {
+    to: "/shop/rent/products",
+    label: "Sản phẩm RENT",
+    icon: "camera",
+    matcher: (path: string) =>
+      path.startsWith("/shop/rent/products") ||
+      path.startsWith("/shop/rent-products") ||
+      path.startsWith("/shop/rent/create") ||
+      path.startsWith("/shop/rent/edit"),
+  },
+  {
+    to: "/shop/rent/inventory",
+    label: "Kho hiện vật",
+    icon: "inventory_2",
+    matcher: (path: string) =>
+      path.startsWith("/shop/rent/inventory") || path === "/shop/inventory",
+  },
+  {
+    to: "/shop/rent/orders",
+    label: "Đơn thuê RENT",
+    icon: "assignment",
+    matcher: (path: string) =>
+      path.startsWith("/shop/rent/orders") ||
+      (path.startsWith("/shop/orders") && !path.startsWith("/shop/orders/thrift")),
+  },
+  {
+    to: "/shop/thrift/listings",
+    label: "Mục đăng THRIFT",
+    icon: "sell",
+    matcher: (path: string) =>
+      (path.startsWith("/shop/thrift") && !path.startsWith("/shop/thrift/orders")) ||
+      path.startsWith("/shop/rent/convert"),
+  },
+  {
+    to: "/shop/thrift/orders",
+    label: "Đơn bán THRIFT",
+    icon: "local_shipping",
+    matcher: (path: string) =>
+      path.startsWith("/shop/thrift/orders") || path.startsWith("/shop/orders/thrift"),
+  },
+  {
+    to: "/shop/revenue",
+    label: "Doanh thu",
+    icon: "payments",
+    matcher: (path: string) =>
+      path.startsWith("/shop/revenue") || path.startsWith("/shop/payouts"),
+  },
 ];
 
 export const ShopHeader: React.FC = () => {
   const auth = useContext(AuthContext);
+  const location = useLocation();
   const user = auth?.user;
 
   const ownerName = user?.name || user?.username || defaultShopProfile.ownerName;
@@ -36,24 +84,25 @@ export const ShopHeader: React.FC = () => {
           </span>
         </div>
 
-        {/* KHỐI GIỮA: Menu làm việc của Shop (Gom từ subnav lên) */}
+        {/* KHỐI GIỮA: Menu làm việc của Shop (Thanh điều hướng chính thức & duy nhất) */}
         <nav className="hidden xl:flex items-center gap-1.5 overflow-x-auto py-1">
-          {shopNavItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs transition-all whitespace-nowrap ${
+          {shopNavItems.map((item) => {
+            const isActive = item.matcher(location.pathname);
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs transition-all whitespace-nowrap ${
                   isActive
                     ? "font-semibold bg-[#141310] text-white shadow-xs"
                     : "font-medium text-[#4a463f] hover:text-[#1c1c18] hover:bg-[#ebe8e1]"
-                }`
-              }
-            >
-              <span className="material-symbols-outlined text-[17px]">{item.icon}</span>
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+                }`}
+              >
+                <span className="material-symbols-outlined text-[17px]">{item.icon}</span>
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
         </nav>
 
         {/* KHỐI PHẢI: Xem sàn + Thông báo + Profile Shop */}
@@ -70,7 +119,7 @@ export const ShopHeader: React.FC = () => {
 
           {/* Nút thông báo */}
           <Link
-            to="/notifications"
+            to="/shop/notifications"
             className="p-1.5 text-[#57534e] hover:text-[#1c1c18] hover:bg-[#ebe8e1] transition-colors rounded-lg relative"
             title="Thông báo Shop"
           >
@@ -82,7 +131,7 @@ export const ShopHeader: React.FC = () => {
 
           {/* Profile Shop Owner */}
           <Link
-            to="/account-settings"
+            to="/shop/profile"
             className="flex items-center gap-2.5 py-1 px-2 hover:bg-[#f3efe8] transition-colors rounded-lg"
           >
             <div className="text-right hidden md:block">
@@ -105,23 +154,24 @@ export const ShopHeader: React.FC = () => {
       </div>
 
       {/* Dành cho màn hình nhỏ/laptop cỡ vừa: Menu cuộn ngang gọn nhẹ */}
-      <div className="xl:hidden w-full bg-[#f7f3ec] border-t border-[#dddad3] px-4 py-1.5 overflow-x-auto flex items-center gap-1.5">
-        {shopNavItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              `px-2.5 py-1 rounded-md flex items-center gap-1.5 text-[11px] whitespace-nowrap transition-all ${
+      <div className="xl:hidden w-full bg-[#f7f3ec] border-t border-[#dddad3] px-4 py-1.5 overflow-x-auto flex items-center gap-1.5 no-scrollbar">
+        {shopNavItems.map((item) => {
+          const isActive = item.matcher(location.pathname);
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={`px-2.5 py-1 rounded-md flex items-center gap-1.5 text-[11px] whitespace-nowrap transition-all ${
                 isActive
                   ? "font-semibold bg-[#141310] text-white shadow-xs"
                   : "font-medium text-[#4a463f] hover:bg-[#ebe8e1]"
-              }`
-            }
-          >
-            <span className="material-symbols-outlined text-[15px]">{item.icon}</span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+              }`}
+            >
+              <span className="material-symbols-outlined text-[15px]">{item.icon}</span>
+              <span>{item.label}</span>
+            </NavLink>
+          );
+        })}
       </div>
     </header>
   );

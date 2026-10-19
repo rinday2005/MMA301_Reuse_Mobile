@@ -50,7 +50,17 @@ import { InventoryDashboard } from "./pages/rent/shop/InventoryDashboard";
 import { RentInventoryDetail } from "./pages/rent/shop/RentInventoryDetail";
 import { ConvertToThrift } from "./pages/rent/shop/ConvertToThrift";
 import { ShopThriftListings } from "./pages/thrift/shop/ShopThriftListings";
+import { CreateThriftListing } from "./pages/thrift/shop/CreateThriftListing";
+import { ShopThriftListingDetail } from "./pages/thrift/shop/ShopThriftListingDetail";
+import { EditThriftListing } from "./pages/thrift/shop/EditThriftListing";
 import { ShopThriftOrders } from "./pages/thrift/orders/ShopThriftOrders";
+import { ShopThriftOrderDetail } from "./pages/thrift/orders/ShopThriftOrderDetail";
+import { ShopRentOrderDetail } from "./pages/rent/shop/ShopRentOrderDetail";
+import { RevenueDashboard } from "./pages/finance/RevenueDashboard";
+import { ShopOwnerProfile } from "./pages/profile/ShopOwnerProfile";
+import { ShopDashboard } from "./pages/rent/shop/ShopDashboard";
+import { ShopOwnerKyc } from "./pages/kyc/ShopOwnerKyc";
+import { ShopNotifications } from "./pages/notification/ShopNotifications";
 
 // Import Layout chuẩn riêng biệt cho Shop Owner
 import OwnerLayout from "./components/layout_shop_owner/ownerlayout";
@@ -111,14 +121,6 @@ const MyOrdersPage = () => (
   <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
     <h1 className="text-2xl font-bold text-gray-800">
       Đơn Hàng Của Tôi
-    </h1>
-  </div>
-);
-
-const ShopDashboard = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-    <h1 className="text-2xl font-bold text-gray-800">
-      Shop Owner Dashboard
     </h1>
   </div>
 );
@@ -194,7 +196,16 @@ const App = () => {
 
           {/* 4. KHU VỰC QUẢN TRỊ SHOP OWNER (DÙNG OWNERLAYOUT RIÊNG) */}
           <Route element={<OwnerLayout />}>
+            <Route path="/shop" element={<ShopDashboard />} />
             <Route path="/shop/dashboard" element={<ShopDashboard />} />
+            <Route path="/shop/profile" element={<ShopOwnerProfile />} />
+            <Route path="/shop/account" element={<ShopOwnerProfile />} />
+            <Route path="/shop/owner-profile" element={<ShopOwnerProfile />} />
+            <Route path="/shop/kyc" element={<ShopOwnerKyc />} />
+            <Route path="/shop/verification" element={<ShopOwnerKyc />} />
+            <Route path="/kyc" element={<ShopOwnerKyc />} />
+            <Route path="/shop/notifications" element={<ShopNotifications />} />
+            <Route path="/shop/alerts" element={<ShopNotifications />} />
             <Route path="/shop/inventory" element={<ManageRentProducts />} />
 
             {/* Quản lý danh sách sản phẩm RENT */}
@@ -214,14 +225,26 @@ const App = () => {
             <Route path="/shop/rent/create" element={<CreateRentProduct />} />
             <Route path="/shop/rent/edit/:id" element={<CreateRentProduct />} />
 
-            {/* Quản lý đơn hàng RENT (Có Modal xác nhận gửi hàng) */}
+            {/* Quản lý đơn hàng RENT (Có Modal xác nhận gửi hàng & Sổ lệnh chi tiết) */}
             <Route path="/shop/orders" element={<ShopOrders />} />
+            <Route path="/shop/orders/:id" element={<ShopRentOrderDetail />} />
+            <Route path="/shop/rent/orders" element={<ShopOrders />} />
+            <Route path="/shop/rent/orders/:id" element={<ShopRentOrderDetail />} />
 
             {/* Quản lý mục đăng & đơn bán THRIFT */}
             <Route path="/shop/thrift/listings" element={<ShopThriftListings />} />
+            <Route path="/shop/thrift/listings/create" element={<CreateThriftListing />} />
+            <Route path="/shop/thrift/create" element={<CreateThriftListing />} />
+            <Route path="/shop/thrift/listings/:id" element={<EditThriftListing />} />
+            <Route path="/shop/thrift/listings/:id/edit" element={<EditThriftListing />} />
+            <Route path="/shop/thrift/listings/:id/view" element={<ShopThriftListingDetail />} />
+            <Route path="/shop/thrift/:id" element={<EditThriftListing />} />
             <Route path="/shop/thrift/orders" element={<ShopThriftOrders />} />
+            <Route path="/shop/thrift/orders/:id" element={<ShopThriftOrderDetail />} />
             <Route path="/shop/orders/thrift" element={<ShopThriftOrders />} />
-            <Route path="/shop/revenue" element={<ShopDashboard />} />
+            <Route path="/shop/orders/thrift/:id" element={<ShopThriftOrderDetail />} />
+            <Route path="/shop/revenue" element={<RevenueDashboard />} />
+            <Route path="/shop/payouts" element={<RevenueDashboard />} />
           </Route>
 
           {/* 5. ADMIN ONLY */}

@@ -5,13 +5,22 @@ export interface RentalOrder {
   rentalPeriod: string;
   totalAmount: number;
   depositAmount?: number;
-  status: 'PENDING' | 'PAID' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED';
+  status: 'PENDING' | 'PAID' | 'SHIPPING' | 'RENTING' | 'INSPECTING' | 'COMPLETED' | 'DELIVERED' | 'CANCELLED';
   shippingCarrier?: string;
   trackingCode?: string;
   shippedAt?: string;
 }
 
 export const INITIAL_RENTAL_ORDERS: RentalOrder[] = [
+  {
+    id: 'RH-RNT-2024-8845',
+    productName: 'Hasselblad 907X 50C + Lens XCD 45mm (+ Filter B+W)',
+    customerName: 'Elena Rostova',
+    rentalPeriod: '14/11/2024 - 19/11/2024',
+    totalAmount: 2650000,
+    depositAmount: 17500000,
+    status: 'INSPECTING', // Đang trong lab nghiệm thu hoàn trả
+  },
   {
     id: 'RENT-8950',
     productName: 'Sony FX3 Cinema Line Kit + XLR Handle',

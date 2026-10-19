@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { ShippingModal } from '../../../components/orders/ShippingModal';
 import type { ShippingData } from '../../../components/orders/ShippingModal';
 import { INITIAL_RENTAL_ORDERS } from '../../data/shop/shopOrdersData';
@@ -110,7 +111,14 @@ export const ShopOrders: React.FC = () => {
               {orders.map((order) => (
                 <tr key={order.id} className="hover:bg-[#fdfbf7] transition-colors">
                   <td className="py-3.5 px-4 font-mono font-semibold text-[#141310] whitespace-nowrap">
-                    {order.id}
+                    <Link
+                      to={`/shop/rent/orders/${order.id}`}
+                      className="hover:text-[#6c5937] hover:underline flex items-center gap-1"
+                      title="Xem chi tiết sổ lệnh lưu ký"
+                    >
+                      <span>{order.id}</span>
+                      <span className="material-symbols-outlined text-[13px] text-[#78716c]">open_in_new</span>
+                    </Link>
                   </td>
                   <td className="py-3.5 px-4">
                     <div className="font-semibold text-[#1c1c18]">{order.productName}</div>
@@ -130,6 +138,12 @@ export const ShopOrders: React.FC = () => {
                     )}
                   </td>
                   <td className="py-3.5 px-4 whitespace-nowrap">
+                    {order.status === 'INSPECTING' && (
+                      <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-[#caebc9] text-[#05210c] border border-[#afcfae] flex items-center gap-1 w-fit">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#48654b] animate-pulse"></span>
+                        Nghiệm thu hoàn trả
+                      </span>
+                    )}
                     {order.status === 'PAID' && (
                       <span className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
                         Đã thanh toán
@@ -140,10 +154,20 @@ export const ShopOrders: React.FC = () => {
                         Chờ thanh toán
                       </span>
                     )}
+                    {order.status === 'RENTING' && (
+                      <span className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                        Đang cho thuê
+                      </span>
+                    )}
                     {order.status === 'SHIPPING' && (
                       <span className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1 w-fit">
                         <span className="material-symbols-outlined text-[14px]">local_shipping</span>
                         Đang giao hàng
+                      </span>
+                    )}
+                    {order.status === 'COMPLETED' && (
+                      <span className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-stone-100 text-stone-800 border border-stone-200">
+                        Đã hoàn tất
                       </span>
                     )}
                   </td>
@@ -153,12 +177,25 @@ export const ShopOrders: React.FC = () => {
                         <span className="font-semibold text-[#141310]">{order.shippingCarrier}: </span>
                         <span>{order.trackingCode}</span>
                       </div>
+                    ) : order.status === 'INSPECTING' ? (
+                      <span className="text-xs text-[#48654b] font-medium flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">biotech</span>
+                        Lab đối kiểm
+                      </span>
                     ) : (
                       <span className="text-[#a8a29e]">—</span>
                     )}
                   </td>
                   <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                    {order.status === 'PAID' ? (
+                    {order.status === 'INSPECTING' ? (
+                      <Link
+                        to={`/shop/rent/orders/${order.id}`}
+                        className="px-3 py-1.5 rounded-lg bg-[#6c5937] text-white hover:bg-[#554424] transition-colors font-medium text-xs inline-flex items-center gap-1 shadow-xs"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">troubleshoot</span>
+                        <span>Vào nghiệm thu</span>
+                      </Link>
+                    ) : order.status === 'PAID' ? (
                       <button
                         type="button"
                         onClick={() => handleOpenShippingModal(order)}
@@ -168,9 +205,13 @@ export const ShopOrders: React.FC = () => {
                         <span>Xác nhận gửi hàng</span>
                       </button>
                     ) : (
-                      <span className="text-[#a8a29e] text-xs italic">
-                        Không khả dụng
-                      </span>
+                      <Link
+                        to={`/shop/rent/orders/${order.id}`}
+                        className="px-2.5 py-1 rounded-lg border border-[#dddad3] text-[#4a463f] hover:bg-[#f2ede9] transition-colors text-xs font-medium inline-flex items-center gap-1"
+                      >
+                        <span>Sổ lệnh</span>
+                        <span className="material-symbols-outlined text-[13px]">arrow_forward</span>
+                      </Link>
                     )}
                   </td>
                 </tr>
