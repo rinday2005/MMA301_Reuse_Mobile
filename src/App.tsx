@@ -21,14 +21,10 @@ import RentProductDetail from "./pages/rent/detail/RentProductDetail";
 import RentOrderDetail from "./pages/rent/orders/RentOrderDetail";
 import MyRentOrders from "./pages/rent/orders/MyRentOrders";
 import RentCheckout from "./pages/rent/checkout/RentCheckout";
-import ReturnRequest from "./pages/rent/return/ReturnRequest";
-import UserWallet from "./pages/wallet/UserWallet";
 
 import ThriftMarketplace from "./pages/thrift/marketplace/ThriftMarketplace";
 import ThriftDetail from "./pages/thrift/detail/ThriftDetail";
 import ThriftCheckout from "./pages/thrift/checkout/ThriftCheckout";
-import MyThriftOrders from "./pages/thrift/orders/MyThriftOrders";
-import ThriftOrderDetail from "./pages/thrift/orders/ThriftOrderDetail";
 
 import CategoriesMarketplace from "./pages/categories/marketplace/CategoriesMarketplace";
 import CategoryDetail from "./pages/categories/detail/CategoryDetail";
@@ -36,8 +32,6 @@ import CategoryDetail from "./pages/categories/detail/CategoryDetail";
 import UserDashboard from "./pages/home/User/UserDashboard";
 import Cart from "./pages/cart/Cart";
 import Profile from "./pages/profile/Profile";
-import Wishlist from "./pages/wishlist/Wishlist";
-import NotificationCenter from "./pages/notification/NotificationCenter";
 import PaymentReturn from "./pages/payment/PaymentReturn";
 import PaymentSuccess from "./pages/payment/PaymentSuccess";
 import PaymentFailed from "./pages/payment/PaymentFailed";

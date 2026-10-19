@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import type { ThriftListingItem } from '../../data/shop/thriftListingsData';
 import {
   THRIFT_LISTINGS_STORAGE_KEY,
@@ -48,7 +48,6 @@ const DEFAULT_EDIT_PHOTOS: InspectionPhotoItem[] = [
 
 export const EditThriftListing: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
 
   // Load target item from storage or fallback to Hasselblad 907X
   const [initialItem] = useState<ThriftListingItem>(() => {

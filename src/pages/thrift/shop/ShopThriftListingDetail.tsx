@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import type { ThriftListingItem } from '../../data/shop/thriftListingsData';
 import { THRIFT_LISTINGS_STORAGE_KEY, INITIAL_THRIFT_LISTINGS } from '../../data/shop/thriftListingsData';
 
@@ -31,7 +31,6 @@ const HERO_DEFAULT_IMAGE =
 
 export const ShopThriftListingDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
 
   // Load listing item from storage or fallback
   const [listing, setListing] = useState<ThriftListingItem>(() => {

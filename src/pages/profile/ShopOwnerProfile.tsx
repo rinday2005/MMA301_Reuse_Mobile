@@ -810,29 +810,55 @@ export const ShopOwnerProfile: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-[#141310] uppercase tracking-wider mb-1">
-                    Số Điện Thoại Trực Hotline
+                    Email Liên Hệ Phụ
                   </label>
                   <input
-                    type="text"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    type="email"
+                    value={secondaryEmail}
+                    onChange={(e) => setSecondaryEmail(e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-white rounded-xl border border-[#dddad3] text-sm text-[#141310] focus:outline-none focus:ring-2 focus:ring-[#576151]"
-                    required
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-[#141310] uppercase tracking-wider mb-1">
-                  Địa Chỉ Showroom / Vault
+                  Số Điện Thoại Trực Hotline
                 </label>
                 <input
                   type="text"
-                  value={addressLine}
-                  onChange={(e) => setAddressLine(e.target.value)}
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-white rounded-xl border border-[#dddad3] text-sm text-[#141310] focus:outline-none focus:ring-2 focus:ring-[#576151]"
                   required
                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#141310] uppercase tracking-wider mb-1">
+                    Địa Chỉ Showroom / Vault
+                  </label>
+                  <input
+                    type="text"
+                    value={addressLine}
+                    onChange={(e) => setAddressLine(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white rounded-xl border border-[#dddad3] text-sm text-[#141310] focus:outline-none focus:ring-2 focus:ring-[#576151]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#141310] uppercase tracking-wider mb-1">
+                    Khu Vực / Thành Phố
+                  </label>
+                  <input
+                    type="text"
+                    value={cityRegion}
+                    onChange={(e) => setCityRegion(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white rounded-xl border border-[#dddad3] text-sm text-[#141310] focus:outline-none focus:ring-2 focus:ring-[#576151]"
+                    required
+                  />
+                </div>
               </div>
 
               <div>

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type {
   ThriftListingItem,
-  ThriftListingStatus,
   ThriftListingSource,
 } from '../../data/shop/thriftListingsData';
 import {
@@ -348,11 +347,13 @@ export const ShopThriftListings: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-secondary"></span>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-serif text-3xl text-secondary font-semibold">{availableCount}</span>
+              <span className="font-serif text-3xl text-secondary font-semibold">
+                {String(availableCount).padStart(2, '0')}
+              </span>
               <span className="font-body-sm text-body-sm text-on-surface-variant">sẵn sàng</span>
             </div>
             <div className="mt-2 pt-2 border-t border-surface-dim text-[11px] font-mono text-secondary">
-              Trên sàn THRIFT
+              Sẵn sàng giao
             </div>
           </button>
 
@@ -366,7 +367,9 @@ export const ShopThriftListings: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-serif text-3xl text-primary font-semibold">05</span>
+              <span className="font-serif text-3xl text-primary font-semibold">
+                {String(pendingCount).padStart(2, '0')}
+              </span>
               <span className="font-body-sm text-body-sm text-on-surface-variant">hồ sơ</span>
             </div>
             <div className="mt-2 pt-2 border-t border-surface-dim text-[11px] font-mono text-primary">
@@ -384,7 +387,9 @@ export const ShopThriftListings: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-on-surface-variant"></span>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-serif text-3xl text-on-surface font-semibold">07</span>
+              <span className="font-serif text-3xl text-on-surface font-semibold">
+                {String(soldCount).padStart(2, '0')}
+              </span>
               <span className="font-body-sm text-body-sm text-on-surface-variant">hoàn tất</span>
             </div>
             <div className="mt-2 pt-2 border-t border-surface-dim text-[11px] font-mono text-on-surface-variant">
@@ -399,7 +404,9 @@ export const ShopThriftListings: React.FC = () => {
           >
             <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Bản nháp</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-serif text-3xl text-on-surface-variant font-semibold">02</span>
+              <span className="font-serif text-3xl text-on-surface-variant font-semibold">
+                {String(draftCount).padStart(2, '0')}
+              </span>
               <span className="font-body-sm text-body-sm text-on-surface-variant">chưa gửi</span>
             </div>
             <div className="mt-2 pt-2 border-t border-surface-dim text-[11px] font-mono text-on-surface-variant">
@@ -540,7 +547,7 @@ export const ShopThriftListings: React.FC = () => {
             <div className="md:col-span-3">
               <select
                 value={sourceFilter}
-                onChange={(e) => { setSourceFilter(e.target.value as any); setCurrentPage(1); }}
+                onChange={(e) => { setSourceFilter(e.target.value as 'ALL' | ThriftListingSource); setCurrentPage(1); }}
                 className="w-full bg-surface py-2 px-3 text-body-md font-body-md text-on-surface focus:outline-none rounded-DEFAULT shadow-inner cursor-pointer border border-surface-dim"
               >
                 <option value="ALL">Nguồn gốc: Tất cả nguồn</option>
@@ -568,7 +575,7 @@ export const ShopThriftListings: React.FC = () => {
             <div className="md:col-span-2">
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
+                onChange={(e) => setSortBy(e.target.value as 'newest' | 'price_desc' | 'price_asc' | 'cycles')}
                 className="w-full bg-surface py-2 px-3 text-body-md font-body-md text-on-surface focus:outline-none rounded-DEFAULT shadow-inner cursor-pointer border border-surface-dim"
               >
                 <option value="newest">Sắp xếp: Mới nhất</option>
