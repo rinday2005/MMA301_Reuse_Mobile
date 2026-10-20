@@ -14,6 +14,7 @@ import {
   findEarliestAvailableRentalRange,
 } from '../../data/rent/rentOrderDetailData';
 import { getUserProfileAddress } from '../../../utils/address';
+import { resolveWishlistProduct } from '../../../services/wishlistProductResolver';
 
 export const RentCheckout: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -447,10 +448,7 @@ export const RentCheckout: React.FC = () => {
 
   return (
     <div className="bg-[#FBF9F5] text-[#1E1E1E] font-sans antialiased selection:bg-[#E8EFE9] selection:text-[#2D5A43] min-h-screen flex flex-col">
-      {/* ── TOP ANNOUNCEMENT BAR ── */}
-      <aside className="bg-[#1E1E1E] text-[#E2DFD8] text-[11px] tracking-widest font-medium uppercase py-2 text-center border-b border-[#292724] px-4">
-        RENT WHAT YOU NEED. REUSE WHAT ALREADY EXISTS. COMPLIMENTARY INSURED SHIPPING ON VERIFIED RENTALS.
-      </aside>
+      
 
       {/* ── PAGE TITLE AREA & TRUST BADGES ── */}
       <section className="bg-[#FDFCF9] border-b border-[#E5E0D8] py-7">
@@ -665,7 +663,13 @@ export const RentCheckout: React.FC = () => {
                         <img
                           alt={item.title}
                           className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                          src={item.image}
+                          src={item.image || resolveWishlistProduct(item.id)?.image || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80'}
+                          onError={(e) => {
+                            const res = resolveWishlistProduct(item.id);
+                            if (res?.image && e.currentTarget.src !== res.image) {
+                              e.currentTarget.src = res.image;
+                            }
+                          }}
                         />
                         <span className="absolute bottom-1.5 left-1.5 bg-[#1E1E1E]/90 text-white text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded backdrop-blur-xs">
                           {category}

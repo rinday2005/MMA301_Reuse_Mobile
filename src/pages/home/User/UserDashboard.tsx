@@ -4,6 +4,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
 import { UserSidebar } from '../../../components/layout/UserSidebar';
 import { getMyRentalOrdersApi, type RentalOrderApi, type RentalOrderItemApi } from '../../../services/order.api';
+import { getMyThriftOrdersApi, type ThriftOrderApi } from '../../../services/thriftOrder.api';
 import {
   CIRCULAR_LIFECYCLE_STEPS,
   RECOMMENDED_DASHBOARD_ITEMS,
@@ -24,22 +25,21 @@ export const UserDashboard: React.FC = () => {
   // ── Load Real Rental Orders & Thrift Orders ──
   const [activeRentals, setActiveRentals] = useState<RentalOrderApi[]>([]);
 
-  // 1. Thrift orders from user storage memoized directly
-  const thriftOrders = useMemo(() => {
-    const uId = user?._id || user?.id;
-    if (!uId) return [] as Record<string, unknown>[];
-    try {
-      localStorage.removeItem('user_thrift_orders');
-      const key = `user_thrift_orders_${uId}`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) return parsed as Record<string, unknown>[];
-      }
-    } catch {
-      // ignore
-    }
-    return [] as Record<string, unknown>[];
+  // 1. Real Thrift Orders from Backend API
+  const [thriftOrders, setThriftOrders] = useState<ThriftOrderApi[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getMyThriftOrdersApi()
+      .then((res) => {
+        if (!isMounted) return;
+        const list = res?.orders || [];
+        setThriftOrders(list);
+      })
+      .catch((err) => {
+        console.warn('Could not load thrift orders from API:', err);
+      });
+    return () => { isMounted = false; };
   }, [user]);
 
   // 2. Real Rent Orders: Merge Backend API & LocalStorage for accurate user context
@@ -343,27 +343,26 @@ export const UserDashboard: React.FC = () => {
 
   // Dynamic computed thrift orders
   const formattedThriftOrders = useMemo(() => {
-    return thriftOrders.slice(0, 3).map((order: Record<string, unknown>, idx: number) => {
-      const itemsList = order.items as Record<string, unknown>[] | undefined;
-      const item = itemsList?.[0] || order;
-      const rawId = (order.orderCode || order.id || order._id || `RH-THF-${idx + 1}`) as string;
+    return thriftOrders.slice(0, 3).map((order: ThriftOrderApi, idx: number) => {
+      const itemsList = order.items;
+      const item = itemsList?.[0];
+      const rawId = order.orderCode || order._id || `RH-THF-${idx + 1}`;
       const code = rawId.startsWith('#') ? rawId : `#${rawId}`;
-      const title = (item.productName || item.title || `Đơn hàng THRIFT ${code}`) as string;
+      const title = item?.productName || `Đơn hàng THRIFT ${code}`;
       const image =
-        ((item.imageUrl ||
-          item.image ||
-          'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80') as string);
-      const price = (order.totalAmount || item.price || 0) as number;
-      const condition = (item.condition || 'Tình trạng: Kiểm định chuẩn ReUse Grade A') as string;
+        item?.imageUrl ||
+        'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80';
+      const price = order.totalAmount || item?.price || 0;
+      const condition = item?.condition || 'Tình trạng: Kiểm định chuẩn ReUse Grade A';
       const status =
         order.status === 'COMPLETED'
           ? 'ĐÃ GIAO HÀNG'
           : order.status === 'PAID'
           ? 'ĐÃ THANH TOÁN'
-          : (order.status as string) || 'ĐÃ XÁC NHẬN';
-      const badge = (order.badge || 'THRIFT') as string;
-      const warrantyNote = (order.warrantyNote || 'Chứng nhận Audit Bench') as string;
-      const detailUrl = `/thrift/orders/${(order._id || order.id || rawId).toString().replace('#', '')}`;
+          : order.status || 'ĐÃ XÁC NHẬN';
+      const badge = 'THRIFT';
+      const warrantyNote = item?.warranty || 'Chứng nhận Audit Bench';
+      const detailUrl = `/thrift/orders/${order._id.replace('#', '')}`;
 
       return {
         id: code,

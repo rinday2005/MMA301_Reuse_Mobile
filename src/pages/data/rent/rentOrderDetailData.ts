@@ -54,6 +54,8 @@ export interface RentProductDetailData {
   allowedConditions: string;
   prohibitedActions: string;
   bookedDates?: BookedDateRange[];
+  size?: string;
+  sizes?: string[];
 }
 
 export interface RentLifecycleStep {
@@ -841,6 +843,8 @@ export function createRentProductDetail(source: Partial<RentProductDetailData> &
     deposit: deposit,
     depositFormatted: source.depositFormatted || `${deposit.toLocaleString('vi-VN')}₫`,
     maxQuantity: source.maxQuantity || 2,
+    size: source.size || 'L',
+    sizes: source.sizes && source.sizes.length > 0 ? source.sizes : ['S', 'M', 'L', 'XL'],
     auditCode: source.auditCode || `#RH-${idStr.slice(-6).toUpperCase()}`,
     images: source.images && source.images.length > 0 ? source.images : [
       { src: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80', alt: source.title, caption: source.title }

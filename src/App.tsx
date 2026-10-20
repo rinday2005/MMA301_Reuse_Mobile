@@ -27,6 +27,8 @@ import UserWallet from "./pages/wallet/UserWallet";
 import ThriftMarketplace from "./pages/thrift/marketplace/ThriftMarketplace";
 import ThriftDetail from "./pages/thrift/detail/ThriftDetail";
 import ThriftCheckout from "./pages/thrift/checkout/ThriftCheckout";
+import MyThriftOrders from "./pages/thrift/orders/MyThriftOrders";
+import ThriftOrderDetail from "./pages/thrift/orders/ThriftOrderDetail";
 
 import CategoriesMarketplace from "./pages/categories/marketplace/CategoriesMarketplace";
 import CategoryDetail from "./pages/categories/detail/CategoryDetail";
@@ -39,6 +41,8 @@ import NotificationCenter from "./pages/notification/NotificationCenter";
 import PaymentReturn from "./pages/payment/PaymentReturn";
 import PaymentSuccess from "./pages/payment/PaymentSuccess";
 import PaymentFailed from "./pages/payment/PaymentFailed";
+import CustomerKyc from "./pages/kyc/CustomerKyc";
+import ChatPage from "./pages/chat/ChatPage";
 
 import PublicRoutes from "./routes/PublicRoutes";
 import ProtectedRoutes from "./routes/ProtectedRoutes";
@@ -132,6 +136,14 @@ const ShopDashboard = () => (
 );
 
 
+const DashboardRouter = () => {
+  const auth = useContext(AuthContext);
+  if (auth?.user) {
+    return <UserDashboard />;
+  }
+  return <Home />;
+};
+
 const App = () => {
   return (
     <>
@@ -157,6 +169,11 @@ const App = () => {
           <Route
             path="/"
             element={<Home />}
+          />
+
+          <Route
+            path="/dashboard"
+            element={<DashboardRouter />}
           />
 
           <Route
@@ -242,6 +259,21 @@ const App = () => {
           />
 
           <Route
+            path="/thrift/orders"
+            element={<MyThriftOrders />}
+          />
+
+          <Route
+            path="/thrift/orders/:id"
+            element={<ThriftOrderDetail />}
+          />
+
+          <Route
+            path="/my-thrift-orders"
+            element={<MyThriftOrders />}
+          />
+
+          <Route
             path="/categories"
             element={<CategoriesMarketplace />}
           />
@@ -292,6 +324,16 @@ const App = () => {
           />
 
           <Route
+            path="/kyc"
+            element={<CustomerKyc />}
+          />
+
+          <Route
+            path="/chat"
+            element={<ChatPage />}
+          />
+
+          <Route
             path="/about"
             element={<AboutPage />}
           />
@@ -331,10 +373,7 @@ const App = () => {
               element={<UserDashboard />}
             />
 
-            <Route
-              path="/dashboard"
-              element={<UserDashboard />}
-            />
+
 
             <Route
               path="/saved-items"
@@ -369,6 +408,26 @@ const App = () => {
             <Route
               path="/user/wallet"
               element={<UserWallet />}
+            />
+
+            <Route
+              path="/kyc"
+              element={<CustomerKyc />}
+            />
+
+            <Route
+              path="/user/kyc"
+              element={<CustomerKyc />}
+            />
+
+            <Route
+              path="/chat"
+              element={<ChatPage />}
+            />
+
+            <Route
+              path="/user/chat"
+              element={<ChatPage />}
             />
           </Route>
         </Route>

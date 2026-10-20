@@ -13,6 +13,9 @@ export interface Product {
   href: string;
   categoryLabel: string;
   image: string;
+  size?: string;
+  sizes?: string[];
+  name?: string;
 }
 
 export type SortKey = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'newest';

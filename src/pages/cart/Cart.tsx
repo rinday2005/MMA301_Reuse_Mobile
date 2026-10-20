@@ -5,6 +5,7 @@ import { AuthContext } from '../../context/auth-context';
 import { DEFAULT_DEMO_CART_ITEMS } from '../data/cart/defaultCartData';
 import { RentalCalendarPicker } from '../../components/rent/RentalCalendarPicker';
 import { getProductBookedDates, hasDateRangeConflict } from '../data/rent/rentOrderDetailData';
+import { resolveWishlistProduct } from '../../services/wishlistProductResolver';
 
 export const Cart: React.FC = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export const Cart: React.FC = () => {
     removeFromCart,
     removeMultipleFromCart,
     updateCartItem,
+    updateCartQuantity,
     setCartItems,
     toggleWishlist,
     isWishlisted,
@@ -90,6 +92,16 @@ export const Cart: React.FC = () => {
     }
     // Default fallback based on daily price
     return item.price * 8;
+  };
+
+  // Helper resolving image fallback with zero placeholder degradation
+  const getItemImage = (item: CartItem): string => {
+    if (item.image && item.image.trim() !== '') return item.image;
+    const resolved = resolveWishlistProduct(item.id);
+    if (resolved?.image && resolved.image.trim() !== '') return resolved.image;
+    return item.mode === 'thrift'
+      ? 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80'
+      : 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80';
   };
 
   // Separate active items by mode
@@ -518,9 +530,15 @@ export const Cart: React.FC = () => {
 
                           <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-xl overflow-hidden flex-shrink-0 bg-[#EBE8E1]">
                             <img
-                              src={item.image || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80'}
+                              src={getItemImage(item)}
                               alt={item.title}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const resolved = resolveWishlistProduct(item.id);
+                                if (resolved?.image && e.currentTarget.src !== resolved.image) {
+                                  e.currentTarget.src = resolved.image;
+                                }
+                              }}
                             />
                             <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 bg-[#141310]/85 backdrop-blur-xs text-white text-[10px] font-semibold rounded uppercase">
                               {item.categoryLabel || 'Thiết bị RENT'}
@@ -688,9 +706,15 @@ export const Cart: React.FC = () => {
 
                           <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-xl overflow-hidden flex-shrink-0 bg-[#EBE8E1]">
                             <img
-                              src={item.image || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80'}
+                              src={getItemImage(item)}
                               alt={item.title}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const resolved = resolveWishlistProduct(item.id);
+                                if (resolved?.image && e.currentTarget.src !== resolved.image) {
+                                  e.currentTarget.src = resolved.image;
+                                }
+                              }}
                             />
                             <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 bg-[#181106]/85 backdrop-blur-xs text-white text-[10px] font-semibold rounded uppercase">
                               Độc bản 1-of-1
@@ -734,7 +758,7 @@ export const Cart: React.FC = () => {
                                     </span>
                                   </>
                                 )}
-                                {item.sizeOrSpec && (
+                                {item.sizeOrSpec && !((item.categoryLabel || '').toLowerCase().includes('camera') || (item.categoryLabel || '').toLowerCase().includes('máy ảnh') || /canon|sony|nikon|fujifilm|dji|leica/i.test(item.title)) && (
                                   <>
                                     <span>•</span>
                                     <span>Size: <strong>{item.sizeOrSpec}</strong></span>
@@ -750,17 +774,60 @@ export const Cart: React.FC = () => {
                                   Quyền sở hữu vĩnh viễn (Đã bao gồm tem vật lý &amp; NFT Provenance)
                                 </div>
                                 <div className="font-serif text-xl text-[#141310] font-bold mt-0.5">
-                                  {formatCurrency(item.price)}
+                                  {formatCurrency(item.price * (item.quantity || 1))}
+                                  {(item.quantity || 1) > 1 && (
+                                    <span className="text-xs font-normal text-[#7B766F] ml-1.5 font-sans">
+                                      ({formatCurrency(item.price)} × {item.quantity})
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 
+                              {/* Dynamic Thrift Quantity or 1-of-1 Badge */}
                               <div className="flex items-center gap-3">
-                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#F1EDE6] rounded-lg text-xs font-medium text-[#1C1C18]">
-                                  <span className="material-symbols-outlined text-[15px] text-[#7B766F]">
-                                    fingerprint
-                                  </span>
-                                  <span>SL: 1 (Hiện vật độc bản)</span>
-                                </div>
+                                {(item.sourceOrigin === 'RENTAL_PRODUCT' || item.sourceType === 'RENTAL_PRODUCT' || item.isUnique || (item.maxQuantity === 1 && !item.quantity)) ? (
+                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#F1EDE6] rounded-lg text-xs font-medium text-[#1C1C18]">
+                                    <span className="material-symbols-outlined text-[15px] text-[#7B766F]">
+                                      fingerprint
+                                    </span>
+                                    <span>SL: 1 (Hiện vật độc bản)</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center border border-[#D5D0C7] rounded-lg overflow-hidden bg-white shadow-2xs">
+                                      <button
+                                        type="button"
+                                        onClick={() => updateCartQuantity(item.id, -1)}
+                                        className="w-7 h-7 flex items-center justify-center text-[#141310] hover:bg-[#F1EDE6] transition-colors cursor-pointer"
+                                        title="Giảm số lượng"
+                                      >
+                                        <span className="material-symbols-outlined text-[15px]">remove</span>
+                                      </button>
+                                      <span className="w-8 text-center text-xs font-bold font-mono text-[#141310]">
+                                        {item.quantity || 1}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const curQty = item.quantity || 1;
+                                          const maxLimit = item.maxQuantity || item.stock || 99;
+                                          if (curQty < maxLimit) {
+                                            updateCartQuantity(item.id, 1);
+                                          } else {
+                                            showToast(`Đã đạt giới hạn tồn kho (${maxLimit} sản phẩm)`, 'info');
+                                          }
+                                        }}
+                                        className="w-7 h-7 flex items-center justify-center text-[#141310] hover:bg-[#F1EDE6] transition-colors cursor-pointer"
+                                        title="Tăng số lượng"
+                                      >
+                                        <span className="material-symbols-outlined text-[15px]">add</span>
+                                      </button>
+                                    </div>
+                                    <span className="text-[11px] text-[#7B766F] font-medium hidden sm:inline">
+                                      (SL: {item.quantity || 1})
+                                    </span>
+                                  </div>
+                                )}
 
                                 <div className="flex items-center gap-1">
                                   <button
@@ -958,7 +1025,7 @@ export const Cart: React.FC = () => {
                         <span>Tóm tắt Đơn Mua (THRIFT)</span>
                       </span>
                       <span className="text-xs text-[#7B766F]">
-                        {selectedThriftItems.length} độc bản đã chọn
+                        {selectedThriftItems.reduce((sum, it) => sum + (it.quantity || 1), 0)} sản phẩm đã chọn
                       </span>
                     </div>
 

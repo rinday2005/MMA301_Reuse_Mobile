@@ -59,6 +59,8 @@ export const RentProductDetail: React.FC = () => {
           deposit: deposit,
           depositFormatted: `${deposit.toLocaleString('vi-VN')}₫`,
           maxQuantity: p.totalQuantity || 1,
+          size: (p.category === 'camera' || /canon|sony|nikon|fujifilm|dji|lens/i.test(p.name || '')) ? undefined : (p.size || 'L'),
+          sizes: (p.category === 'camera' || /canon|sony|nikon|fujifilm|dji|lens/i.test(p.name || '')) ? [] : (Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes : ['S', 'M', 'L', 'XL']),
           images,
           overview: [
             p.description || `${p.name} là sản phẩm lưu ký cao cấp được niêm phong tại kho ${p.location || 'Đà Nẵng'}.`,
@@ -472,10 +474,14 @@ export const RentProductDetail: React.FC = () => {
                 {product.subtitle}
               </p>
 
-              <div className="flex items-center gap-3 pt-1">
+              <div className="flex items-center gap-2.5 pt-1 flex-wrap">
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 text-xs font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                   Tình trạng: {product.condition}
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#1C1A18] text-white text-xs font-bold shadow-2xs">
+                  <span className="material-symbols-outlined text-[14px]">straighten</span>
+                  Size: {product.size || 'L'}
                 </span>
                 <span className="text-xs text-[#78736A] font-mono">{product.shutterOrUsage}</span>
               </div>
@@ -500,6 +506,27 @@ export const RentProductDetail: React.FC = () => {
                     <span className="material-symbols-outlined text-[12px]">lock</span> Escrow an toàn
                   </span>
                 </div>
+              </div>
+
+              {/* Thông tin Size sản phẩm chi tiết */}
+              <div className="pt-2.5 border-t border-[#E7E2DA]/80 flex items-center justify-between text-xs flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#1C1A18] text-[17px]">apparel</span>
+                  <span className="text-[#5E5A53]">
+                    Kích cỡ sản phẩm: <strong className="text-[#1C1A18] font-bold">Size {product.size || 'L'}</strong>
+                  </span>
+                </div>
+                <span className="text-[11px] text-[#78736A] font-medium bg-white px-2 py-0.5 rounded border border-[#E7E2DA]">
+                  {product.size === 'S'
+                    ? 'Phù hợp 1m50 - 1m62 · 42 - 50kg'
+                    : product.size === 'M'
+                    ? 'Phù hợp 1m58 - 1m68 · 48 - 58kg'
+                    : product.size === 'XL'
+                    ? 'Phù hợp 1m70 - 1m85 · 65 - 80kg'
+                    : product.size === 'FREE_SIZE'
+                    ? 'Form rộng đa năng · Free Size'
+                    : 'Phù hợp 1m65 - 1m78 · 55 - 68kg'}
+                </span>
               </div>
             </div>
 
