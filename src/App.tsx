@@ -112,6 +112,14 @@ const AdminDashboard = () => (
   </div>
 );
 
+const DashboardRouter = () => {
+  const auth = useContext(AuthContext);
+  if (auth?.user) {
+    return <UserDashboard />;
+  }
+  return <Home />;
+};
+
 const App = () => {
   return (
     <>
@@ -137,6 +145,11 @@ const App = () => {
           <Route
             path="/"
             element={<Home />}
+          />
+
+          <Route
+            path="/dashboard"
+            element={<DashboardRouter />}
           />
 
           <Route
@@ -336,10 +349,7 @@ const App = () => {
               element={<UserDashboard />}
             />
 
-            <Route
-              path="/dashboard"
-              element={<UserDashboard />}
-            />
+
 
             <Route
               path="/saved-items"
