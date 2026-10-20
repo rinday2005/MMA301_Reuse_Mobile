@@ -8,6 +8,7 @@ import {
   confirmDeliveredThriftOrderApi,
   type ThriftOrderApi,
   type ThriftOrderItemApi,
+  type ThriftShippingAddressApi,
 } from '../../../services/thriftOrder.api';
 import { redirectToVnPayGateway } from '../../../services/payment.api';
 import { resolveCleanAddress } from '../../../utils/address';
@@ -179,7 +180,7 @@ export const MyThriftOrders: React.FC = () => {
       };
     });
 
-    const addr = typeof raw.shippingAddress === 'object' && raw.shippingAddress !== null ? raw.shippingAddress : {};
+    const addr = (typeof raw.shippingAddress === 'object' && raw.shippingAddress !== null ? raw.shippingAddress : {}) as Partial<ThriftShippingAddressApi>;
     const fullAddr = resolveCleanAddress(raw.shippingAddress, user);
 
     return {

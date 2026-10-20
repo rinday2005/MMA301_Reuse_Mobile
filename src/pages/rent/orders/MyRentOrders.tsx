@@ -604,7 +604,7 @@ export const MyRentOrders: React.FC = () => {
                 existingList.forEach((e: { orderCode?: string; _id?: string; status?: string; pickupScheduled?: boolean; returnedAt?: string }) => {
                   if (e.status === 'RETURN_REQUESTED' || e.pickupScheduled) {
                     const c = (e.orderCode || e._id || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-                    if (c) returnMap.set(c, { status: e.status, pickupScheduled: e.pickupScheduled, returnedAt: e.returnedAt });
+                    if (c) returnMap.set(c, { status: e.status || 'RETURN_REQUESTED', pickupScheduled: e.pickupScheduled, returnedAt: e.returnedAt });
                   }
                 });
               }
