@@ -7,6 +7,53 @@ type RoleFilter = "ALL" | "USER" | "SHOP_OWNER" | "ADMIN";
 type StatusFilter = "ALL" | "ACTIVE" | "SUSPENDED" | "PENDING";
 type KycFilter = "ALL" | "APPROVED" | "PENDING" | "UNVERIFIED";
 
+const getInitials = (name?: string) => {
+  if (!name) return "RH";
+  const parts = name.trim().split(" ");
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+};
+
+const formatDate = (isoString?: string) => {
+  if (!isoString) return { date: "12 Oct 2026", time: "14:30:00" };
+  try {
+    const d = new Date(isoString);
+    const day = d.toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+    const time = d.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    return { date: day, time };
+  } catch {
+    return { date: "12 Oct 2026", time: "14:30:00" };
+  }
+};
+
+const getRelativeTime = (isoString?: string) => {
+  if (!isoString) return "10 phút trước";
+  try {
+    const diffMs = new Date().getTime() - new Date(isoString).getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Vừa xong";
+    if (diffMins < 60) return `${diffMins} phút trước`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} giờ trước`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return "Hôm qua";
+    return `${diffDays} ngày trước`;
+  } catch {
+    return "15 phút trước";
+  }
+};
+
 export const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<MongoUserItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -36,22 +83,31 @@ export const UserManagement: React.FC = () => {
     }, 3500);
   };
 
-  // Load real MongoDB users
-  const loadUsers = async () => {
-    setLoading(true);
-    try {
-      const data = await fetchAdminUsers();
-      setUsers(data);
-    } catch (err) {
-      console.error("Lỗi khi tải danh sách người dùng MongoDB:", err);
-      showToast("Không thể tải danh sách thành viên từ cơ sở dữ liệu");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadUsers();
+    let ignore = false;
+    const fetchUsers = async () => {
+      try {
+        const data = await fetchAdminUsers();
+        if (!ignore) {
+          setUsers(data);
+        }
+      } catch (err) {
+        if (!ignore) {
+          console.error("Lỗi khi tải danh sách người dùng MongoDB:", err);
+          showToast("Không thể tải danh sách thành viên từ cơ sở dữ liệu");
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchUsers();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   // Compute live metrics strictly from real MongoDB users
@@ -122,11 +178,6 @@ export const UserManagement: React.FC = () => {
     });
   }, [users, selectedRole, selectedStatus, selectedKyc, searchTerm]);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedRole, selectedStatus, selectedKyc, searchTerm]);
-
   // Pagination slicing
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
   const paginatedUsers = useMemo(() => {
@@ -134,52 +185,32 @@ export const UserManagement: React.FC = () => {
     return filteredUsers.slice(start, start + pageSize);
   }, [filteredUsers, currentPage, pageSize]);
 
-  // Helpers
-  const getInitials = (name?: string) => {
-    if (!name) return "RH";
-    const parts = name.trim().split(" ");
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
+  const handleRoleChange = (role: RoleFilter) => {
+    setSelectedRole(role);
+    setCurrentPage(1);
   };
 
-  const formatDate = (isoString?: string) => {
-    if (!isoString) return { date: "12 Oct 2026", time: "14:30:00" };
-    try {
-      const d = new Date(isoString);
-      const day = d.toLocaleDateString("vi-VN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
-      const time = d.toLocaleTimeString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-      });
-      return { date: day, time };
-    } catch {
-      return { date: "12 Oct 2026", time: "14:30:00" };
-    }
+  const handleSearchChange = (term: string) => {
+    setSearchTerm(term);
+    setCurrentPage(1);
   };
 
-  const getRelativeTime = (isoString?: string) => {
-    if (!isoString) return "10 phút trước";
-    try {
-      const diffMs = Date.now() - new Date(isoString).getTime();
-      const diffMins = Math.floor(diffMs / 60000);
-      if (diffMins < 1) return "Vừa xong";
-      if (diffMins < 60) return `${diffMins} phút trước`;
-      const diffHours = Math.floor(diffMins / 60);
-      if (diffHours < 24) return `${diffHours} giờ trước`;
-      const diffDays = Math.floor(diffHours / 24);
-      if (diffDays === 1) return "Hôm qua";
-      return `${diffDays} ngày trước`;
-    } catch {
-      return "15 phút trước";
-    }
+  const handleStatusChange = (status: StatusFilter) => {
+    setSelectedStatus(status);
+    setCurrentPage(1);
+  };
+
+  const handleKycChange = (kyc: KycFilter) => {
+    setSelectedKyc(kyc);
+    setCurrentPage(1);
+  };
+
+  const handleResetFilters = () => {
+    setSelectedRole("ALL");
+    setSelectedStatus("ALL");
+    setSelectedKyc("ALL");
+    setSearchTerm("");
+    setCurrentPage(1);
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -496,7 +527,7 @@ export const UserManagement: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ccc5bc]/30 pb-3">
             <div className="flex items-center gap-1.5 overflow-x-auto py-1 max-w-full">
               <button
-                onClick={() => setSelectedRole("ALL")}
+                onClick={() => handleRoleChange("ALL")}
                 type="button"
                 className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                   selectedRole === "ALL"
@@ -507,7 +538,7 @@ export const UserManagement: React.FC = () => {
                 Tất Cả ({metrics.total})
               </button>
               <button
-                onClick={() => setSelectedRole("USER")}
+                onClick={() => handleRoleChange("USER")}
                 type="button"
                 className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                   selectedRole === "USER"
@@ -518,7 +549,7 @@ export const UserManagement: React.FC = () => {
                 Khách Hàng / Customer ({metrics.customers})
               </button>
               <button
-                onClick={() => setSelectedRole("SHOP_OWNER")}
+                onClick={() => handleRoleChange("SHOP_OWNER")}
                 type="button"
                 className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                   selectedRole === "SHOP_OWNER"
@@ -529,7 +560,7 @@ export const UserManagement: React.FC = () => {
                 Chủ Xưởng / Shop Owner ({metrics.shopOwners})
               </button>
               <button
-                onClick={() => setSelectedRole("ADMIN")}
+                onClick={() => handleRoleChange("ADMIN")}
                 type="button"
                 className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                   selectedRole === "ADMIN"
@@ -563,14 +594,14 @@ export const UserManagement: React.FC = () => {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Tìm kiếm theo họ tên, email hoặc số điện thoại..."
                 className="w-full bg-[#ffffff] text-[#1c1c18] pl-11 pr-10 py-2.5 rounded-xl text-sm border border-[#ccc5bc]/40 focus:outline-none focus:border-[#292724] focus:ring-1 focus:ring-[#292724] shadow-xs placeholder:text-[#7b766f] transition-all"
               />
               {searchTerm && (
                 <button
                   type="button"
-                  onClick={() => setSearchTerm("")}
+                  onClick={() => handleSearchChange("")}
                   className="absolute inset-y-0 right-3 flex items-center text-[#7b766f] hover:text-[#1c1c18]"
                 >
                   <span className="material-symbols-outlined text-[18px]">
@@ -585,7 +616,7 @@ export const UserManagement: React.FC = () => {
               <div className="relative">
                 <select
                   value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value as StatusFilter)}
+                  onChange={(e) => handleStatusChange(e.target.value as StatusFilter)}
                   className="w-full appearance-none bg-[#ffffff] text-[#1c1c18] px-4 py-2.5 pr-10 rounded-xl text-sm border border-[#ccc5bc]/40 focus:outline-none focus:border-[#292724] shadow-xs cursor-pointer font-medium"
                 >
                   <option value="ALL">Tất Cả Trạng Thái Tài Khoản</option>
@@ -606,7 +637,7 @@ export const UserManagement: React.FC = () => {
               <div className="relative">
                 <select
                   value={selectedKyc}
-                  onChange={(e) => setSelectedKyc(e.target.value as KycFilter)}
+                  onChange={(e) => handleKycChange(e.target.value as KycFilter)}
                   className="w-full appearance-none bg-[#ffffff] text-[#1c1c18] px-4 py-2.5 pr-10 rounded-xl text-sm border border-[#ccc5bc]/40 focus:outline-none focus:border-[#292724] shadow-xs cursor-pointer font-medium"
                 >
                   <option value="ALL">Tất Cả Định Danh KYC</option>
@@ -677,12 +708,7 @@ export const UserManagement: React.FC = () => {
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedRole("ALL");
-                    setSelectedStatus("ALL");
-                    setSelectedKyc("ALL");
-                    setSearchTerm("");
-                  }}
+                  onClick={handleResetFilters}
                   className="mt-4 px-4 py-2 rounded-xl bg-[#292724] text-[#fdf9f2] text-xs font-semibold hover:bg-[#141310] transition-colors"
                 >
                   Xóa tất cả bộ lọc

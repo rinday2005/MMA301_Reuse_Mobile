@@ -106,6 +106,35 @@ export interface MongoUserItem {
   updatedAt?: string;
 }
 
+export interface AdminCategoryItem {
+  _id?: string;
+  name?: string;
+  slug?: string;
+  [key: string]: unknown;
+}
+
+export interface AdminOrderItem {
+  _id?: string;
+  totalAmount?: number;
+  [key: string]: unknown;
+}
+
+export interface AdminRentalProductItem {
+  _id: string;
+  name: string;
+  categoryId?: { _id?: string; name?: string; slug?: string } | string;
+  ownerId?: { _id?: string; fullName?: string; email?: string } | string;
+  pricePerDay?: number;
+  depositAmount?: number;
+  images?: string[];
+  condition?: string;
+  location?: string;
+  status?: string;
+  createdAt?: string;
+  totalQuantity?: number;
+  [key: string]: unknown;
+}
+
 export interface AdminDashboardData {
   metrics: AdminDashboardMetrics;
   rentApprovalList: RentListingItem[];
@@ -116,7 +145,7 @@ export interface AdminDashboardData {
   disputes: DisputeItem[];
   activities: PlatformActivityLog[];
   users: MongoUserItem[];
-  categories: any[];
+  categories: AdminCategoryItem[];
 }
 
 /**
@@ -125,9 +154,9 @@ export interface AdminDashboardData {
  */
 export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => {
   let backendUsers: MongoUserItem[] = [];
-  let backendProducts: any[] = [];
-  let backendCategories: any[] = [];
-  let backendOrders: any[] = [];
+  let backendProducts: AdminRentalProductItem[] = [];
+  let backendCategories: AdminCategoryItem[] = [];
+  let backendOrders: AdminOrderItem[] = [];
 
   // 1. Fetch real Users from MongoDB
   try {
@@ -380,7 +409,7 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
     } else if (payload?.orders && Array.isArray(payload.orders)) {
       backendOrders = payload.orders;
     }
-  } catch (err) {
+  } catch {
     // optional
   }
 
@@ -421,7 +450,7 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
       images: [imgSrc],
       condition: item.condition || "LIKE_NEW",
       location: item.location || "Quận 1, Hồ Chí Minh",
-      status: (item.status as any) || "APPROVED",
+      status: (item.status as RentListingItem["status"]) || "APPROVED",
       submittedAt: item.createdAt || new Date().toISOString(),
       timeDisplay: "Đã duyệt",
       totalQuantity: item.totalQuantity || 5,
@@ -435,9 +464,9 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
     .map((item) => ({
       id: item._id,
       name: item.name,
-      ownerName: typeof item.ownerId === "object" ? item.ownerId?.fullName : "ReUse Official Shop",
+      ownerName: (typeof item.ownerId === "object" && item.ownerId?.fullName) ? item.ownerId.fullName : "ReUse Official Shop",
       ownerId: typeof item.ownerId === "object" ? item.ownerId?._id : undefined,
-      categoryName: typeof item.categoryId === "object" ? item.categoryId?.name : "Quần áo thời trang",
+      categoryName: (typeof item.categoryId === "object" && item.categoryId?.name) ? item.categoryId.name : "Quần áo thời trang",
       pricePerDay: Number(item.pricePerDay) || 150000,
       depositAmount: Number(item.depositAmount) || 300000,
       images: Array.isArray(item.images) ? item.images : [],
@@ -499,7 +528,7 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
         tier: isShop ? "Shop Partner Tier" : "Customer Tier",
         isUrgent: isPending,
         bankInfo: isShop ? "Vietcombank Escrow Clearing - 0041000..." : "Sacombank Escrow - 0602...",
-        status: (u.kycStatus || "PENDING") as any,
+        status: (u.kycStatus || "PENDING") as KycApplicantItem["status"],
         submittedAt: u.createdAt || new Date().toISOString(),
       };
     });

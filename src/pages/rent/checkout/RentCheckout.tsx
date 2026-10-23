@@ -40,10 +40,15 @@ export const RentCheckout: React.FC = () => {
 
   
   // ── 1.1 KYC GUARD: Check KYC status for RENT custody (AC: Chặn checkout khi chưa APPROVED) ──
-  const [kycStatus, setKycStatus] = useState<'LOADING' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'NOT_SUBMITTED'>('LOADING');
+  const [kycStatusState, setKycStatus] = useState<'LOADING' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'NOT_SUBMITTED'>('LOADING');
   const [kycRejectionReason, setKycRejectionReason] = useState<string | null>(null);
+  const kycStatus = (auth?.token || user) ? kycStatusState : 'NOT_SUBMITTED';
 
   useEffect(() => {
+    if (!auth?.token && !user) {
+      return;
+    }
+
     let isMounted = true;
     const checkKyc = async () => {
       try {
@@ -76,11 +81,7 @@ export const RentCheckout: React.FC = () => {
       }
     };
 
-    if (auth?.token || user) {
-      checkKyc();
-    } else {
-      setKycStatus('NOT_SUBMITTED');
-    }
+    checkKyc();
 
     return () => {
       isMounted = false;

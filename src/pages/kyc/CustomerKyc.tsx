@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { UserSidebar } from '../../components/layout/UserSidebar';
@@ -42,6 +42,7 @@ export const CustomerKyc: React.FC = () => {
   const [kycData, setKycData] = useState<UserKycDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
 
   // Modals state
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
@@ -69,64 +70,71 @@ export const CustomerKyc: React.FC = () => {
     return '123 Lê Lợi, Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh';
   }, [user]);
 
-  // Load KYC data from API
-  const fetchKycData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await getKycStatusApi();
-      if (res && res.kyc) {
-        setKycData(res.kyc);
-        const rawStatus = (res.kycStatus || 'APPROVED').toUpperCase();
-        if (rawStatus === 'APPROVED' || rawStatus === 'VERIFIED') {
-          setKycState('VERIFIED');
-        } else if (rawStatus === 'PENDING') {
-          setKycState('PENDING');
-        } else if (rawStatus === 'REJECTED') {
-          setKycState('REJECTED');
-        } else {
-          setKycState('NOT_SUBMITTED');
-        }
-
-        // Prepopulate form fields
-        setFormFullName(res.kyc.fullName || user?.fullName || 'NGUYỄN VĂN AN (DEMO)');
-        setFormDob(res.kyc.dob || '15/05/1995');
-        setFormCitizenId(res.kyc.citizenId?.replace(/•/g, '') || '079201008888');
-        setFormAddress(res.kyc.residentAddress || defaultResolvedAddress);
-        setFormCardFront(res.kyc.cardFrontUrl || SAMPLE_FRONT_URL);
-        setFormCardBack(res.kyc.cardBackUrl || SAMPLE_BACK_URL);
-        setFormLiveness(res.kyc.livenessUrl || user?.avatarUrl || SAMPLE_SELFIE_URL);
-      }
-    } catch (err) {
-      console.warn('Lỗi khi tải dữ liệu KYC từ API, sử dụng dữ liệu định danh dự phòng:', err);
-      const profileAddr = getUserProfileAddress(user);
-      const fallbackKyc: UserKycDetails = {
-        citizenId: `07920100${user?._id ? String(user._id).slice(-4) : '8888'}`,
-        fullName: user?.fullName || 'NGUYỄN VĂN AN (DEMO)',
-        dob: '15/05/1995',
-        idType: 'Căn cước công dân gắn chip (CCCD)',
-        residentAddress: profileAddr.full || defaultResolvedAddress,
-        cardFrontUrl: SAMPLE_FRONT_URL,
-        cardBackUrl: SAMPLE_BACK_URL,
-        livenessUrl: user?.avatarUrl || SAMPLE_SELFIE_URL,
-        kycCode: `#KYC-VN-${user?._id ? String(user._id).slice(-5).toUpperCase() : '88888'}`,
-        tier: 'TIER_2',
-        creditLimit: 50000000,
-        rejectionReason: 'Ảnh mặt sau Căn cước công dân bị lóa ánh đèn flash tại cụm mã vạch MRZ.',
-        submittedAt: new Date().toISOString(),
-        verifiedAt: new Date().toISOString(),
-      };
-      setKycData(fallbackKyc);
-      setKycState('VERIFIED');
-      setFormFullName(fallbackKyc.fullName);
-      setFormAddress(fallbackKyc.residentAddress);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, defaultResolvedAddress]);
-
   useEffect(() => {
+    let isMounted = true;
+    const fetchKycData = async () => {
+      try {
+        const res = await getKycStatusApi();
+        if (!isMounted) return;
+        if (res && res.kyc) {
+          setKycData(res.kyc);
+          const rawStatus = (res.kycStatus || 'APPROVED').toUpperCase();
+          if (rawStatus === 'APPROVED' || rawStatus === 'VERIFIED') {
+            setKycState('VERIFIED');
+          } else if (rawStatus === 'PENDING') {
+            setKycState('PENDING');
+          } else if (rawStatus === 'REJECTED') {
+            setKycState('REJECTED');
+          } else {
+            setKycState('NOT_SUBMITTED');
+          }
+
+          // Prepopulate form fields
+          setFormFullName(res.kyc.fullName || user?.fullName || 'NGUYỄN VĂN AN (DEMO)');
+          setFormDob(res.kyc.dob || '15/05/1995');
+          setFormCitizenId(res.kyc.citizenId?.replace(/•/g, '') || '079201008888');
+          setFormAddress(res.kyc.residentAddress || defaultResolvedAddress);
+          setFormCardFront(res.kyc.cardFrontUrl || SAMPLE_FRONT_URL);
+          setFormCardBack(res.kyc.cardBackUrl || SAMPLE_BACK_URL);
+          setFormLiveness(res.kyc.livenessUrl || user?.avatarUrl || SAMPLE_SELFIE_URL);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        console.warn('Lỗi khi tải dữ liệu KYC từ API, sử dụng dữ liệu định danh dự phòng:', err);
+        const profileAddr = getUserProfileAddress(user);
+        const fallbackKyc: UserKycDetails = {
+          citizenId: `07920100${user?._id ? String(user._id).slice(-4) : '8888'}`,
+          fullName: user?.fullName || 'NGUYỄN VĂN AN (DEMO)',
+          dob: '15/05/1995',
+          idType: 'Căn cước công dân gắn chip (CCCD)',
+          residentAddress: profileAddr.full || defaultResolvedAddress,
+          cardFrontUrl: SAMPLE_FRONT_URL,
+          cardBackUrl: SAMPLE_BACK_URL,
+          livenessUrl: user?.avatarUrl || SAMPLE_SELFIE_URL,
+          kycCode: `#KYC-VN-${user?._id ? String(user._id).slice(-5).toUpperCase() : '88888'}`,
+          tier: 'TIER_2',
+          creditLimit: 50000000,
+          rejectionReason: 'Ảnh mặt sau Căn cước công dân bị lóa ánh đèn flash tại cụm mã vạch MRZ.',
+          submittedAt: new Date().toISOString(),
+          verifiedAt: new Date().toISOString(),
+        };
+        setKycData(fallbackKyc);
+        setKycState('VERIFIED');
+        setFormFullName(fallbackKyc.fullName);
+        setFormAddress(fallbackKyc.residentAddress);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
     fetchKycData();
-  }, [fetchKycData]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, defaultResolvedAddress, reloadTrigger]);
 
   // Handle auto-fill demo data
   const handleFillDemoData = () => {
@@ -193,7 +201,7 @@ export const CustomerKyc: React.FC = () => {
             : '4. Bị từ chối (Rejected)'
         }`
       );
-      fetchKycData();
+      setReloadTrigger((prev) => prev + 1);
     } catch (err) {
       console.error(err);
       showToast('Đã cập nhật trạng thái hiển thị.');
@@ -233,7 +241,7 @@ export const CustomerKyc: React.FC = () => {
       showToast('Nộp hồ sơ thành công! Hệ thống đã ghi nhận hồ sơ ở trạng thái PENDING.');
       setIsSubmitModalOpen(false);
       setKycState('PENDING');
-      fetchKycData();
+      setReloadTrigger((prev) => prev + 1);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } }; message?: string };
       showToast(e.response?.data?.message || e.message || 'Không thể gửi hồ sơ.', 'error');
