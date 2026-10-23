@@ -152,6 +152,7 @@ const App = () => {
           {/* 2. PUBLIC BROWSING (Layout GUEST cho khách) */}
           <Route element={<AppLayout role="GUEST" />}>
             <Route path="/" element={<Home />} />
+            <Route path="/dashboard" element={<DashboardRouter />} />
             <Route path="/rent" element={<RentMarketplace />} />
             <Route path="/rent/marketplace" element={<RentMarketplace />} />
             <Route path="/rent/products/:id" element={<RentProductDetail />} />
