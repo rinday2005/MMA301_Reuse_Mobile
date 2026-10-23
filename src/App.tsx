@@ -175,6 +175,10 @@ const App = () => {
             element={<RentOrderDetail />}
           />
           <Route
+            path="/orders/:id"
+            element={<RentOrderDetail />}
+          />
+          <Route
             path="/rent/orders/:id/return"
             element={<ReturnRequest />}
           />
