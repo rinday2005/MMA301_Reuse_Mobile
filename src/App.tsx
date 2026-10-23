@@ -96,37 +96,16 @@ const AppLayout = ({
   );
 };
 
-<<<<<<< HEAD
-const SavedItemsPage = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-    <h1 className="text-2xl font-bold text-gray-800">
-      Danh Sách Yêu Thích (Wishlist)
-    </h1>
-  </div>
-);
+// SavedItemsPage removed
 
-const NotificationsPage = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-    <h1 className="text-2xl font-bold text-gray-800">
-      Thông Báo Của Tôi
-    </h1>
-  </div>
-);
+// NotificationsPage removed
 
 
-const MyOrdersPage = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-    <h1 className="text-2xl font-bold text-gray-800">
-      Đơn Hàng Của Tôi
-    </h1>
-  </div>
-);
+// MyOrdersPage removed
 
 import Dashboard from "./pages/admin/Dashboard";
 import { AdminLayout } from "./components/layout/admin/AdminLayout";
 
-=======
->>>>>>> b648e6bb7eae0a65ba880bfbeaf818236cb6dfc9
 const ShopDashboard = () => (
   <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
     <h1 className="text-2xl font-bold text-gray-800">
