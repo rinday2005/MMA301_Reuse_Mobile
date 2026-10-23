@@ -127,6 +127,14 @@ const AdminDashboard = () => (
   </div>
 );
 
+const DashboardRouter = () => {
+  const auth = useContext(AuthContext);
+  if (auth?.user) {
+    return <UserDashboard />;
+  }
+  return <Home />;
+};
+
 const App = () => {
   return (
     <>
