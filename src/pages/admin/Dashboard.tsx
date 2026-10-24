@@ -1,6 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { fetchAdminDashboardData } from "../../services/admin.api";
+import React, { useEffect, useState, useMemo } from "react";
+import { Link, useLocation } from "react-router-dom";
+import {
+  fetchAdminDashboardData,
+  approveRentListingApi,
+  rejectRentListingApi,
+  approveThriftListingApi,
+  rejectThriftListingApi,
+  approveKycApi,
+  rejectKycApi,
+} from "../../services/admin.api";
 import type {
   AdminDashboardData,
   RentListingItem,
@@ -9,16 +17,57 @@ import type {
   DisputeItem,
 } from "../../services/admin.api";
 
-export const Dashboard: React.FC = () => {
+type ApprovalTab = "ALL" | "RENT" | "THRIFT" | "KYC";
+
+interface RejectModalState {
+  isOpen: boolean;
+  type: "RENT" | "THRIFT" | "KYC";
+  targetId: string;
+  targetName: string;
+  reason: string;
+  error?: string;
+}
+
+interface DashboardProps {
+  initialTab?: ApprovalTab;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ initialTab }) => {
+  const location = useLocation();
+
+  // Determine initial tab from props or pathname
+  const resolvedInitialTab = useMemo<ApprovalTab>(() => {
+    if (initialTab) return initialTab;
+    const path = location.pathname.toLowerCase();
+    if (path.includes("kyc")) return "KYC";
+    if (path.includes("thrift")) return "THRIFT";
+    if (path.includes("rent") || path.includes("listings")) return "RENT";
+    return "ALL";
+  }, [initialTab, location.pathname]);
+
+  const [userSelectedTab, setUserSelectedTab] = useState<{ path: string; tab: ApprovalTab } | null>(null);
+  const activeTab = userSelectedTab?.path === location.pathname ? userSelectedTab.tab : resolvedInitialTab;
+  const setActiveTab = (tab: ApprovalTab) => setUserSelectedTab({ path: location.pathname, tab });
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-
 
   // Modal inspection states
   const [selectedRentItem, setSelectedRentItem] = useState<RentListingItem | null>(null);
   const [selectedThriftItem, setSelectedThriftItem] = useState<ThriftListingItem | null>(null);
   const [selectedKycItem, setSelectedKycItem] = useState<KycApplicantItem | null>(null);
   const [selectedDisputeItem, setSelectedDisputeItem] = useState<DisputeItem | null>(null);
+
+  // Rejection modal state
+  const [rejectModal, setRejectModal] = useState<RejectModalState>({
+    isOpen: false,
+    type: "RENT",
+    targetId: "",
+    targetName: "",
+    reason: "",
+  });
+
+  // Lightbox Image Zoom modal state
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
 
   // Notification Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -27,7 +76,7 @@ export const Dashboard: React.FC = () => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage(null);
-    }, 3500);
+    }, 4000);
   };
 
   useEffect(() => {
@@ -51,9 +100,18 @@ export const Dashboard: React.FC = () => {
     };
   }, []);
 
-  const handleApproveRent = (id: string, name: string) => {
+
+  // ==========================================================================
+  // HANDLERS: DUYỆT (APPROVE)
+  // ==========================================================================
+  const handleApproveRent = async (item: RentListingItem) => {
+    try {
+      await approveRentListingApi(item.id);
+    } catch (err) {
+      console.warn("Lỗi gọi API duyệt RENT:", err);
+    }
     if (data) {
-      const updatedList = data.rentApprovalList.filter((item) => item.id !== id);
+      const updatedList = data.rentApprovalList.filter((i) => i.id !== item.id);
       setData({
         ...data,
         rentApprovalList: updatedList,
@@ -64,12 +122,17 @@ export const Dashboard: React.FC = () => {
       });
     }
     setSelectedRentItem(null);
-    showToast(`Đã phê duyệt niêm yết RENT: "${name}" thành công!`);
+    showToast(`Đã phê duyệt niêm yết RENT: "${item.name}" thành công!`);
   };
 
-  const handleApproveThrift = (id: string, name: string) => {
+  const handleApproveThrift = async (item: ThriftListingItem) => {
+    try {
+      await approveThriftListingApi(item.id);
+    } catch (err) {
+      console.warn("Lỗi gọi API duyệt THRIFT:", err);
+    }
     if (data) {
-      const updatedList = data.thriftApprovalList.filter((item) => item.id !== id);
+      const updatedList = data.thriftApprovalList.filter((i) => i.id !== item.id);
       setData({
         ...data,
         thriftApprovalList: updatedList,
@@ -80,24 +143,153 @@ export const Dashboard: React.FC = () => {
       });
     }
     setSelectedThriftItem(null);
-    showToast(`Đã bảo chứng và duyệt mục đăng THRIFT: "${name}"!`);
+    showToast(`Đã bảo chứng và duyệt mục đăng THRIFT: "${item.name}"!`);
   };
 
-  const handleApproveKyc = (id: string, name: string) => {
+  const handleApproveKyc = async (item: KycApplicantItem) => {
+    try {
+      await approveKycApi(item.id);
+    } catch (err) {
+      console.warn("Lỗi gọi API duyệt KYC:", err);
+    }
     if (data) {
-      const updatedApplicants = data.kycApplicants.filter((item) => item.id !== id);
+      const updatedApplicants = data.kycApplicants.filter((i) => i.id !== item.id);
       setData({
         ...data,
         kycApplicants: updatedApplicants,
         metrics: {
           ...data.metrics,
           pendingKycCount: Math.max(0, data.metrics.pendingKycCount - 1),
+          urgentKycCount: Math.max(0, data.metrics.urgentKycCount - 1),
         },
       });
     }
     setSelectedKycItem(null);
-    showToast(`Đã xác thực định danh (KYC) cho đối tác: "${name}"!`);
+    showToast(`Đã xác thực định danh (KYC) thành công cho đối tác: "${item.fullName}"!`);
   };
+
+  // ==========================================================================
+  // HANDLERS: TỪ CHỐI (REJECT)
+  // ==========================================================================
+  const openRejectModal = (type: "RENT" | "THRIFT" | "KYC", targetId: string, targetName: string) => {
+    setRejectModal({
+      isOpen: true,
+      type,
+      targetId,
+      targetName,
+      reason: "",
+      error: undefined,
+    });
+  };
+
+  const closeRejectModal = () => {
+    setRejectModal({
+      isOpen: false,
+      type: "RENT",
+      targetId: "",
+      targetName: "",
+      reason: "",
+      error: undefined,
+    });
+  };
+
+  const handleConfirmReject = async () => {
+    const trimmedReason = rejectModal.reason.trim();
+    if (!trimmedReason) {
+      setRejectModal((prev) => ({
+        ...prev,
+        error: "Lý do từ chối là bắt buộc để thông báo cho đối tác/người dùng hoàn thiện lại hồ sơ.",
+      }));
+      return;
+    }
+
+    const { type, targetId, targetName } = rejectModal;
+
+    if (type === "RENT") {
+      try {
+        await rejectRentListingApi(targetId, trimmedReason);
+      } catch (err) {
+        console.warn("Lỗi gọi API từ chối RENT:", err);
+      }
+      if (data) {
+        setData({
+          ...data,
+          rentApprovalList: data.rentApprovalList.filter((i) => i.id !== targetId),
+          metrics: {
+            ...data.metrics,
+            pendingRentListingsCount: Math.max(0, data.metrics.pendingRentListingsCount - 1),
+          },
+        });
+      }
+      setSelectedRentItem(null);
+      showToast(`Đã từ chối niêm yết RENT: "${targetName}". Lý do: ${trimmedReason}`);
+    } else if (type === "THRIFT") {
+      try {
+        await rejectThriftListingApi(targetId, trimmedReason);
+      } catch (err) {
+        console.warn("Lỗi gọi API từ chối THRIFT:", err);
+      }
+      if (data) {
+        setData({
+          ...data,
+          thriftApprovalList: data.thriftApprovalList.filter((i) => i.id !== targetId),
+          metrics: {
+            ...data.metrics,
+            pendingThriftListingsCount: Math.max(0, data.metrics.pendingThriftListingsCount - 1),
+          },
+        });
+      }
+      setSelectedThriftItem(null);
+      showToast(`Đã từ chối mục đăng THRIFT: "${targetName}". Lý do: ${trimmedReason}`);
+    } else if (type === "KYC") {
+      try {
+        await rejectKycApi(targetId, trimmedReason);
+      } catch (err) {
+        console.warn("Lỗi gọi API từ chối KYC:", err);
+      }
+      if (data) {
+        setData({
+          ...data,
+          kycApplicants: data.kycApplicants.filter((i) => i.id !== targetId),
+          metrics: {
+            ...data.metrics,
+            pendingKycCount: Math.max(0, data.metrics.pendingKycCount - 1),
+            urgentKycCount: Math.max(0, data.metrics.urgentKycCount - 1),
+          },
+        });
+      }
+      setSelectedKycItem(null);
+      showToast(`Đã từ chối hồ sơ KYC của "${targetName}". Lý do: ${trimmedReason}`);
+    }
+
+    closeRejectModal();
+  };
+
+  // Rejection Quick Reason Presets
+  const quickReasonPresets = useMemo(() => {
+    if (rejectModal.type === "RENT") {
+      return [
+        "Ảnh sản phẩm bị mờ, thiếu góc chụp tổng quan và tem mác",
+        "Mức giá cọc hoặc giá thuê chưa hợp lý theo tiêu chuẩn thị trường",
+        "Thông tin mô tả hoặc quy định thuê vi phạm chính sách sàn",
+        "Nghi ngờ trang phục không chính hãng hoặc thiếu hóa đơn mua hàng",
+      ];
+    }
+    if (rejectModal.type === "THRIFT") {
+      return [
+        "Ảnh chụp thiếu tem mác chứng minh nguồn gốc xuất xứ di sản",
+        "Tình trạng sản phẩm không khớp với mức độ hao mòn thực tế",
+        "Giá bán thanh lý không phù hợp với chất lượng món đồ",
+        "Chưa cung cấp đầy đủ thông số kích cỡ (size) cho người mua",
+      ];
+    }
+    return [
+      "Ảnh chụp Căn cước công dân bị lóa đèn flash, mờ cụm mã QR / MRZ",
+      "Họ tên và ngày sinh trên ảnh CCCD không trùng khớp tài khoản",
+      "Ảnh CCCD bị cắt góc hoặc có dấu hiệu chỉnh sửa kỹ thuật số",
+      "Giấy tờ tùy thân đã hết hạn hiệu lực theo quy định pháp luật",
+    ];
+  }, [rejectModal.type]);
 
   const metrics = data?.metrics || {
     totalUsers: 11,
@@ -113,21 +305,24 @@ export const Dashboard: React.FC = () => {
     monthlyVolume: 2950000,
   };
 
+  const rentApprovalList = data?.rentApprovalList || [];
+  const thriftApprovalList = data?.thriftApprovalList || [];
+  const kycList = (data?.kycApplicants || []).filter((k) => k.status === "PENDING");
+  const disputeList = data?.disputes || [];
   const rentCatalog = data?.rentCatalogList || [];
   const thriftCatalog = data?.thriftCatalogList || [];
-  const kycList = data?.kycApplicants || [];
-  const disputeList = data?.disputes || [];
-  const activityList = data?.activities || [];
+
+  const totalPendingQueue = rentApprovalList.length + thriftApprovalList.length + kycList.length;
 
   return (
-    <div className="flex flex-col w-full bg-[#fdf9f2]">
+    <div className="flex flex-col w-full bg-[#fdf9f2] min-h-screen">
       {/* Toast Feedback */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#292724] text-[#fdf9f2] px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-[#ccc5bc]/40 animate-fade-in">
-          <span className="material-symbols-outlined text-[#d8e3ce] text-[20px]">
+        <div className="fixed bottom-6 right-6 z-50 bg-[#292724] text-[#fdf9f2] px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border border-[#ccc5bc]/40 animate-fade-in max-w-md">
+          <span className="material-symbols-outlined text-[#d8e3ce] text-[22px] shrink-0">
             check_circle
           </span>
-          <span className="text-xs font-medium">{toastMessage}</span>
+          <span className="text-xs font-medium leading-relaxed">{toastMessage}</span>
         </div>
       )}
 
@@ -144,7 +339,7 @@ export const Dashboard: React.FC = () => {
             </span>
             <span className="text-[#ccc5bc] text-[10px]">/</span>
             <span className="text-[#1c1c18] font-semibold tracking-wide">
-              Bảng Điều Khiển Trung Tâm
+              Kiểm Duyệt Sản Phẩm & Hồ Sơ KYC
             </span>
           </nav>
 
@@ -155,833 +350,702 @@ export const Dashboard: React.FC = () => {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#576151]"></span>
             </span>
             <span className="text-[#4a463f] uppercase tracking-wider font-semibold">
-              Hệ thống bảo mật V4.2
+              Hệ thống giám định B-Corp
             </span>
             <span className="text-[#ccc5bc]">•</span>
             <span className="text-[#576151] font-semibold">
               {loading
-                ? "Đang kết nối & đồng bộ dữ liệu MongoDB..."
-                : "Đang đồng bộ sổ cái Escrow thời gian thực"}
+                ? "Đang tải dữ liệu kiểm duyệt..."
+                : `Hàng chờ hoạt động: ${totalPendingQueue} mục cần xử lý`}
             </span>
           </div>
         </div>
       </section>
 
-      {/* MAIN EDITORIAL DASHBOARD CONTAINER */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-12 py-10 space-y-12">
-        {/* WELCOME HEADER & QUICK ROUTING PILL BAR */}
-        <header className="space-y-6">
+      {/* MAIN CONTAINER */}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-12 py-8 space-y-10">
+        {/* WELCOME HEADER */}
+        <header className="space-y-4">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
             <div className="space-y-2 max-w-3xl">
               <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-wider text-[#7b5227] font-semibold">
                 <span className="material-symbols-outlined text-[15px]">
                   verified_user
                 </span>
-                <span>CHỨNG THỰC B-CORP & GIÁM ĐỊNH LƯU KÝ</span>
+                <span>GIÁM ĐỊNH LƯU KÝ & PHÊ DUYỆT ĐỊNH DANH</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1c1c18] font-serif tracking-tight">
-                ReUse Hub Administration
+              <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#1c1c18]">
+                Bảng Kiểm Duyệt Listing & Hồ Sơ KYC
               </h1>
-              <p className="text-sm sm:text-base text-[#4a463f]">
-                Quản lý người dùng, kiểm duyệt sản phẩm và theo dõi hoạt động toàn nền tảng.
+              <p className="text-xs sm:text-sm text-[#4a463f] leading-relaxed">
+                Kiểm định nguồn gốc thời trang cho thuê (RENT), phê duyệt mục đăng di sản (THRIFT) và xác thực định danh danh tính khách hàng & đối tác theo quy chuẩn B-Corp.
               </p>
             </div>
 
-            {/* Quick metadata status badge */}
-            <div className="flex items-center gap-3 bg-[#f1ede6] px-4 py-2.5 rounded-xl shadow-xs self-start md:self-auto">
-              <div className="text-right">
-                <div className="text-[10px] uppercase text-[#7b766f] tracking-wider font-semibold">
-                  Phiên Làm Việc
+            {/* Quick Summary Pill */}
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="px-4 py-2.5 rounded-xl bg-white border border-[#ccc5bc]/30 shadow-xs text-right">
+                <div className="text-[10px] uppercase font-bold text-[#7b766f]">
+                  TỔNG HÀNG CHỜ
                 </div>
-                <div className="text-xs font-semibold text-[#1c1c18]">
-                  Node ID #ADM-7740
+                <div className="font-serif text-2xl font-bold text-[#ba1a1a]">
+                  {totalPendingQueue}
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-[#d8e3ce] text-[#5b6655] flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px]">lock</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Routing Pill Bar (7 key actions) */}
-          <div className="bg-[#f7f3ec] p-2 rounded-2xl shadow-xs">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-none">
-              {/* Duyệt Đơn RENT */}
-              <Link
-                to="/admin/rent/listings"
-                className="group flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-[#1c1c18] hover:bg-[#292724] hover:text-white transition-all shadow-xs whitespace-nowrap"
-              >
-                <span className="material-symbols-outlined text-[17px] text-[#292724] group-hover:text-white transition-colors">
-                  camera
-                </span>
-                <span className="text-xs font-medium">Duyệt Đơn RENT</span>
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#e7e1dd] text-[#494643] text-[10px] font-bold group-hover:bg-white group-hover:text-[#292724]">
-                  {metrics.pendingRentListingsCount}
-                </span>
-              </Link>
-
-              {/* Duyệt Đơn THRIFT */}
-              <Link
-                to="/admin/thrift/listings"
-                className="group flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-[#1c1c18] hover:bg-[#292724] hover:text-white transition-all shadow-xs whitespace-nowrap"
-              >
-                <span className="material-symbols-outlined text-[17px] text-[#7b5227] group-hover:text-white transition-colors">
-                  watch
-                </span>
-                <span className="text-xs font-medium">Duyệt Đơn THRIFT</span>
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#f0e0cb] text-[#4f4535] text-[10px] font-bold group-hover:bg-white group-hover:text-[#292724]">
-                  {metrics.pendingThriftListingsCount}
-                </span>
-              </Link>
-
-              {/* Xét Duyệt KYC */}
-              <Link
-                to="/admin/kyc"
-                className="group flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-[#1c1c18] hover:bg-[#292724] hover:text-white transition-all shadow-xs whitespace-nowrap"
-              >
-                <span className="material-symbols-outlined text-[17px] text-[#576151] group-hover:text-white transition-colors">
-                  badge
-                </span>
-                <span className="text-xs font-medium">Xét Duyệt KYC</span>
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#d8e3ce] text-[#5b6655] text-[10px] font-bold group-hover:bg-white group-hover:text-[#292724]">
-                  {metrics.pendingKycCount}
-                </span>
-              </Link>
-
-              {/* Quản Lý Người Dùng */}
-              <Link
-                to="/admin/users"
-                className="group flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-[#1c1c18] hover:bg-[#292724] hover:text-white transition-all shadow-xs whitespace-nowrap"
-              >
-                <span className="material-symbols-outlined text-[17px] text-[#4a463f] group-hover:text-white transition-colors">
-                  group
-                </span>
-                <span className="text-xs font-medium">Quản Lý Người Dùng</span>
-              </Link>
-
-              {/* Quản Lý Danh Mục */}
-              <Link
-                to="/admin/categories"
-                className="group flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-[#1c1c18] hover:bg-[#292724] hover:text-white transition-all shadow-xs whitespace-nowrap"
-              >
-                <span className="material-symbols-outlined text-[17px] text-[#4a463f] group-hover:text-white transition-colors">
-                  category
-                </span>
-                <span className="text-xs font-medium">Quản Lý Danh Mục</span>
-              </Link>
-
-              {/* Phân Xử Tranh Chấp */}
-              <Link
-                to="/admin/disputes"
-                className="group flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-[#1c1c18] hover:bg-[#292724] hover:text-white transition-all shadow-xs whitespace-nowrap"
-              >
-                <span className="material-symbols-outlined text-[17px] text-[#ba1a1a] group-hover:text-white transition-colors">
-                  gavel
-                </span>
-                <span className="text-xs font-medium">Phân Xử Tranh Chấp</span>
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#ffdad6] text-[#ba1a1a] text-[10px] font-bold group-hover:bg-white group-hover:text-[#292724]">
-                  {metrics.openDisputesCount}
-                </span>
-              </Link>
-
-              {/* Tài Chính Toàn Sàn */}
-              <Link
-                to="/admin/finance"
-                className="group flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-[#1c1c18] hover:bg-[#292724] hover:text-white transition-all shadow-xs whitespace-nowrap"
-              >
-                <span className="material-symbols-outlined text-[17px] text-[#292724] group-hover:text-white transition-colors">
-                  account_balance_wallet
-                </span>
-                <span className="text-xs font-medium">Tài Chính Toàn Sàn</span>
-              </Link>
             </div>
           </div>
         </header>
 
-        {/* SECTION 3: PLATFORM OVERVIEW (6 SUMMARY METRIC CARDS) */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1c1c18]">
-              Tổng Quan Hoạt Động Nền Tảng
-            </h2>
-            <span className="text-[11px] uppercase tracking-wider text-[#7b766f] font-semibold">
-              Chu Kỳ Cập Nhật: 60 Giây
-            </span>
+        {/* METRICS CARDS */}
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: RENT Chờ Duyệt */}
+          <div
+            onClick={() => setActiveTab("RENT")}
+            className={`cursor-pointer p-4 rounded-2xl transition-all shadow-xs border ${
+              activeTab === "RENT"
+                ? "bg-[#292724] text-white border-[#292724]"
+                : "bg-white hover:bg-[#f7f3ec] border-[#ccc5bc]/30 text-[#1c1c18]"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-[10px] uppercase font-bold tracking-wider ${activeTab === "RENT" ? "text-[#d8e3ce]" : "text-[#7b766f]"}`}>
+                RENT CHỜ DUYỆT
+              </span>
+              <span className="material-symbols-outlined text-[20px] text-[#7b5227]">
+                inventory_2
+              </span>
+            </div>
+            <div className="font-serif text-2xl font-bold">
+              {rentApprovalList.length}
+            </div>
+            <div className={`text-xs mt-1 ${activeTab === "RENT" ? "text-[#ccc5bc]" : "text-[#576151]"} font-medium`}>
+              {rentApprovalList.length > 0 ? "Cần giám định trang phục" : "Đã duyệt toàn bộ"}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            {/* Card 1: Tổng Người Dùng */}
-            <Link
-              to="/admin/users"
-              className="group bg-[#f7f3ec] hover:bg-[#f1ede6] transition-all p-4 rounded-2xl shadow-xs flex flex-col justify-between space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider text-[#7b766f] font-bold">
-                  TỔNG THÀNH VIÊN
-                </span>
-                <span className="material-symbols-outlined text-[18px] text-[#4a463f] group-hover:translate-x-0.5 transition-transform">
-                  arrow_forward
-                </span>
-              </div>
-              <div>
-                <div className="font-serif text-2xl font-bold text-[#1c1c18]">
-                  {metrics.totalUsers}
-                </div>
-                <div className="text-xs text-[#576151] flex items-center gap-1 font-semibold mt-0.5">
-                  <span className="material-symbols-outlined text-[15px]">
-                    trending_up
-                  </span>
-                  <span>{metrics.totalUsers} thành viên MongoDB</span>
-                </div>
-              </div>
-              <div className="text-[11px] text-[#7b766f] pt-2 border-t border-[#ccc5bc]/20">
-                1 Shop Owner, 2 Admin, 8 Users
-              </div>
-            </Link>
-
-            {/* Card 2: KYC Cần Duyệt */}
-            <Link
-              to="/admin/kyc"
-              className="group bg-[#f7f3ec] hover:bg-[#f1ede6] transition-all p-4 rounded-2xl shadow-xs flex flex-col justify-between space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider text-[#7b766f] font-bold">
-                  KYC CẦN DUYỆT
-                </span>
-                <span className="material-symbols-outlined text-[18px] text-[#4a463f] group-hover:translate-x-0.5 transition-transform">
-                  arrow_forward
-                </span>
-              </div>
-              <div>
-                <div className="font-serif text-2xl font-bold text-[#1c1c18]">
-                  {metrics.pendingKycCount}
-                </div>
-                <div className="text-xs text-[#ba1a1a] flex items-center gap-1 font-semibold mt-0.5">
-                  <span className="material-symbols-outlined text-[15px]">
-                    priority_high
-                  </span>
-                  <span>{metrics.urgentKycCount} hồ sơ chờ duyệt</span>
-                </div>
-              </div>
-              <div className="text-[11px] text-[#7b766f] pt-2 border-t border-[#ccc5bc]/20">
-                Lê Văn C (PENDING)
-              </div>
-            </Link>
-
-            {/* Card 3: RENT Chờ Duyệt */}
-            <Link
-              to="/admin/rent/listings"
-              className="group bg-[#f7f3ec] hover:bg-[#f1ede6] transition-all p-4 rounded-2xl shadow-xs flex flex-col justify-between space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider text-[#7b766f] font-bold">
-                  RENT CHỜ DUYỆT
-                </span>
-                <span className="material-symbols-outlined text-[18px] text-[#4a463f] group-hover:translate-x-0.5 transition-transform">
-                  arrow_forward
-                </span>
-              </div>
-              <div>
-                <div className="font-serif text-2xl font-bold text-[#1c1c18]">
-                  {metrics.pendingRentListingsCount}
-                </div>
-                <div className="text-xs text-[#7b766f] flex items-center gap-1 font-medium mt-0.5">
-                  <span className="material-symbols-outlined text-[15px]">
-                    inventory_2
-                  </span>
-                  <span>Chưa có yêu cầu mới</span>
-                </div>
-              </div>
-              <div className="text-[11px] text-[#7b766f] pt-2 border-t border-[#ccc5bc]/20">
-                Chưa có dữ liệu
-              </div>
-            </Link>
-
-            {/* Card 4: THRIFT Chờ Duyệt */}
-            <Link
-              to="/admin/thrift/listings"
-              className="group bg-[#f7f3ec] hover:bg-[#f1ede6] transition-all p-4 rounded-2xl shadow-xs flex flex-col justify-between space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider text-[#7b766f] font-bold">
-                  THRIFT CHỜ DUYỆT
-                </span>
-                <span className="material-symbols-outlined text-[18px] text-[#4a463f] group-hover:translate-x-0.5 transition-transform">
-                  arrow_forward
-                </span>
-              </div>
-              <div>
-                <div className="font-serif text-2xl font-bold text-[#1c1c18]">
-                  {metrics.pendingThriftListingsCount}
-                </div>
-                <div className="text-xs text-[#7b766f] flex items-center gap-1 font-medium mt-0.5">
-                  <span className="material-symbols-outlined text-[15px]">
-                    watch
-                  </span>
-                  <span>Chưa có mục đăng mới</span>
-                </div>
-              </div>
-              <div className="text-[11px] text-[#7b766f] pt-2 border-t border-[#ccc5bc]/20">
-                Chưa có dữ liệu
-              </div>
-            </Link>
-
-            {/* Card 5: Tranh Chấp Mở */}
-            <Link
-              to="/admin/disputes"
-              className="group bg-[#f7f3ec] hover:bg-[#f1ede6] transition-all p-4 rounded-2xl shadow-xs flex flex-col justify-between space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider text-[#7b766f] font-bold">
-                  TRANH CHẤP MỞ
-                </span>
-                <span className="material-symbols-outlined text-[18px] text-[#4a463f] group-hover:translate-x-0.5 transition-transform">
-                  arrow_forward
-                </span>
-              </div>
-              <div>
-                <div className="font-serif text-2xl font-bold text-[#1c1c18]">
-                  {metrics.openDisputesCount}
-                </div>
-                <div className="text-xs text-[#576151] flex items-center gap-1 font-semibold mt-0.5">
-                  <span className="material-symbols-outlined text-[15px]">
-                    shield
-                  </span>
-                  <span>0 khiếu nại mở</span>
-                </div>
-              </div>
-              <div className="text-[11px] text-[#7b766f] pt-2 border-t border-[#ccc5bc]/20">
-                Sổ cái lưu ký an toàn
-              </div>
-            </Link>
-
-            {/* Card 6: Doanh Thu Toàn Sàn */}
-            <Link
-              to="/admin/finance"
-              className="group bg-[#f7f3ec] hover:bg-[#f1ede6] transition-all p-4 rounded-2xl shadow-xs flex flex-col justify-between space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider text-[#7b766f] font-bold">
-                  GIÁ TRỊ KHO HÀNG
-                </span>
-                <span className="material-symbols-outlined text-[18px] text-[#4a463f] group-hover:translate-x-0.5 transition-transform">
-                  arrow_forward
-                </span>
-              </div>
-              <div>
-                <div className="font-serif text-2xl font-bold text-[#1c1c18] tracking-tight truncate">
-                  {metrics.totalPlatformRevenue.toLocaleString("vi-VN")} ₫
-                </div>
-                <div className="text-xs text-[#576151] flex items-center gap-1 font-semibold mt-0.5">
-                  <span className="material-symbols-outlined text-[15px]">
-                    account_balance
-                  </span>
-                  <span>Tổng giá trị niêm yết</span>
-                </div>
-              </div>
-              <div className="text-[11px] text-[#7b766f] pt-2 border-t border-[#ccc5bc]/20">
-                Dữ liệu catalog MongoDB
-              </div>
-            </Link>
+          {/* Card 2: THRIFT Chờ Duyệt */}
+          <div
+            onClick={() => setActiveTab("THRIFT")}
+            className={`cursor-pointer p-4 rounded-2xl transition-all shadow-xs border ${
+              activeTab === "THRIFT"
+                ? "bg-[#292724] text-white border-[#292724]"
+                : "bg-white hover:bg-[#f7f3ec] border-[#ccc5bc]/30 text-[#1c1c18]"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-[10px] uppercase font-bold tracking-wider ${activeTab === "THRIFT" ? "text-[#d8e3ce]" : "text-[#7b766f]"}`}>
+                THRIFT CHỜ DUYỆT
+              </span>
+              <span className="material-symbols-outlined text-[20px] text-[#7b5227]">
+                watch
+              </span>
+            </div>
+            <div className="font-serif text-2xl font-bold">
+              {thriftApprovalList.length}
+            </div>
+            <div className={`text-xs mt-1 ${activeTab === "THRIFT" ? "text-[#ccc5bc]" : "text-[#576151]"} font-medium`}>
+              {thriftApprovalList.length > 0 ? "Chờ bảo chứng di sản" : "Đã xuất bản toàn bộ"}
+            </div>
           </div>
+
+          {/* Card 3: KYC Chờ Duyệt */}
+          <div
+            onClick={() => setActiveTab("KYC")}
+            className={`cursor-pointer p-4 rounded-2xl transition-all shadow-xs border ${
+              activeTab === "KYC"
+                ? "bg-[#292724] text-white border-[#292724]"
+                : "bg-white hover:bg-[#f7f3ec] border-[#ccc5bc]/30 text-[#1c1c18]"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-[10px] uppercase font-bold tracking-wider ${activeTab === "KYC" ? "text-[#d8e3ce]" : "text-[#7b766f]"}`}>
+                KYC CẦN DUYỆT
+              </span>
+              <span className="material-symbols-outlined text-[20px] text-[#576151]">
+                fingerprint
+              </span>
+            </div>
+            <div className="font-serif text-2xl font-bold">
+              {kycList.length}
+            </div>
+            <div className={`text-xs mt-1 ${activeTab === "KYC" ? "text-[#ccc5bc]" : "text-[#ba1a1a]"} font-medium`}>
+              {kycList.length > 0 ? "Hồ sơ CCCD đang chờ đối soát" : "Toàn bộ đã xác thực"}
+            </div>
+          </div>
+
+          {/* Card 4: Tranh Chấp */}
+          <Link
+            to="/admin/disputes"
+            className="p-4 rounded-2xl bg-white hover:bg-[#f7f3ec] transition-all shadow-xs border border-[#ccc5bc]/30 text-[#1c1c18] flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[#7b766f]">
+                TRANH CHẤP ĐƠN
+              </span>
+              <span className="material-symbols-outlined text-[20px] text-[#ba1a1a]">
+                balance
+              </span>
+            </div>
+            <div className="font-serif text-2xl font-bold">
+              {disputeList.length}
+            </div>
+            <div className="text-xs text-[#7b766f] font-medium mt-1">
+              {metrics.lockedEscrowAmount > 0
+                ? `Đang khóa ${metrics.lockedEscrowAmount.toLocaleString("vi-VN")} ₫ cọc`
+                : "Sổ cái lưu ký an toàn"}
+            </div>
+          </Link>
         </section>
 
-        {/* SECTION 4: APPROVAL CENTER (TRUNG TÂM KIỂM DUYỆT HỒ SƠ & HIỆN VẬT) */}
+        {/* TAB CONTROLS (TẤT CẢ / RENT / THRIFT / KYC) */}
         <section className="space-y-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2">
-            <div>
-              <div className="text-[11px] uppercase tracking-wider text-[#7b5227] font-semibold">
-                APPROVAL QUEUE & AUDIT
-              </div>
-              <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1c1c18]">
-                Trung Tâm Kiểm Duyệt Hồ Sơ & Hiện Vật
-              </h2>
-            </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#f1ede6] text-[#4a463f] text-xs font-medium shadow-xs">
-              <span className="material-symbols-outlined text-[16px] text-[#7b766f]">
-                info
-              </span>
-              <span>
-                Chưa có thông tin • Sẽ cập nhật sau
-              </span>
-            </div>
-          </div>
-
-          {/* Two Distinct Side-by-Side Columns */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Column A: RENT Listings cần duyệt */}
-            <div className="bg-[#f7f3ec] p-6 rounded-2xl shadow-xs space-y-5 border border-[#ccc5bc]/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#7b766f]"></span>
-                  <h3 className="text-base sm:text-lg text-[#1c1c18] font-serif font-bold">
-                    RENT Listings Cần Duyệt
-                  </h3>
-                  <span className="px-2 py-0.5 rounded-full bg-[#e7e1dd] text-[#7b766f] text-[10px] font-bold">
-                    Chưa có thông tin
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-8 bg-white rounded-xl border border-dashed border-[#ccc5bc]/50 text-center space-y-2 shadow-xs">
-                <span className="material-symbols-outlined text-[#7b766f] text-[32px] mx-auto block">
-                  inventory_2
-                </span>
-                <p className="text-sm font-semibold text-[#1c1c18]">
-                  Chưa có thông tin
-                </p>
-                <p className="text-xs text-[#7b766f] max-w-sm mx-auto">
-                  Hiện tại chưa có hồ sơ kiểm duyệt sản phẩm RENT nào. Thông tin này còn trống và sẽ được cập nhật sau.
-                </p>
-              </div>
-            </div>
-
-            {/* Column B: THRIFT Listings cần duyệt */}
-            <div className="bg-[#f7f3ec] p-6 rounded-2xl shadow-xs space-y-5 border border-[#ccc5bc]/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#7b766f]"></span>
-                  <h3 className="text-base sm:text-lg text-[#1c1c18] font-serif font-bold">
-                    THRIFT Listings Cần Duyệt
-                  </h3>
-                  <span className="px-2 py-0.5 rounded-full bg-[#f0e0cb] text-[#7b766f] text-[10px] font-bold">
-                    Chưa có thông tin
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-8 bg-white rounded-xl border border-dashed border-[#ccc5bc]/50 text-center space-y-2 shadow-xs">
-                <span className="material-symbols-outlined text-[#7b766f] text-[32px] mx-auto block">
-                  watch
-                </span>
-                <p className="text-sm font-semibold text-[#1c1c18]">
-                  Chưa có thông tin
-                </p>
-                <p className="text-xs text-[#7b766f] max-w-sm mx-auto">
-                  Hiện tại chưa có hồ sơ kiểm duyệt mục đăng THRIFT nào. Thông tin này còn trống và sẽ được cập nhật sau.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 5: KYC ATTENTION & DISPUTE ATTENTION (GRID 2 CỘT) */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Panel A: KYC Attention */}
-          <div className="bg-[#f7f3ec] p-6 rounded-2xl shadow-xs flex flex-col justify-between space-y-6 border border-[#ccc5bc]/20">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#576151] text-[22px]">
-                    fingerprint
-                  </span>
-                  <h3 className="font-serif text-lg sm:text-xl font-bold text-[#1c1c18]">
-                    Xét Duyệt Định Danh (KYC)
-                  </h3>
-                </div>
-                <span className="px-2.5 py-1 rounded-full bg-[#d8e3ce] text-[#5b6655] text-xs font-semibold">
-                  {metrics.pendingKycCount} Hồ Sơ Chờ
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-[#4a463f]">
-                {metrics.pendingKycCount} hồ sơ định danh đang chờ phê duyệt tuân thủ và xác thực tài khoản ngân hàng lưu ký.
-              </p>
-
-              {/* Candidate List Preview */}
-              <div className="space-y-3 pt-2">
-                {kycList.slice(0, 3).map((cand) => (
-                  <div
-                    key={cand.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-white shadow-xs border border-[#ccc5bc]/20"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[#d8e3ce] text-[#5b6655] flex items-center justify-center font-bold text-xs">
-                        {cand.initials}
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold text-[#1c1c18]">
-                          {cand.fullName}
-                        </div>
-                        <div className="text-[11px] text-[#7b766f]">
-                          {cand.docType}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full bg-[#f1ede6] text-[#576151] text-[10px] uppercase font-bold">
-                      {cand.tier}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-4 flex items-center justify-between border-t border-[#ccc5bc]/20">
-              <span className="text-[10px] text-[#7b766f] uppercase tracking-wider font-semibold">
-                Chuẩn B-Corp Section 3.2
-              </span>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[#ccc5bc]/30 pb-4">
+            <div className="flex items-center gap-2 p-1 bg-[#f1ede6] rounded-xl">
               <button
                 type="button"
-                onClick={() => setSelectedKycItem(kycList[0] || null)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#1c1c18] text-[#fdf9f2] hover:bg-[#576151] transition-colors text-xs font-medium cursor-pointer"
+                onClick={() => setActiveTab("ALL")}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  activeTab === "ALL"
+                    ? "bg-[#1c1c18] text-white shadow-xs"
+                    : "text-[#4a463f] hover:text-[#1c1c18]"
+                }`}
               >
-                <span>Review KYC</span>
-                <span className="material-symbols-outlined text-[16px]">
-                  arrow_forward
+                Tất Cả Hàng Chờ ({totalPendingQueue})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("RENT")}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                  activeTab === "RENT"
+                    ? "bg-[#1c1c18] text-white shadow-xs"
+                    : "text-[#4a463f] hover:text-[#1c1c18]"
+                }`}
+              >
+                <span>Sản Phẩm RENT</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeTab === "RENT" ? "bg-white/20 text-white" : "bg-[#ccc5bc]/40 text-[#4a463f]"}`}>
+                  {rentApprovalList.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("THRIFT")}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                  activeTab === "THRIFT"
+                    ? "bg-[#1c1c18] text-white shadow-xs"
+                    : "text-[#4a463f] hover:text-[#1c1c18]"
+                }`}
+              >
+                <span>Mục Đăng THRIFT</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeTab === "THRIFT" ? "bg-white/20 text-white" : "bg-[#ccc5bc]/40 text-[#4a463f]"}`}>
+                  {thriftApprovalList.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("KYC")}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                  activeTab === "KYC"
+                    ? "bg-[#1c1c18] text-white shadow-xs"
+                    : "text-[#4a463f] hover:text-[#1c1c18]"
+                }`}
+              >
+                <span>Hồ Sơ KYC</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeTab === "KYC" ? "bg-[#ba1a1a] text-white" : "bg-[#ffdad6] text-[#ba1a1a]"}`}>
+                  {kycList.length}
                 </span>
               </button>
             </div>
+
+            <div className="text-xs text-[#7b766f]">
+              Thao tác duyệt hoặc từ chối sẽ loại ngay item khỏi hàng chờ và đồng bộ tức thì.
+            </div>
           </div>
 
-          {/* Panel B: Dispute Attention */}
-          <div className="bg-[#f7f3ec] p-6 rounded-2xl shadow-xs flex flex-col justify-between space-y-6 border border-[#ccc5bc]/20">
+          {/* QUEUE 1: RENT LISTINGS PENDING */}
+          {(activeTab === "ALL" || activeTab === "RENT") && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#ba1a1a] text-[22px]">
-                    balance
-                  </span>
-                  <h3 className="font-serif text-lg sm:text-xl font-bold text-[#1c1c18]">
-                    Trọng Tài Tranh Chấp
-                  </h3>
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#7b5227]"></span>
+                  <h2 className="text-lg sm:text-xl font-serif font-bold text-[#1c1c18]">
+                    Hàng Chờ Duyệt Sản Phẩm RENT ({rentApprovalList.length})
+                  </h2>
                 </div>
-                <span className="px-2.5 py-1 rounded-full bg-[#ffdad6] text-[#ba1a1a] text-xs font-semibold">
-                  {metrics.openDisputesCount} Hồ Sơ Mở
+                <span className="text-xs text-[#7b766f]">
+                  Tiêu chuẩn: Tình trạng đạt từ GOOD trở lên, ảnh rõ tem mác
                 </span>
               </div>
 
-              {/* Dispute Summary Mini Cards */}
-              <div className="grid grid-cols-3 gap-2.5 py-1 text-center">
-                <div className="bg-white p-2.5 rounded-xl shadow-xs border border-[#ccc5bc]/20">
-                  <div className="font-serif text-lg font-bold text-[#ba1a1a]">
-                    {disputeList.filter((d) => d.status === "OPEN").length}
-                  </div>
-                  <div className="text-[10px] uppercase text-[#7b766f] font-semibold">
-                    Open
-                  </div>
-                </div>
-                <div className="bg-white p-2.5 rounded-xl shadow-xs border border-[#ccc5bc]/20">
-                  <div className="font-serif text-lg font-bold text-[#7b5227]">
-                    {disputeList.filter((d) => d.status === "UNDER_REVIEW").length}
-                  </div>
-                  <div className="text-[10px] uppercase text-[#7b766f] font-semibold">
-                    Under Review
-                  </div>
-                </div>
-                <div className="bg-white p-2.5 rounded-xl shadow-xs border border-[#ccc5bc]/20">
-                  <div className="font-serif text-lg font-bold text-[#1c1c18]">
-                    {disputeList.filter((d) => d.status === "UNRESOLVED").length}
-                  </div>
-                  <div className="text-[10px] uppercase text-[#7b766f] font-semibold">
-                    Unresolved
-                  </div>
-                </div>
-              </div>
-
-              {/* Escrow locked banner */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-[#f1ede6] text-[#1c1c18] text-xs shadow-xs">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px] text-[#7b5227]">
-                    lock
+              {rentApprovalList.length === 0 ? (
+                <div className="p-8 bg-white rounded-2xl border border-dashed border-[#ccc5bc]/50 text-center space-y-2 shadow-xs">
+                  <span className="material-symbols-outlined text-[#576151] text-[36px] mx-auto block">
+                    check_circle
                   </span>
-                  <span className="font-medium">Tiền ký quỹ đang tạm khóa:</span>
+                  <p className="text-sm font-semibold text-[#1c1c18]">
+                    Không có sản phẩm RENT nào đang chờ duyệt
+                  </p>
+                  <p className="text-xs text-[#7b766f] max-w-md mx-auto">
+                    Toàn bộ trang phục cho thuê đã được giám định và gắn mã kiểm định lưu ký trên hệ thống.
+                  </p>
                 </div>
-                <span className="font-serif font-bold text-[#ba1a1a] text-sm">
-                  {metrics.lockedEscrowAmount.toLocaleString("vi-VN")} ₫
-                </span>
-              </div>
-
-              {/* Active Disputes or Clean Safe Empty State */}
-              <div className="space-y-2.5">
-                {disputeList.length === 0 ? (
-                  <div className="p-4 rounded-xl bg-white border border-[#ccc5bc]/20 text-center space-y-1.5 shadow-xs">
-                    <span className="material-symbols-outlined text-[#576151] text-[26px] mx-auto block">
-                      verified_user
-                    </span>
-                    <p className="text-xs font-semibold text-[#1c1c18]">
-                      Sổ Cái Lưu Ký An Toàn
-                    </p>
-                    <p className="text-[11px] text-[#7b766f]">
-                      Không có hồ sơ tranh chấp hoặc khiếu nại tồn đọng. Toàn bộ tiền ký quỹ được bảo toàn an toàn trên sổ cái.
-                    </p>
-                  </div>
-                ) : (
-                  disputeList.slice(0, 2).map((dsp) => (
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {rentApprovalList.map((item) => (
                     <div
-                      key={dsp.id}
-                      onClick={() => setSelectedDisputeItem(dsp)}
-                      className="p-3 rounded-xl bg-white space-y-1 shadow-xs border border-[#ccc5bc]/20 hover:border-[#7b766f]/40 cursor-pointer transition-colors"
+                      key={item.id}
+                      className="bg-white rounded-2xl p-5 shadow-xs border border-[#ccc5bc]/30 hover:border-[#7b5227]/40 transition-all space-y-4 flex flex-col justify-between"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-mono text-[#7b5227] font-semibold">
-                          {dsp.code}
-                        </span>
-                        <span
-                          className={`text-[11px] font-medium ${dsp.status === "OPEN" ? "text-[#ba1a1a]" : "text-[#7b5227]"
-                            }`}
+                      <div className="flex gap-4">
+                        {/* Thumbnail */}
+                        <div
+                          onClick={() => setZoomImageUrl(item.images[0])}
+                          className="w-28 h-28 rounded-xl overflow-hidden bg-[#f1ede6] shrink-0 cursor-zoom-in relative group"
                         >
-                          {dsp.statusText}
-                        </span>
+                          <img
+                            src={item.images[0]}
+                            alt={item.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="material-symbols-outlined text-white text-[20px]">
+                              zoom_in
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Info */}
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-full bg-[#f1ede6] text-[#7b5227] text-[10px] font-bold uppercase">
+                              {item.categoryName}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full bg-[#d8e3ce] text-[#576151] text-[10px] font-bold">
+                              {item.condition}
+                            </span>
+                          </div>
+
+                          <h3 className="font-serif text-base font-bold text-[#1c1c18] leading-tight line-clamp-1">
+                            {item.name}
+                          </h3>
+
+                          <div className="text-xs text-[#7b766f] flex items-center gap-1 line-clamp-1">
+                            <span className="material-symbols-outlined text-[14px]">
+                              storefront
+                            </span>
+                            <span>{item.ownerName}</span>
+                          </div>
+
+                          <div className="flex items-baseline gap-2 pt-1">
+                            <span className="font-bold text-[#1c1c18] text-sm">
+                              {item.pricePerDay.toLocaleString("vi-VN")} ₫
+                            </span>
+                            <span className="text-[11px] text-[#7b766f]">/ ngày</span>
+                            <span className="text-[#ccc5bc]">•</span>
+                            <span className="text-[11px] text-[#576151] font-semibold">
+                              Cọc: {item.depositAmount.toLocaleString("vi-VN")} ₫
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs font-semibold text-[#1c1c18] truncate">
-                        {dsp.title}
-                      </div>
-                      <div className="text-[11px] text-[#7b766f]">
-                        Bên thuê: {dsp.renterName} • Ký quỹ khóa:{" "}
-                        {dsp.escrowLocked.toLocaleString("vi-VN")} ₫
+
+                      {/* Action Bar */}
+                      <div className="pt-3 border-t border-[#f1ede6] flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRentItem(item)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#4a463f] hover:bg-[#f1ede6] transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">
+                            visibility
+                          </span>
+                          <span>Chi Tiết</span>
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openRejectModal("RENT", item.id, item.name)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#ba1a1a] hover:bg-[#ffdad6]/40 transition-colors border border-[#ba1a1a]/30 cursor-pointer"
+                          >
+                            Từ Chối
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApproveRent(item)}
+                            className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#292724] text-white hover:bg-[#1c1c18] transition-colors shadow-xs flex items-center gap-1 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">
+                              check
+                            </span>
+                            <span>Duyệt</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="pt-4 flex items-center justify-between border-t border-[#ccc5bc]/20">
-              <span className="text-[10px] text-[#7b766f] uppercase tracking-wider font-semibold">
-                Hội đồng trọng tài lưu ký
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  if (disputeList.length > 0) {
-                    setSelectedDisputeItem(disputeList[0]);
-                  } else {
-                    showToast("Sổ cái đang an toàn: Chưa có vụ tranh chấp nào cần can thiệp.");
-                  }
-                }}
-                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${disputeList.length === 0
-                    ? "bg-[#576151] text-white hover:bg-[#3f4a3a]"
-                    : "bg-[#1c1c18] text-[#fdf9f2] hover:bg-[#ba1a1a]"
-                  }`}
-              >
-                <span>{disputeList.length > 0 ? "Review Disputes" : "Kiểm Tra Sổ Cái"}</span>
-                <span className="material-symbols-outlined text-[16px]">
-                  {disputeList.length > 0 ? "arrow_forward" : "verified"}
-                </span>
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 6: PLATFORM ACTIVITY (DÒNG HOẠT ĐỘNG THỜI GIAN THỰC) */}
-        <section className="bg-[#f7f3ec] p-6 lg:p-8 rounded-2xl shadow-xs space-y-6 border border-[#ccc5bc]/20">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
-            <div className="space-y-1">
-              <div className="text-[10px] uppercase tracking-wider text-[#7b766f] font-bold">
-                AUDIT TRAIL LOG
-              </div>
-              <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1c1c18]">
-                Dòng Hoạt Động Thời Gian Thực
-              </h2>
-            </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white text-[#7b766f] text-xs font-medium shadow-xs border border-[#ccc5bc]/20">
-              <span className="material-symbols-outlined text-[16px]">info</span>
-              <span>Chưa có thông tin • Sẽ cập nhật sau</span>
-            </div>
-          </div>
-
-          {/* Activity Timeline Items or Clean Empty State */}
-          {activityList.length > 0 ? (
-            <div className="space-y-3.5">
-              {activityList.map((act) => (
-                <div
-                  key={act.id}
-                  className="flex items-start gap-4 p-4 rounded-xl bg-white shadow-xs hover:bg-[#f1ede6] transition-colors border border-[#ccc5bc]/15"
-                >
-                  <div className="w-10 h-10 rounded-full bg-[#f1ede6] flex items-center justify-center text-[#292724] shrink-0 font-medium">
-                    <span className="material-symbols-outlined text-[20px]">
-                      {act.icon}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center justify-between gap-1">
-                      <span className="text-xs font-semibold text-[#1c1c18]">
-                        {act.title}
-                      </span>
-                      <span className="text-[11px] text-[#7b766f]">
-                        {act.timeAgo}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#4a463f] mt-1 leading-relaxed">
-                      {act.description}
-                    </p>
-                  </div>
-                  <Link
-                    to={act.path}
-                    className="shrink-0 p-1.5 text-[#4a463f] hover:text-[#1c1c18] rounded-lg hover:bg-[#ebe8e1] transition-colors"
-                    title="Xem chi tiết"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">
-                      chevron_right
-                    </span>
-                  </Link>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          ) : (
-            <div className="p-8 bg-white rounded-xl border border-dashed border-[#ccc5bc]/50 text-center space-y-2 shadow-xs">
-              <span className="material-symbols-outlined text-[#7b766f] text-[32px] mx-auto block">
-                history_toggle_off
-              </span>
-              <p className="text-sm font-semibold text-[#1c1c18]">
-                Chưa có thông tin
-              </p>
-              <p className="text-xs text-[#7b766f] max-w-sm mx-auto">
-                Hiện tại hệ thống chưa ghi nhận dòng hoạt động nào phát sinh. Thông tin nhật ký hoạt động sẽ được cập nhật sau.
-              </p>
+          )}
+
+          {/* QUEUE 2: THRIFT LISTINGS PENDING */}
+          {(activeTab === "ALL" || activeTab === "THRIFT") && (
+            <div className="space-y-4 pt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#7b5227]"></span>
+                  <h2 className="text-lg sm:text-xl font-serif font-bold text-[#1c1c18]">
+                    Hàng Chờ Bảo Chứng THRIFT ({thriftApprovalList.length})
+                  </h2>
+                </div>
+                <span className="text-xs text-[#7b766f]">
+                  Tiêu chuẩn: Nguồn gốc minh bạch, kiểm định vi vết đạt chuẩn tái sử dụng
+                </span>
+              </div>
+
+              {thriftApprovalList.length === 0 ? (
+                <div className="p-8 bg-white rounded-2xl border border-dashed border-[#ccc5bc]/50 text-center space-y-2 shadow-xs">
+                  <span className="material-symbols-outlined text-[#576151] text-[36px] mx-auto block">
+                    check_circle
+                  </span>
+                  <p className="text-sm font-semibold text-[#1c1c18]">
+                    Không có mục đăng THRIFT nào đang chờ duyệt
+                  </p>
+                  <p className="text-xs text-[#7b766f] max-w-md mx-auto">
+                    Tất cả sản phẩm thanh lý ký gửi đã được bảo chứng và xuất bản trên sàn di sản ReUse Hub.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {thriftApprovalList.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-white rounded-2xl p-5 shadow-xs border border-[#ccc5bc]/30 hover:border-[#7b5227]/40 transition-all space-y-4 flex flex-col justify-between"
+                    >
+                      <div className="flex gap-4">
+                        {/* Thumbnail */}
+                        <div
+                          onClick={() => setZoomImageUrl(item.images[0])}
+                          className="w-28 h-28 rounded-xl overflow-hidden bg-[#f1ede6] shrink-0 cursor-zoom-in relative group"
+                        >
+                          <img
+                            src={item.images[0]}
+                            alt={item.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="material-symbols-outlined text-white text-[20px]">
+                              zoom_in
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Info */}
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-full bg-[#f0e0cb] text-[#7b5227] text-[10px] font-bold uppercase">
+                              {item.categoryName}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full bg-[#f1ede6] text-[#4a463f] text-[10px] font-bold">
+                              {item.condition}
+                            </span>
+                          </div>
+
+                          <h3 className="font-serif text-base font-bold text-[#1c1c18] leading-tight line-clamp-1">
+                            {item.name}
+                          </h3>
+
+                          <div className="text-xs text-[#7b766f] flex items-center gap-1 line-clamp-1">
+                            <span className="material-symbols-outlined text-[14px]">
+                              person
+                            </span>
+                            <span>{item.sellerName}</span>
+                          </div>
+
+                          <div className="flex items-baseline gap-2 pt-1">
+                            <span className="font-bold text-[#1c1c18] text-sm">
+                              {item.price.toLocaleString("vi-VN")} ₫
+                            </span>
+                            <span className="text-[#ccc5bc]">•</span>
+                            <span className="text-[11px] text-[#7b5227] font-semibold truncate">
+                              {item.source}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Bar */}
+                      <div className="pt-3 border-t border-[#f1ede6] flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedThriftItem(item)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#4a463f] hover:bg-[#f1ede6] transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">
+                            visibility
+                          </span>
+                          <span>Chi Tiết</span>
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openRejectModal("THRIFT", item.id, item.name)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#ba1a1a] hover:bg-[#ffdad6]/40 transition-colors border border-[#ba1a1a]/30 cursor-pointer"
+                          >
+                            Từ Chối
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApproveThrift(item)}
+                            className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#7b5227] text-white hover:bg-[#673d14] transition-colors shadow-xs flex items-center gap-1 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">
+                              check
+                            </span>
+                            <span>Bảo Chứng & Duyệt</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* QUEUE 3: KYC APPLICANTS PENDING */}
+          {(activeTab === "ALL" || activeTab === "KYC") && (
+            <div className="space-y-4 pt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#576151]"></span>
+                  <h2 className="text-lg sm:text-xl font-serif font-bold text-[#1c1c18]">
+                    Hàng Chờ Xác Thực Danh Tính (KYC) ({kycList.length})
+                  </h2>
+                </div>
+                <span className="text-xs text-[#7b766f]">
+                  Đối soát CCCD gắn chip phục vụ giao dịch thuê trang phục giá trị cao
+                </span>
+              </div>
+
+              {kycList.length === 0 ? (
+                <div className="p-8 bg-white rounded-2xl border border-dashed border-[#ccc5bc]/50 text-center space-y-2 shadow-xs">
+                  <span className="material-symbols-outlined text-[#576151] text-[36px] mx-auto block">
+                    verified
+                  </span>
+                  <p className="text-sm font-semibold text-[#1c1c18]">
+                    Không có hồ sơ KYC nào đang chờ duyệt
+                  </p>
+                  <p className="text-xs text-[#7b766f] max-w-md mx-auto">
+                    Toàn bộ hồ sơ thành viên đã được phê duyệt hợp lệ và cấp hạn mức thuê đồ an toàn.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {kycList.map((cand) => (
+                    <div
+                      key={cand.id}
+                      className="bg-white rounded-2xl p-5 shadow-xs border border-[#ccc5bc]/30 hover:border-[#576151]/40 transition-all space-y-4 flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-full bg-[#d8e3ce] text-[#5b6655] flex items-center justify-center font-bold text-sm shrink-0">
+                              {cand.initials}
+                            </div>
+                            <div>
+                              <h3 className="font-serif text-base font-bold text-[#1c1c18]">
+                                {cand.fullName}
+                              </h3>
+                              <p className="text-xs text-[#7b766f]">{cand.email}</p>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-full bg-[#ffdad6] text-[#ba1a1a] text-[10px] font-bold uppercase tracking-wide">
+                            PENDING KYC
+                          </span>
+                        </div>
+
+                        {/* ID & Document Info */}
+                        <div className="p-3 bg-[#f7f3ec] rounded-xl text-xs space-y-1.5">
+                          <div className="flex justify-between">
+                            <span className="text-[#7b766f]">Số CCCD khai báo:</span>
+                            <span className="font-mono font-bold text-[#1c1c18]">
+                              {cand.idCardNumber || "079201008888"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-[#7b766f]">Số điện thoại:</span>
+                            <span className="font-semibold text-[#1c1c18]">
+                              {cand.phoneNumber || "0901234567"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-[#7b766f]">Phân hạng:</span>
+                            <span className="font-bold text-[#576151]">{cand.tier}</span>
+                          </div>
+                        </div>
+
+                        {/* Preview of Front & Back CCCD images */}
+                        {(cand.frontImageUrl || cand.backImageUrl) && (
+                          <div className="space-y-1.5">
+                            <span className="text-[11px] font-semibold text-[#7b766f]">
+                              Ảnh Căn cước công dân (Click để phóng to):
+                            </span>
+                            <div className="grid grid-cols-2 gap-2">
+                              {cand.frontImageUrl && (
+                                <div
+                                  onClick={() => setZoomImageUrl(cand.frontImageUrl || null)}
+                                  className="h-20 rounded-lg overflow-hidden bg-[#f1ede6] border border-[#ccc5bc]/40 cursor-zoom-in relative group"
+                                >
+                                  <img
+                                    src={cand.frontImageUrl}
+                                    alt="Mặt trước CCCD"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  />
+                                  <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[9px] font-medium">
+                                    Mặt trước
+                                  </span>
+                                </div>
+                              )}
+                              {cand.backImageUrl && (
+                                <div
+                                  onClick={() => setZoomImageUrl(cand.backImageUrl || null)}
+                                  className="h-20 rounded-lg overflow-hidden bg-[#f1ede6] border border-[#ccc5bc]/40 cursor-zoom-in relative group"
+                                >
+                                  <img
+                                    src={cand.backImageUrl}
+                                    alt="Mặt sau CCCD"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  />
+                                  <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[9px] font-medium">
+                                    Mặt sau
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Bar */}
+                      <div className="pt-3 border-t border-[#f1ede6] flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedKycItem(cand)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#4a463f] hover:bg-[#f1ede6] transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">
+                            badge
+                          </span>
+                          <span>Xem Hồ Sơ & CCCD</span>
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openRejectModal("KYC", cand.id, cand.fullName)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#ba1a1a] hover:bg-[#ffdad6]/40 transition-colors border border-[#ba1a1a]/30 cursor-pointer"
+                          >
+                            Từ Chối
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApproveKyc(cand)}
+                            className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#576151] text-white hover:bg-[#3f4a3a] transition-colors shadow-xs flex items-center gap-1 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">
+                              verified
+                            </span>
+                            <span>Duyệt KYC</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </section>
 
-        {/* SECTION 7: MARKETPLACE PREVIEW (XEM TRƯỚC SÀN GIAO DỊCH CÔNG KHAI) */}
-        <section className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        {/* SECTION: PLATFORM CATALOG PREVIEW */}
+        <section className="space-y-4 pt-6 border-t border-[#ccc5bc]/20">
+          <div className="flex items-center justify-between">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-[#7b766f] font-bold">
-                CUSTOMER-FACING SYNCHRONIZATION
-              </div>
               <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1c1c18]">
-                Bản Xem Trước Trực Quan Thị Trường Công Khai (Marketplace Mirrors)
+                Sản Phẩm Đã Được Bảo Chứng Trên Sàn
               </h2>
+              <p className="text-xs text-[#7b766f]">
+                Các danh mục RENT và THRIFT đã qua kiểm duyệt và đang phục vụ khách hàng.
+              </p>
             </div>
-            <span className="text-xs text-[#7b766f]">
-              Hiển thị giao diện người dùng theo thời gian thực
-            </span>
+            <Link
+              to="/admin/users"
+              className="text-xs font-semibold text-[#7b5227] hover:underline"
+            >
+              Quản lý thành viên ({metrics.totalUsers}) →
+            </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Marketplace Mirror 1: RENT */}
-            <div className="bg-[#f7f3ec] p-6 rounded-2xl shadow-xs space-y-5 border border-[#ccc5bc]/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-full bg-[#e7e1dd] text-[#494643] text-xs font-semibold uppercase">
-                    SÀN RENT TRỰC TUYẾN
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Rent Showcase */}
+            {rentCatalog.length > 0 && (
+              <div className="p-4 bg-white rounded-2xl border border-[#ccc5bc]/30 flex items-center gap-4">
+                <img
+                  src={rentCatalog[0].images[0]}
+                  alt={rentCatalog[0].name}
+                  className="w-16 h-16 rounded-xl object-cover shrink-0"
+                />
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold text-[#576151] uppercase">
+                    RENT • {rentCatalog[0].categoryName}
                   </span>
-                  <span className="text-xs text-[#576151] flex items-center gap-1 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#576151]"></span>
-                    Live Mirror
-                  </span>
+                  <h4 className="font-serif text-sm font-bold text-[#1c1c18] truncate">
+                    {rentCatalog[0].name}
+                  </h4>
+                  <p className="text-xs font-semibold text-[#1c1c18]">
+                    {rentCatalog[0].pricePerDay.toLocaleString("vi-VN")} ₫ / ngày
+                  </p>
                 </div>
-                <Link
-                  to="/rent"
-                  className="inline-flex items-center gap-1 text-xs text-[#292724] hover:text-[#1c1c18] font-semibold transition-colors hover:underline"
-                >
-                  <span>Xem Sàn RENT</span>
-                  <span className="material-symbols-outlined text-[16px]">
-                    open_in_new
-                  </span>
-                </Link>
               </div>
+            )}
 
-              {rentCatalog.length > 0 ? (
-                <Link
-                  to={`/rent/products/${rentCatalog[0].id}`}
-                  className="block group bg-white p-4 rounded-xl shadow-xs hover:bg-[#f1ede6]/40 transition-all border border-[#ccc5bc]/20"
-                >
-                  <div className="flex gap-4 items-center">
-                    <div className="w-24 h-24 rounded-lg bg-[#f1ede6] overflow-hidden shrink-0">
-                      <img
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        src={rentCatalog[0].images[0]}
-                        alt={rentCatalog[0].name}
-                      />
-                    </div>
-                    <div className="space-y-1 min-w-0">
-                      <span className="text-[10px] text-[#576151] uppercase font-bold tracking-wider">
-                        Khả Dụng Cho Thuê • {rentCatalog[0].categoryName}
-                      </span>
-                      <h4 className="text-sm sm:text-base font-serif font-semibold text-[#1c1c18] truncate group-hover:text-[#292724] transition-colors">
-                        {rentCatalog[0].name}
-                      </h4>
-                      <div className="text-sm font-serif font-bold text-[#1c1c18]">
-                        {rentCatalog[0].pricePerDay.toLocaleString("vi-VN")} ₫
-                        <span className="text-[#7b766f] text-xs font-sans font-normal">
-                          {" "}
-                          / ngày
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-[#7b766f] truncate">
-                        Ký quỹ: {rentCatalog[0].depositAmount.toLocaleString("vi-VN")} ₫ • Shop: {rentCatalog[0].ownerName}
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ) : (
-                <div className="p-4 bg-white rounded-xl text-center text-xs text-[#7b766f]">
-                  Chưa có sản phẩm RENT nào trên sàn
+            {/* Thrift Showcase */}
+            {thriftCatalog.length > 0 && (
+              <div className="p-4 bg-white rounded-2xl border border-[#ccc5bc]/30 flex items-center gap-4">
+                <img
+                  src={thriftCatalog[0].images[0]}
+                  alt={thriftCatalog[0].name}
+                  className="w-16 h-16 rounded-xl object-cover shrink-0"
+                />
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold text-[#7b5227] uppercase">
+                    THRIFT • {thriftCatalog[0].categoryName}
+                  </span>
+                  <h4 className="font-serif text-sm font-bold text-[#1c1c18] truncate">
+                    {thriftCatalog[0].name}
+                  </h4>
+                  <p className="text-xs font-semibold text-[#1c1c18]">
+                    {thriftCatalog[0].price.toLocaleString("vi-VN")} ₫
+                  </p>
                 </div>
-              )}
-            </div>
-
-            {/* Marketplace Mirror 2: THRIFT */}
-            <div className="bg-[#f7f3ec] p-6 rounded-2xl shadow-xs space-y-5 border border-[#ccc5bc]/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-full bg-[#f0e0cb] text-[#4f4535] text-xs font-semibold uppercase">
-                    SÀN THRIFT TRỰC TUYẾN
-                  </span>
-                  <span className="text-xs text-[#576151] flex items-center gap-1 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#576151]"></span>
-                    Live Mirror
-                  </span>
-                </div>
-                <Link
-                  to="/thrift"
-                  className="inline-flex items-center gap-1 text-xs text-[#7b5227] hover:text-[#1c1c18] font-semibold transition-colors hover:underline"
-                >
-                  <span>Xem Sàn THRIFT</span>
-                  <span className="material-symbols-outlined text-[16px]">
-                    open_in_new
-                  </span>
-                </Link>
               </div>
-
-              {thriftCatalog.length > 0 ? (
-                <Link
-                  to={`/thrift/${thriftCatalog[0].slug}`}
-                  className="block group bg-white p-4 rounded-xl shadow-xs hover:bg-[#f1ede6]/40 transition-all border border-[#ccc5bc]/20"
-                >
-                  <div className="flex gap-4 items-center">
-                    <div className="w-24 h-24 rounded-lg bg-[#f1ede6] overflow-hidden shrink-0">
-                      <img
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        src={thriftCatalog[0].images[0]}
-                        alt={thriftCatalog[0].name}
-                      />
-                    </div>
-                    <div className="space-y-1 min-w-0">
-                      <span className="text-[10px] text-[#7b5227] uppercase font-bold tracking-wider">
-                        Độc Bản Di Sản Giám Định • {thriftCatalog[0].categoryName}
-                      </span>
-                      <h4 className="text-sm sm:text-base font-serif font-semibold text-[#1c1c18] truncate group-hover:text-[#7b5227] transition-colors">
-                        {thriftCatalog[0].name}
-                      </h4>
-                      <div className="text-sm font-serif font-bold text-[#1c1c18]">
-                        {thriftCatalog[0].price.toLocaleString("vi-VN")} ₫
-                      </div>
-                      <div className="text-[11px] text-[#7b766f] truncate">
-                        {thriftCatalog[0].source} • Người bán: {thriftCatalog[0].sellerName}
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ) : (
-                <div className="p-4 bg-white rounded-xl text-center text-xs text-[#7b766f]">
-                  Chưa có sản phẩm THRIFT nào trên sàn
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </section>
       </div>
 
-      {/* MODAL 1: REVIEW RENT LISTING */}
+      {/* ===================================================================== */}
+      {/* MODAL 1: XEM CHI TIẾT SẢN PHẨM RENT */}
+      {/* ===================================================================== */}
       {selectedRentItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-[#ccc5bc]/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-[#ccc5bc]/50 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between border-b border-[#f1ede6] pb-3">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#576151]">
-                  Kiểm Định Quang Học & Buồng Máy
+                  Giám Định Chi Tiết Trang Phục Cho Thuê
                 </span>
                 <h3 className="font-serif text-lg font-bold text-[#1c1c18]">
                   {selectedRentItem.name}
@@ -990,20 +1054,34 @@ export const Dashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedRentItem(null)}
-                className="text-[#7b766f] hover:text-[#1c1c18] p-1"
+                className="text-[#7b766f] hover:text-[#1c1c18] p-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
 
-            <div className="space-y-3">
-              <div className="h-44 rounded-xl overflow-hidden bg-[#f1ede6]">
+            <div className="space-y-4">
+              <div
+                onClick={() => setZoomImageUrl(selectedRentItem.images[0])}
+                className="h-52 rounded-xl overflow-hidden bg-[#f1ede6] cursor-zoom-in relative group"
+              >
                 <img
                   src={selectedRentItem.images[0]}
                   alt={selectedRentItem.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                 />
+                <span className="absolute bottom-2 right-2 px-2 py-1 rounded bg-black/60 text-white text-[10px] flex items-center gap-1 font-medium">
+                  <span className="material-symbols-outlined text-[14px]">zoom_in</span>
+                  <span>Phóng to</span>
+                </span>
               </div>
+
+              {selectedRentItem.description && (
+                <div className="text-xs text-[#4a463f] bg-[#f7f3ec] p-3 rounded-xl leading-relaxed">
+                  <span className="font-bold text-[#1c1c18] block mb-1">Mô tả sản phẩm:</span>
+                  {selectedRentItem.description}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3 text-xs bg-[#f7f3ec] p-3 rounded-xl">
                 <div>
@@ -1027,42 +1105,62 @@ export const Dashboard: React.FC = () => {
                 <div>
                   <span className="text-[#7b766f] block">Tình trạng vật lý:</span>
                   <span className="font-semibold text-[#576151]">
-                    {selectedRentItem.condition} (Đạt tiêu chuẩn B-Corp)
+                    {selectedRentItem.condition} (Đạt chuẩn ReUse)
+                  </span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-[#7b766f] block">Kho / Địa chỉ xuất kho:</span>
+                  <span className="font-semibold text-[#1c1c18]">
+                    {selectedRentItem.location}
                   </span>
                 </div>
               </div>
+
+              {selectedRentItem.rentalRules && (
+                <div className="text-xs text-[#7b5227] bg-[#fbf5ee] p-3 rounded-xl border border-[#f0e0cb]">
+                  <span className="font-bold block mb-0.5">Quy định thuê từ Shop:</span>
+                  {selectedRentItem.rentalRules}
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#f1ede6]">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#f1ede6]">
               <button
                 type="button"
                 onClick={() => setSelectedRentItem(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#4a463f] hover:bg-[#f1ede6] transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#4a463f] hover:bg-[#f1ede6] transition-colors cursor-pointer"
               >
                 Đóng
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  handleApproveRent(selectedRentItem.id, selectedRentItem.name)
-                }
-                className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#292724] text-white hover:bg-[#1c1c18] transition-colors shadow-sm"
+                onClick={() => openRejectModal("RENT", selectedRentItem.id, selectedRentItem.name)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#ba1a1a] hover:bg-[#ffdad6]/40 transition-colors border border-[#ba1a1a]/40 cursor-pointer"
               >
-                Duyệt & Cấp Tem Kiểm Định
+                Từ Chối Niêm Yết
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApproveRent(selectedRentItem)}
+                className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#292724] text-white hover:bg-[#1c1c18] transition-colors shadow-sm cursor-pointer"
+              >
+                Phê Duyệt & Cấp Tem
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL 2: REVIEW THRIFT LISTING */}
+      {/* ===================================================================== */}
+      {/* MODAL 2: XEM CHI TIẾT MỤC ĐĂNG THRIFT */}
+      {/* ===================================================================== */}
       {selectedThriftItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-[#ccc5bc]/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-[#ccc5bc]/50 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between border-b border-[#f1ede6] pb-3">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#7b5227]">
-                  Giám Định Nguồn Gốc Di Sản
+                  Giám Định Nguồn Gốc Di Sản THRIFT
                 </span>
                 <h3 className="font-serif text-lg font-bold text-[#1c1c18]">
                   {selectedThriftItem.name}
@@ -1071,20 +1169,34 @@ export const Dashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedThriftItem(null)}
-                className="text-[#7b766f] hover:text-[#1c1c18] p-1"
+                className="text-[#7b766f] hover:text-[#1c1c18] p-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
 
-            <div className="space-y-3">
-              <div className="h-44 rounded-xl overflow-hidden bg-[#f1ede6]">
+            <div className="space-y-4">
+              <div
+                onClick={() => setZoomImageUrl(selectedThriftItem.images[0])}
+                className="h-52 rounded-xl overflow-hidden bg-[#f1ede6] cursor-zoom-in relative group"
+              >
                 <img
                   src={selectedThriftItem.images[0]}
                   alt={selectedThriftItem.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                 />
+                <span className="absolute bottom-2 right-2 px-2 py-1 rounded bg-black/60 text-white text-[10px] flex items-center gap-1 font-medium">
+                  <span className="material-symbols-outlined text-[14px]">zoom_in</span>
+                  <span>Phóng to</span>
+                </span>
               </div>
+
+              {selectedThriftItem.description && (
+                <div className="text-xs text-[#4a463f] bg-[#f7f3ec] p-3 rounded-xl leading-relaxed">
+                  <span className="font-bold text-[#1c1c18] block mb-1">Mô tả chi tiết:</span>
+                  {selectedThriftItem.description}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3 text-xs bg-[#f7f3ec] p-3 rounded-xl">
                 <div>
@@ -1094,7 +1206,7 @@ export const Dashboard: React.FC = () => {
                   </span>
                 </div>
                 <div>
-                  <span className="text-[#7b766f] block">Giá bán độc bản:</span>
+                  <span className="text-[#7b766f] block">Giá bán thanh lý:</span>
                   <span className="font-semibold text-[#1c1c18]">
                     {selectedThriftItem.price.toLocaleString("vi-VN")} ₫
                   </span>
@@ -1106,44 +1218,51 @@ export const Dashboard: React.FC = () => {
                   </span>
                 </div>
                 <div>
-                  <span className="text-[#7b766f] block">Hộ chiếu lưu ký:</span>
+                  <span className="text-[#7b766f] block">Tình trạng vật lý:</span>
                   <span className="font-semibold text-[#576151]">
-                    Đã số hóa & kiểm định vi vết
+                    {selectedThriftItem.condition}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#f1ede6]">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#f1ede6]">
               <button
                 type="button"
                 onClick={() => setSelectedThriftItem(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#4a463f] hover:bg-[#f1ede6] transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#4a463f] hover:bg-[#f1ede6] transition-colors cursor-pointer"
               >
                 Đóng
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  handleApproveThrift(selectedThriftItem.id, selectedThriftItem.name)
-                }
-                className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#7b5227] text-white hover:bg-[#673d14] transition-colors shadow-sm"
+                onClick={() => openRejectModal("THRIFT", selectedThriftItem.id, selectedThriftItem.name)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#ba1a1a] hover:bg-[#ffdad6]/40 transition-colors border border-[#ba1a1a]/40 cursor-pointer"
               >
-                Bảo Chứng & Xuất Bản Sàn THRIFT
+                Từ Chối Đăng Bán
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApproveThrift(selectedThriftItem)}
+                className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#7b5227] text-white hover:bg-[#673d14] transition-colors shadow-sm cursor-pointer"
+              >
+                Bảo Chứng & Xuất Bản
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL 3: REVIEW KYC APPLICANT */}
+      {/* ===================================================================== */}
+      {/* MODAL 3: XEM CHI TIẾT HỒ SƠ KYC & ẢNH CCCD */}
+      {/* ===================================================================== */}
       {selectedKycItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-[#ccc5bc]/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-[#ccc5bc]/50 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between border-b border-[#f1ede6] pb-3">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#576151]">
-                  Xác Thực Danh Tính Người Dùng
+                  Thẩm Định Hồ Sơ Xác Thực Danh Tính (KYC)
                 </span>
                 <h3 className="font-serif text-lg font-bold text-[#1c1c18]">
                   {selectedKycItem.fullName}
@@ -1152,19 +1271,22 @@ export const Dashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedKycItem(null)}
-                className="text-[#7b766f] hover:text-[#1c1c18] p-1"
+                className="text-[#7b766f] hover:text-[#1c1c18] p-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-xl bg-[#f7f3ec] space-y-2">
+            <div className="space-y-4">
+              {/* Profile Details */}
+              <div className="p-3.5 rounded-xl bg-[#f7f3ec] space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-[#7b766f]">Email:</span>
-                  <span className="font-semibold text-[#1c1c18]">
-                    {selectedKycItem.email}
-                  </span>
+                  <span className="text-[#7b766f]">Họ và tên:</span>
+                  <span className="font-bold text-[#1c1c18]">{selectedKycItem.fullName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#7b766f]">Email tài khoản:</span>
+                  <span className="font-semibold text-[#1c1c18]">{selectedKycItem.email}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#7b766f]">Số điện thoại:</span>
@@ -1173,51 +1295,96 @@ export const Dashboard: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#7b766f]">Tài liệu nộp:</span>
-                  <span className="font-semibold text-[#1c1c18]">
-                    {selectedKycItem.docType}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#7b766f]">Tài khoản thụ hưởng Escrow:</span>
-                  <span className="font-semibold text-[#576151]">
-                    {selectedKycItem.bankInfo || "Vietcombank Escrow Clearing"}
+                  <span className="text-[#7b766f]">Số CCCD gắn chip:</span>
+                  <span className="font-mono font-bold text-[#576151]">
+                    {selectedKycItem.idCardNumber || "079201008888"}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#7b766f]">Phân hạng chứng thư:</span>
-                  <span className="font-bold text-[#1c1c18]">
-                    {selectedKycItem.tier}
-                  </span>
+                  <span className="font-bold text-[#1c1c18]">{selectedKycItem.tier}</span>
                 </div>
+              </div>
+
+              {/* ID Card Front & Back Images */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-[#1c1c18] block">
+                  Ảnh Căn cước công dân đối soát (Click phóng to):
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div
+                    onClick={() => setZoomImageUrl(selectedKycItem.frontImageUrl || null)}
+                    className="h-32 rounded-xl overflow-hidden bg-[#f1ede6] border border-[#ccc5bc]/50 cursor-zoom-in relative group"
+                  >
+                    <img
+                      src={selectedKycItem.frontImageUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"}
+                      alt="CCCD Mặt trước"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <span className="material-symbols-outlined text-white text-[20px]">zoom_in</span>
+                    </div>
+                    <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/70 text-white text-[10px] font-semibold">
+                      Mặt trước
+                    </span>
+                  </div>
+
+                  <div
+                    onClick={() => setZoomImageUrl(selectedKycItem.backImageUrl || null)}
+                    className="h-32 rounded-xl overflow-hidden bg-[#f1ede6] border border-[#ccc5bc]/50 cursor-zoom-in relative group"
+                  >
+                    <img
+                      src={selectedKycItem.backImageUrl || "https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&w=600&q=80"}
+                      alt="CCCD Mặt sau"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <span className="material-symbols-outlined text-white text-[20px]">zoom_in</span>
+                    </div>
+                    <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/70 text-white text-[10px] font-semibold">
+                      Mặt sau
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-[#fbf5ee] rounded-xl text-[11px] text-[#7b5227] border border-[#f0e0cb]">
+                Lưu ý: Đối soát kỹ số thẻ, họ tên và chip điện tử. Phê duyệt KYC chỉ cấp quyền thuê đồ, không cấp quyền Shop Owner.
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#f1ede6]">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#f1ede6]">
               <button
                 type="button"
                 onClick={() => setSelectedKycItem(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#4a463f] hover:bg-[#f1ede6] transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#4a463f] hover:bg-[#f1ede6] transition-colors cursor-pointer"
               >
                 Đóng
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  handleApproveKyc(selectedKycItem.id, selectedKycItem.fullName)
-                }
-                className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#576151] text-white hover:bg-[#3f4a3a] transition-colors shadow-sm"
+                onClick={() => openRejectModal("KYC", selectedKycItem.id, selectedKycItem.fullName)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#ba1a1a] hover:bg-[#ffdad6]/40 transition-colors border border-[#ba1a1a]/40 cursor-pointer"
               >
-                Phê Duyệt Tuân Thủ & Mở Hạn Mức
+                Từ Chối Hồ Sơ
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApproveKyc(selectedKycItem)}
+                className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#576151] text-white hover:bg-[#3f4a3a] transition-colors shadow-sm cursor-pointer"
+              >
+                Phê Duyệt KYC
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL 4: REVIEW DISPUTE */}
+      {/* ===================================================================== */}
+      {/* MODAL 4: XỬ LÝ TRANH CHẤP ĐƠN HÀNG */}
+      {/* ===================================================================== */}
       {selectedDisputeItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-[#ccc5bc]/50">
             <div className="flex items-start justify-between border-b border-[#f1ede6] pb-3">
               <div>
@@ -1231,7 +1398,7 @@ export const Dashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedDisputeItem(null)}
-                className="text-[#7b766f] hover:text-[#1c1c18] p-1"
+                className="text-[#7b766f] hover:text-[#1c1c18] p-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
@@ -1239,26 +1406,20 @@ export const Dashboard: React.FC = () => {
 
             <div className="space-y-3 text-xs bg-[#f7f3ec] p-4 rounded-xl">
               <div className="flex justify-between">
-                <span className="text-[#7b766f]">Bên liên quan / Renter:</span>
-                <span className="font-semibold text-[#1c1c18]">
-                  {selectedDisputeItem.renterName}
-                </span>
+                <span className="text-[#7b766f]">Khách hàng khiếu nại:</span>
+                <span className="font-semibold text-[#1c1c18]">{selectedDisputeItem.renterName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#7b766f]">Khoản ký quỹ phong tỏa:</span>
+                <span className="text-[#7b766f]">Tiền ký quỹ tạm khóa:</span>
                 <span className="font-bold text-[#ba1a1a]">
                   {selectedDisputeItem.escrowLocked.toLocaleString("vi-VN")} ₫
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#7b766f]">Trạng thái điều tra:</span>
-                <span className="font-semibold text-[#7b5227]">
-                  {selectedDisputeItem.statusText}
-                </span>
-              </div>
               <div className="pt-2 border-t border-[#ccc5bc]/20">
-                <span className="text-[#7b766f] block mb-1">Nội dung khiếu nại:</span>
-                <p className="text-[#1c1c18] italic">{selectedDisputeItem.reason}</p>
+                <span className="text-[#7b766f] block mb-1">Nội dung đối soát:</span>
+                <p className="text-[#1c1c18] font-medium leading-relaxed">
+                  {selectedDisputeItem.reason}
+                </p>
               </div>
             </div>
 
@@ -1266,23 +1427,142 @@ export const Dashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedDisputeItem(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#4a463f] hover:bg-[#f1ede6] transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#4a463f] hover:bg-[#f1ede6] transition-colors cursor-pointer"
               >
                 Đóng
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedDisputeItem(null);
-                  showToast(
-                    `Đã chuyển hồ sơ ${selectedDisputeItem.code} sang Hội đồng Thẩm định Lưu ký!`
-                  );
-                }}
+              <Link
+                to="/admin/disputes"
                 className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#ba1a1a] text-white hover:bg-[#93000a] transition-colors shadow-sm"
               >
-                Triệu Tập Hội Đồng Trọng Tài
+                Chuyển Đến Trang Trọng Tài
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* MODAL 5: NHẬP LÝ DO TỪ CHỐI (REJECT REASON MODAL) */}
+      {/* ===================================================================== */}
+      {rejectModal.isOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-[#ba1a1a]/30">
+            <div className="flex items-start justify-between border-b border-[#f1ede6] pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-8 h-8 rounded-full bg-[#ffdad6] text-[#ba1a1a] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-[18px]">gavel</span>
+                </span>
+                <div>
+                  <h3 className="font-serif text-base font-bold text-[#1c1c18]">
+                    Lý Do Từ Chối {rejectModal.type}
+                  </h3>
+                  <p className="text-[11px] text-[#7b766f] truncate max-w-xs">
+                    {rejectModal.targetName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeRejectModal}
+                className="text-[#7b766f] hover:text-[#1c1c18] p-1 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[#1c1c18] block">
+                  Nhập lý do từ chối cụ thể <span className="text-[#ba1a1a]">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={rejectModal.reason}
+                  onChange={(e) =>
+                    setRejectModal((prev) => ({
+                      ...prev,
+                      reason: e.target.value,
+                      error: undefined,
+                    }))
+                  }
+                  placeholder="Ví dụ: Hình ảnh chụp bị mờ tem mác, yêu cầu bổ sung ảnh chụp rõ nét..."
+                  className="w-full text-xs p-3 rounded-xl border border-[#ccc5bc]/60 focus:outline-none focus:border-[#ba1a1a] transition-colors resize-none leading-relaxed"
+                />
+                {rejectModal.error && (
+                  <p className="text-[11px] text-[#ba1a1a] font-semibold">
+                    {rejectModal.error}
+                  </p>
+                )}
+              </div>
+
+              {/* Quick Presets */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-[#7b766f] block">
+                  Gợi ý lý do chuẩn (Click để áp dụng):
+                </span>
+                <div className="space-y-1">
+                  {quickReasonPresets.map((preset, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() =>
+                        setRejectModal((prev) => ({
+                          ...prev,
+                          reason: preset,
+                          error: undefined,
+                        }))
+                      }
+                      className="w-full text-left p-2 rounded-lg bg-[#f7f3ec] hover:bg-[#f1ede6] text-[11px] text-[#4a463f] hover:text-[#1c1c18] transition-colors border border-[#ccc5bc]/20 truncate block cursor-pointer"
+                    >
+                      • {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#f1ede6]">
+              <button
+                type="button"
+                onClick={closeRejectModal}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#4a463f] hover:bg-[#f1ede6] transition-colors cursor-pointer"
+              >
+                Hủy Bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReject}
+                className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#ba1a1a] text-white hover:bg-[#93000a] transition-colors shadow-sm cursor-pointer"
+              >
+                Xác Nhận Từ Chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* LIGHTBOX: PHÓNG TO ẢNH (ZOOM IMAGE MODAL) */}
+      {/* ===================================================================== */}
+      {zoomImageUrl && (
+        <div
+          onClick={() => setZoomImageUrl(null)}
+          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in cursor-zoom-out"
+        >
+          <div className="relative max-w-4xl max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl">
+            <img
+              src={zoomImageUrl}
+              alt="Phóng to"
+              className="w-full h-full object-contain max-h-[85vh]"
+            />
+            <button
+              type="button"
+              onClick={() => setZoomImageUrl(null)}
+              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black transition-colors"
+            >
+              <span className="material-symbols-outlined text-[20px]">close</span>
+            </button>
           </div>
         </div>
       )}

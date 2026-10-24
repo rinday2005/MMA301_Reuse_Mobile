@@ -3,16 +3,14 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
 import { getPublicRentProductsApi } from '../../../services/rentProduct.api';
-import { AppSidebar } from '../../../components/layout/AppSidebar';
+import { UserSidebar } from '../../../components/layout/UserSidebar';
 import {
   RENT_PRODUCTS,
   RENT_SORT_OPTIONS,
   RENT_HOW_IT_WORKS_STEPS,
 } from '../../data/rent/marketplaceData';
 import type { Product, SortKey } from '../../data/rent/marketplaceData';
-
 // ─── ProductCard ───────────────────────────────────────────────────────────────
-
 const ProductCard: React.FC<{
   product: Product;
   onRequireAuth: (action: string, targetHref: string) => void;
@@ -25,7 +23,6 @@ const ProductCard: React.FC<{
     conditionLabel, location, deposit, available, href, image,
   } = product;
   const isSaved = isWishlisted(id);
-
   const handleRentClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!user) {
@@ -46,7 +43,6 @@ const ProductCard: React.FC<{
     });
     navigate('/cart');
   };
-
   const handleCartClick = (e: React.MouseEvent) => {
     e.preventDefault();
     addToCart({
@@ -62,7 +58,6 @@ const ProductCard: React.FC<{
       quantity: 1,
     });
   };
-
   return (
     <article
       className={`group flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 ${!available ? 'opacity-90' : ''}`}
@@ -93,7 +88,6 @@ const ProductCard: React.FC<{
             />
           </svg>
         </button>
-
         <Link to={href} className="block w-full h-full">
           <img
             src={image}
@@ -112,22 +106,14 @@ const ProductCard: React.FC<{
           </span>
         </div>
       </div>
-
       <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-[11px] text-[#78736A]">
             <span className="uppercase tracking-wider font-semibold">{categoryLabel}</span>
-            <div className="flex items-center gap-2">
-              {product.size && product.category !== 'camera' && !/canon|sony|nikon|fujifilm|dji/i.test(product.name || '') && (
-                <span className="text-[10px] font-bold text-white bg-[#1C1A18] px-1.5 py-0.5 rounded shadow-2xs">
-                  Size {product.size}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-[13px]">location_on</span>
-                {location}
-              </span>
-            </div>
+            <span className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-[13px]">location_on</span>
+              {location}
+            </span>
           </div>
           <h2 className="font-serif text-base font-bold text-[#1C1A18] group-hover:text-amber-800 transition-colors line-clamp-1">
             <Link
@@ -148,7 +134,6 @@ const ProductCard: React.FC<{
             <span className="text-[#78736A] text-[11px]">({reviewCount} đánh giá)</span>
           </div>
         </div>
-
         <div className="pt-2 bg-[#F4F0EA]/30 -mx-5 -mb-5 p-5 space-y-3">
           <div className="flex items-baseline justify-between">
             <div>
@@ -163,7 +148,6 @@ const ProductCard: React.FC<{
               <p className="text-xs text-[#5E5A53] font-mono">{deposit}</p>
             </div>
           </div>
-
           <div className="flex items-center gap-2 pt-1">
             {available ? (
               <>
@@ -207,10 +191,10 @@ const ProductCard: React.FC<{
     </article>
   );
 };
-
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 const RentMarketplace: React.FC = () => {
+  const { user } = useAuth();
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
 
   useEffect(() => {
@@ -226,7 +210,6 @@ const RentMarketplace: React.FC = () => {
             const condLabel = cond === 'NEW' ? 'Mới 100%' : cond === 'LIKE_NEW' ? 'Như mới 99%' : 'Rất tốt 95%';
             const img = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : '';
             const dep = item.depositAmount ? `${Number(item.depositAmount).toLocaleString('vi-VN')}đ` : '0đ';
-
             return {
               id: item._id,
               title: item.name,
@@ -242,8 +225,6 @@ const RentMarketplace: React.FC = () => {
               available: (item.totalQuantity || 1) > 0,
               href: `/rent/products/${item._id}`,
               image: img,
-              size: item.size || 'L',
-              sizes: Array.isArray(item.sizes) && item.sizes.length > 0 ? item.sizes : ['S', 'M', 'L', 'XL'],
             };
           });
           setDbProducts(mapped);
@@ -252,29 +233,24 @@ const RentMarketplace: React.FC = () => {
       .catch((err) => {
         console.warn('Could not load products from API:', err);
       });
-
     return () => {
       isMounted = false;
     };
   }, []);
   const [searchParams] = useSearchParams();
   const urlCategory = searchParams.get('category');
-
   const [authModal, setAuthModal] = useState<{ open: boolean; action: string; targetHref: string }>({
     open: false,
     action: '',
     targetHref: '',
   });
-
   const [query, setQuery] = useState('');
   const [userCategory, setUserCategory] = useState<string | null>(null);
   const category = userCategory ?? (urlCategory || 'all');
   const [priceRange, setPriceRange] = useState('all');
   const [condition, setCondition] = useState('all');
   const [location, setLocation] = useState('all');
-  const [selectedSize, setSelectedSize] = useState('all');
   const [sort, setSort] = useState<SortKey>('recommended');
-
   // Track sidebar collapsed state to display inline restore chip when collapsed
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     try {
@@ -283,7 +259,6 @@ const RentMarketplace: React.FC = () => {
       return false;
     }
   });
-
   useEffect(() => {
     const handleSync = (e: Event) => {
       const customEvent = e as CustomEvent<boolean>;
@@ -294,7 +269,6 @@ const RentMarketplace: React.FC = () => {
     window.addEventListener('reuse_user_sidebar_toggle', handleSync);
     return () => window.removeEventListener('reuse_user_sidebar_toggle', handleSync);
   }, []);
-
   const handleRequireAuth = (actionTitle: string, targetHref: string) => {
     setAuthModal({
       open: true,
@@ -302,7 +276,6 @@ const RentMarketplace: React.FC = () => {
       targetHref,
     });
   };
-
   const visibleProducts = useMemo(() => {
     const sourceList = dbProducts.length > 0 ? dbProducts : RENT_PRODUCTS;
     let list = sourceList.filter((p) => {
@@ -312,9 +285,7 @@ const RentMarketplace: React.FC = () => {
         const target = category.toLowerCase().trim();
         const pCat = (p.category || '').toLowerCase().trim();
         const pLabel = (p.categoryLabel || '').toLowerCase().trim();
-
         if (pCat === target || pLabel === target) return true;
-
         if (target === 'camera' || target === 'cameras') {
           return pCat.includes('camera') || pCat.includes('optic') || pLabel.includes('camera') || pLabel.includes('quang học');
         }
@@ -352,7 +323,6 @@ const RentMarketplace: React.FC = () => {
         if (target === 'shoes' || target === 'shoe') {
           return pCat.includes('shoe') || pCat.includes('giay') || pLabel.includes('giày');
         }
-
         return pCat.includes(target) || target.includes(pCat) || pLabel.includes(target);
       })();
       const matchCond = condition === 'all' || p.condition === condition;
@@ -361,54 +331,33 @@ const RentMarketplace: React.FC = () => {
       if (priceRange === 'under200') matchPrice = p.price < 200000;
       else if (priceRange === '200to500') matchPrice = p.price >= 200000 && p.price <= 500000;
       else if (priceRange === 'above500') matchPrice = p.price > 500000;
-
-      let matchSize = true;
-      if (selectedSize !== 'all') {
-        const pRecord = p as unknown as { size?: string; sizes?: string[] };
-        const pSize = pRecord.size;
-        const pSizes = pRecord.sizes;
-        if (pSize && pSize.toUpperCase() === selectedSize.toUpperCase()) {
-          matchSize = true;
-        } else if (Array.isArray(pSizes) && pSizes.map((s: string) => s.toUpperCase()).includes(selectedSize.toUpperCase())) {
-          matchSize = true;
-        } else {
-          matchSize = false;
-        }
-      }
-
-      return matchQuery && matchCat && matchCond && matchLoc && matchPrice && matchSize;
+      return matchQuery && matchCat && matchCond && matchLoc && matchPrice;
     });
     if (sort === 'price-asc') list = [...list].sort((a, b) => a.price - b.price);
     else if (sort === 'price-desc') list = [...list].sort((a, b) => b.price - a.price);
     else if (sort === 'rating') list = [...list].sort((a, b) => b.rating - a.rating);
     return list;
-  }, [dbProducts, query, category, priceRange, condition, location, selectedSize, sort]);
-
+  }, [dbProducts, query, category, priceRange, condition, location, sort]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
-
   // Auto reset to page 1 whenever any filter changes
-  const filterKey = `${query}|${category}|${priceRange}|${condition}|${location}|${selectedSize}|${sort}`;
+  const filterKey = `${query}|${category}|${priceRange}|${condition}|${location}|${sort}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (prevFilterKey !== filterKey) {
     setPrevFilterKey(filterKey);
     setCurrentPage(1);
   }
-
   const totalItems = visibleProducts.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return visibleProducts.slice(start, start + itemsPerPage);
   }, [visibleProducts, currentPage, itemsPerPage]);
-
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages || page === currentPage) return;
     setCurrentPage(page);
     window.scrollTo({ top: 380, behavior: 'smooth' });
   };
-
   const getPageNumbers = (current: number, total: number) => {
     if (total <= 5) {
       return Array.from({ length: total }, (_, i) => i + 1);
@@ -421,7 +370,6 @@ const RentMarketplace: React.FC = () => {
     }
     return [1, '...', current - 1, current, current + 1, '...', total];
   };
-
   const resetAll = () => {
     setCurrentPage(1);
     setQuery('');
@@ -429,13 +377,10 @@ const RentMarketplace: React.FC = () => {
     setPriceRange('all');
     setCondition('all');
     setLocation('all');
-    setSelectedSize('all');
     setSort('recommended');
   };
-
   const sel =
     'w-full py-2 pl-3 pr-7 bg-[#F4F0EA]/50 rounded-lg text-[#1C1A18] focus:outline-none focus:bg-[#F4F0EA] text-xs font-medium cursor-pointer appearance-none';
-
   return (
     <div className="flex flex-col w-full min-h-screen bg-[#FBF9F5] text-[#1C1A18] antialiased relative">
       {/* Guest Auth Required Modal */}
@@ -455,18 +400,15 @@ const RentMarketplace: React.FC = () => {
             >
               <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
-
             <div className="w-14 h-14 rounded-full bg-[#F4F0EA] flex items-center justify-center text-[#1C1A18] mx-auto shadow-sm">
               <span className="material-symbols-outlined text-[28px]">lock_person</span>
             </div>
-
             <div className="space-y-2">
               <h3 className="text-xl font-bold text-[#1C1A18]">Yêu cầu Đăng nhập</h3>
               <p className="text-xs text-[#5E5A53] leading-relaxed">
                 Bạn đang truy cập ở chế độ công khai (Khách vãng lai). Để <strong>{authModal.action}</strong>, vui lòng đăng nhập hoặc tạo tài khoản thành viên ReUse Hub.
               </p>
             </div>
-
             <div className="p-3.5 bg-[#F4F0EA]/70 rounded-2xl text-left space-y-1.5 text-xs text-[#5E5A53]">
               <div className="flex items-center gap-2 font-semibold text-[#1C1A18]">
                 <span className="material-symbols-outlined text-[16px] text-emerald-700">verified</span>
@@ -478,7 +420,6 @@ const RentMarketplace: React.FC = () => {
                 <li>Theo dõi tiến trình vận chuyển và giữ sản phẩm</li>
               </ul>
             </div>
-
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <Link
                 to={`/login?redirect=${encodeURIComponent(authModal.targetHref)}&message=${encodeURIComponent(
@@ -498,17 +439,15 @@ const RentMarketplace: React.FC = () => {
           </div>
         </div>
       )}
-
       {/* ── EDITORIAL HEADER ── */}
       {/* ── MAIN WORKSPACE CONTAINER WITH PERSISTENT SIDEBAR ── */}
       <div className="max-w-[1520px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 flex gap-8">
-        {/* Navigation Sidebar (Fixed on left: GuestSidebar when guest, UserSidebar when logged in) */}
-        <AppSidebar activeKey="rent" />
-
+        {/* User Navigation Sidebar (Fixed on left) */}
+        <UserSidebar activeKey="rent" />
         {/* ── MAIN CONTENT AREA ── */}
         <main className="flex-1 min-w-0 space-y-8">
           {/* Quick inline restore chip if user clicked 3-bar button to hide sidebar */}
-          {isSidebarCollapsed && (
+          {isSidebarCollapsed && user?.role !== 'ADMIN' && (
             <div className="flex items-center gap-2 -mb-4 animate-fade-in">
               <button
                 type="button"
@@ -523,7 +462,6 @@ const RentMarketplace: React.FC = () => {
               </button>
             </div>
           )}
-
           <section className="w-full pt-2 pb-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8">
           <div className="max-w-2xl space-y-3">
@@ -542,7 +480,6 @@ const RentMarketplace: React.FC = () => {
               sản phẩm tiếp tục chu kỳ tuần hoàn. Không áp lực lưu trữ, không lãng phí tài nguyên.
             </p>
           </div>
-
           <div className="flex items-center gap-4 bg-[#F4F0EA]/60 px-5 py-3.5 rounded-xl self-start md:self-auto shadow-sm">
             <div className="flex flex-col">
               <span className="text-[10px] font-mono uppercase tracking-wider text-[#78736A]">Kho đồ trực tuyến</span>
@@ -555,7 +492,6 @@ const RentMarketplace: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="w-full bg-[#F4F0EA]/70 rounded-xl px-5 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#1C1A18]">
           <div className="flex items-center gap-2.5">
             <span className="material-symbols-outlined text-[18px]">verified</span>
@@ -567,11 +503,9 @@ const RentMarketplace: React.FC = () => {
           </div>
         </div>
       </section>
-
       {/* ── SEARCH & FILTER ── */}
       <section className="w-full pb-8">
         <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
-
           <div className="relative w-full">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#78736A] text-[22px]">search</span>
             <input
@@ -591,8 +525,7 @@ const RentMarketplace: React.FC = () => {
               </button>
             )}
           </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 pt-1 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1 text-xs">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Danh mục</label>
               <div className="relative">
@@ -607,7 +540,6 @@ const RentMarketplace: React.FC = () => {
                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
               </div>
             </div>
-
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Giá / ngày</label>
               <div className="relative">
@@ -620,7 +552,6 @@ const RentMarketplace: React.FC = () => {
                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
               </div>
             </div>
-
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Tình trạng</label>
               <div className="relative">
@@ -633,7 +564,6 @@ const RentMarketplace: React.FC = () => {
                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
               </div>
             </div>
-
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Khu vực</label>
               <div className="relative">
@@ -646,33 +576,15 @@ const RentMarketplace: React.FC = () => {
                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
               </div>
             </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Kích cỡ (Size)</label>
-              <div className="relative">
-                <select value={selectedSize} onChange={(e) => setSelectedSize(e.target.value)} className={sel}>
-                  <option value="all">Tất cả size</option>
-                  <option value="S">Size S</option>
-                  <option value="M">Size M</option>
-                  <option value="L">Size L</option>
-                  <option value="XL">Size XL</option>
-                  <option value="FREE_SIZE">Free Size</option>
-                </select>
-                <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
-              </div>
-            </div>
-
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Ngày nhận</label>
               <input type="date" className="w-full py-1.5 px-2 bg-[#F4F0EA]/50 rounded-lg text-[#1C1A18] text-xs focus:outline-none focus:bg-[#F4F0EA]" />
             </div>
-
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Ngày trả</label>
               <input type="date" className="w-full py-1.5 px-2 bg-[#F4F0EA]/50 rounded-lg text-[#1C1A18] text-xs focus:outline-none focus:bg-[#F4F0EA]" />
             </div>
           </div>
-
           <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <span className="text-[11px] font-medium text-[#5E5A53]">
               Đang hiển thị {visibleProducts.length} sản phẩm sẵn sàng thuê
@@ -696,7 +608,6 @@ const RentMarketplace: React.FC = () => {
           </div>
         </div>
       </section>
-
       {/* ── PRODUCT GRID ── */}
       <section className="w-full px-6 lg:px-12 pb-16 max-w-7xl mx-auto">
         {visibleProducts.length > 0 ? (
@@ -726,7 +637,6 @@ const RentMarketplace: React.FC = () => {
             </button>
           </div>
         )}
-
         <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-[#E8E4DC]/80 text-xs text-[#5E5A53]">
           <div>
             Hiển thị{' '}
@@ -777,7 +687,6 @@ const RentMarketplace: React.FC = () => {
         )}
       </div>
       </section>
-
       {/* ── HOW RENT WORKS ── */}
       <section className="w-full bg-[#F4F0EA]/60 rounded-3xl p-6 sm:p-8 mb-8 border border-[#E8E4DC]">
         <div className="max-w-7xl mx-auto space-y-8">
@@ -795,7 +704,6 @@ const RentMarketplace: React.FC = () => {
               <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
             </Link>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {RENT_HOW_IT_WORKS_STEPS.map((item) => (
               <div key={item.step} className="p-5 bg-white rounded-2xl shadow-sm space-y-3">
@@ -809,9 +717,7 @@ const RentMarketplace: React.FC = () => {
       </section>
         </main>
       </div>
-
     </div>
   );
 };
-
 export default RentMarketplace;
