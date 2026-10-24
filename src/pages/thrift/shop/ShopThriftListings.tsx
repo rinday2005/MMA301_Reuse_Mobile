@@ -3,31 +3,97 @@ import { Link, useNavigate } from 'react-router-dom';
 import type {
   ThriftListingItem,
   ThriftListingSource,
+  ThriftListingStatus,
 } from '../../data/shop/thriftListingsData';
 import {
   INITIAL_THRIFT_LISTINGS,
   THRIFT_LISTINGS_STORAGE_KEY,
 } from '../../data/shop/thriftListingsData';
+import { getShopThriftListingsApi } from '../../../services/thrift.api';
+import type { ThriftListingItemApi } from '../../../services/thrift.api';
 
 type StatusFilterType = 'ALL' | 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'AVAILABLE' | 'SOLD' | 'HIDDEN';
+
+const mapApiThriftListingToItem = (apiItem: ThriftListingItemApi): ThriftListingItem => {
+  const catName = typeof apiItem.categoryId === 'object' && apiItem.categoryId ? apiItem.categoryId.name : 'Đồ thanh lý';
+  const rawStatus = (apiItem.status || 'APPROVED').toUpperCase();
+  let status: ThriftListingStatus = 'APPROVED';
+  let statusLabel = 'Đã Duyệt (Admin)';
+  if (rawStatus === 'PENDING' || rawStatus === 'PENDING_APPROVAL') {
+    status = 'PENDING';
+    statusLabel = 'Chờ Duyệt';
+  } else if (rawStatus === 'REJECTED') {
+    status = 'REJECTED';
+    statusLabel = 'Từ Chối';
+  } else if (rawStatus === 'SOLD') {
+    status = 'SOLD';
+    statusLabel = 'Đã Bán (SOLD)';
+  } else if (rawStatus === 'HIDDEN') {
+    status = 'HIDDEN';
+    statusLabel = 'Đang Ẩn';
+  } else if (rawStatus === 'DRAFT') {
+    status = 'DRAFT';
+    statusLabel = 'Bản Nháp';
+  }
+
+  const isFromRental = apiItem.sourceType === 'RENTAL_PRODUCT' || apiItem.sourceType === 'FROM_RENTAL';
+
+  return {
+    id: apiItem._id,
+    sku: `TL-${apiItem._id.slice(-6).toUpperCase()}`,
+    title: apiItem.name,
+    category: catName,
+    categoryKey: 'cameras',
+    description: apiItem.description || '',
+    source: isFromRental ? 'RETURNED_RENTAL' : 'SHOP_INVENTORY',
+    sourceLabel: isFromRental ? 'Second Life Item' : 'Kho Độc Bản',
+    status,
+    statusLabel,
+    isSold: status === 'SOLD',
+    conditionGrade: apiItem.condition || 'Rất tốt (98%)',
+    conditionScore: 95,
+    price: apiItem.price || 0,
+    priceFormatted: `${(apiItem.price || 0).toLocaleString('vi-VN')} ₫`,
+    image: apiItem.images?.[0] || 'https://placehold.co/600x400',
+    images: apiItem.images || [],
+    submittedAt: apiItem.createdAt ? new Date(apiItem.createdAt).toLocaleDateString('vi-VN') : 'Mới cập nhật',
+    serialNumber: `#SN-${apiItem._id.slice(-6).toUpperCase()}`,
+  };
+};
 
 export const ShopThriftListings: React.FC = () => {
   const navigate = useNavigate();
 
-  // Local state with persistent storage
+  // State with persistent storage + MongoDB sync
   const [listings, setListings] = useState<ThriftListingItem[]>(() => {
     try {
       const stored = localStorage.getItem(THRIFT_LISTINGS_STORAGE_KEY);
       if (stored) {
         return JSON.parse(stored);
       }
-      localStorage.setItem(THRIFT_LISTINGS_STORAGE_KEY, JSON.stringify(INITIAL_THRIFT_LISTINGS));
-      return INITIAL_THRIFT_LISTINGS;
     } catch (e) {
       console.error('Lỗi đọc THRIFT listings:', e);
-      return INITIAL_THRIFT_LISTINGS;
     }
+    return INITIAL_THRIFT_LISTINGS;
   });
+
+  useEffect(() => {
+    let isMounted = true;
+    getShopThriftListingsApi()
+      .then((dbListings) => {
+        if (isMounted && dbListings && dbListings.length > 0) {
+          const mapped = dbListings.map(mapApiThriftListingToItem);
+          setListings(mapped);
+          localStorage.setItem(THRIFT_LISTINGS_STORAGE_KEY, JSON.stringify(mapped));
+        }
+      })
+      .catch((err) => {
+        console.warn('Không thể nạp danh sách THRIFT từ MongoDB:', err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Save to localStorage on change
   useEffect(() => {

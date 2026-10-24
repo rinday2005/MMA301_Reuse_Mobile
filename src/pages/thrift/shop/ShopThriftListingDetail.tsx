@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { ThriftListingItem } from '../../data/shop/thriftListingsData';
+import type { ThriftListingItem, ThriftListingStatus } from '../../data/shop/thriftListingsData';
 import { THRIFT_LISTINGS_STORAGE_KEY, INITIAL_THRIFT_LISTINGS } from '../../data/shop/thriftListingsData';
+import { getPublicThriftListingByIdApi } from '../../../services/thrift.api';
 
 const DEFAULT_GALLERY_IMAGES = [
   {
@@ -79,6 +80,61 @@ export const ShopThriftListingDetail: React.FC = () => {
       text: 'Chào bạn, xưởng đã test chụp phòng sạch Class 1000 tại f/16 và f/22, cảm biến sạch 100% không tì vết. Kèm ảnh phóng đại quang học trong hồ sơ lưu ký số bạn nhé!',
     },
   ]);
+
+  useEffect(() => {
+    if (!id) return;
+    getPublicThriftListingByIdApi(id)
+      .then((apiItem) => {
+        if (apiItem) {
+          const catName = typeof apiItem.categoryId === 'object' && apiItem.categoryId ? apiItem.categoryId.name : 'Đồ thanh lý';
+          const rawStatus = (apiItem.status || 'APPROVED').toUpperCase();
+          let status: ThriftListingStatus = 'APPROVED';
+          let statusLabel = 'Đã Duyệt (Admin)';
+          if (rawStatus === 'PENDING' || rawStatus === 'PENDING_APPROVAL') {
+            status = 'PENDING';
+            statusLabel = 'Chờ Duyệt';
+          } else if (rawStatus === 'REJECTED') {
+            status = 'REJECTED';
+            statusLabel = 'Từ Chối';
+          } else if (rawStatus === 'SOLD') {
+            status = 'SOLD';
+            statusLabel = 'Đã Bán (SOLD)';
+          } else if (rawStatus === 'HIDDEN') {
+            status = 'HIDDEN';
+            statusLabel = 'Đang Ẩn';
+          }
+
+          const isFromRental = apiItem.sourceType === 'RENTAL_PRODUCT' || apiItem.sourceType === 'FROM_RENTAL';
+
+          const mapped: ThriftListingItem = {
+            id: apiItem._id,
+            sku: `TL-${apiItem._id.slice(-6).toUpperCase()}`,
+            title: apiItem.name,
+            category: catName,
+            categoryKey: 'cameras',
+            description: apiItem.description || '',
+            source: isFromRental ? 'RETURNED_RENTAL' : 'SHOP_INVENTORY',
+            sourceLabel: isFromRental ? 'Second Life Item' : 'Kho Độc Bản',
+            status,
+            statusLabel,
+            isSold: status === 'SOLD',
+            conditionGrade: apiItem.condition || 'Rất tốt (98%)',
+            conditionScore: 95,
+            price: apiItem.price || 0,
+            priceFormatted: `${(apiItem.price || 0).toLocaleString('vi-VN')} ₫`,
+            image: apiItem.images?.[0] || 'https://placehold.co/600x400',
+            images: apiItem.images || [],
+            submittedAt: apiItem.createdAt ? new Date(apiItem.createdAt).toLocaleDateString('vi-VN') : 'Mới cập nhật',
+            serialNumber: `#SN-${apiItem._id.slice(-6).toUpperCase()}`,
+          };
+          setListing(mapped);
+          if (mapped.image) setActiveMainImage(mapped.image);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch thrift listing from MongoDB:', err);
+      });
+  }, [id]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);

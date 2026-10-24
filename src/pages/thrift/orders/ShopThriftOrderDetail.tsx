@@ -1,10 +1,76 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { ThriftOrder } from '../../data/shop/thriftOrdersData';
+import type { ThriftOrder, ThriftOrderStatus, ThriftListingItem } from '../../data/shop/thriftOrdersData';
 import {
   SHOP_THRIFT_ORDERS_STORAGE_KEY,
   INITIAL_MOCK_THRIFT_ORDERS,
 } from '../../data/shop/thriftOrdersData';
+import { getThriftOrderByIdApi } from '../../../services/thriftOrder.api';
+import type { ThriftOrderApi } from '../../../services/thriftOrder.api';
+
+const mapApiThriftOrder = (apiOrder: ThriftOrderApi): ThriftOrder => {
+  const buyerObj = typeof apiOrder.buyerId === 'object' && apiOrder.buyerId ? apiOrder.buyerId : null;
+  const buyerName = apiOrder.shippingAddress?.recipientName || buyerObj?.fullName || 'Khách hàng ReUse';
+  const buyerPhone = apiOrder.shippingAddress?.recipientPhone || buyerObj?.phoneNumber || '0901234567';
+  const buyerEmail = buyerObj?.email || '';
+  const addr = apiOrder.shippingAddress
+    ? `${apiOrder.shippingAddress.detail}, ${apiOrder.shippingAddress.ward}, ${apiOrder.shippingAddress.district}, ${apiOrder.shippingAddress.province}`
+    : 'Việt Nam';
+
+  const listings: ThriftListingItem[] = (apiOrder.items || []).map((item, idx) => {
+    const listingObj = typeof item.listingId === 'object' && item.listingId ? item.listingId : null;
+    return {
+      id: listingObj?._id || `item-${idx}`,
+      title: item.productName || listingObj?.name || 'Sản phẩm thanh lý ReUse',
+      serialNumber: listingObj?._id ? `#SN-${listingObj._id.slice(-6).toUpperCase()}` : '#SN-ARCHIVE',
+      grade: item.condition || listingObj?.condition || 'Rất tốt (98%)',
+      price: item.price || 0,
+      imageUrl: item.imageUrl || listingObj?.images?.[0] || 'https://placehold.co/400x300',
+    };
+  });
+
+  let status: ThriftOrderStatus;
+  const rawStatus = (apiOrder.status || '').toUpperCase();
+  if (rawStatus === 'PENDING' || rawStatus === 'WAITING_PAYMENT' || rawStatus === 'PENDING_PAYMENT') {
+    status = 'PENDING_PAYMENT';
+  } else if (rawStatus === 'SHIPPING' || rawStatus === 'SHIPPED') {
+    status = 'SHIPPED';
+  } else if (rawStatus === 'DELIVERED') {
+    status = 'DELIVERED';
+  } else if (rawStatus === 'COMPLETED') {
+    status = 'COMPLETED';
+  } else if (rawStatus === 'CANCELLED') {
+    status = 'CANCELLED';
+  } else {
+    status = 'PAID';
+  }
+
+  const subtotal = apiOrder.itemsSubtotal || (apiOrder.totalAmount - (apiOrder.shippingFee || 0));
+
+  return {
+    id: apiOrder.orderCode ? (apiOrder.orderCode.startsWith('#') ? apiOrder.orderCode : `#${apiOrder.orderCode}`) : `#${apiOrder._id}`,
+    createdAt: new Date(apiOrder.createdAt || Date.now()).toLocaleDateString('vi-VN'),
+    buyer: {
+      name: buyerName,
+      phone: buyerPhone,
+      email: buyerEmail,
+      shippingAddress: addr,
+      kycTier: 'KYC Xác thực CCCD · TIER 2',
+    },
+    listings,
+    pricing: {
+      subtotal,
+      shippingFee: apiOrder.shippingFee || 0,
+      totalAmount: apiOrder.totalAmount || 0,
+    },
+    status,
+    shippingInfo: {
+      carrier: apiOrder.courierName || 'Viettel Post Chuyên Dụng Nanuk',
+      trackingCode: apiOrder.trackingCode || '',
+      dispatchedAt: apiOrder.updatedAt ? new Date(apiOrder.updatedAt).toLocaleString('vi-VN') : undefined,
+    },
+  };
+};
 
 type OrderSimulationState = 'paid' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'disputed';
 
@@ -48,6 +114,37 @@ export const ShopThriftOrderDetail: React.FC = () => {
         return 'paid';
     }
   });
+
+  useEffect(() => {
+    if (!id) return;
+    const cleanId = id.replace('#', '');
+    getThriftOrderByIdApi(cleanId)
+      .then((apiOrder) => {
+        if (apiOrder) {
+          const mapped = mapApiThriftOrder(apiOrder);
+          setOrder(mapped);
+          switch (mapped.status) {
+            case 'PAID':
+              setSimulationState('paid');
+              break;
+            case 'SHIPPED':
+              setSimulationState('shipped');
+              break;
+            case 'DELIVERED':
+              setSimulationState('delivered');
+              break;
+            case 'COMPLETED':
+              setSimulationState('completed');
+              break;
+            default:
+              setSimulationState('paid');
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch thrift order detail from MongoDB, using cached order:', err);
+      });
+  }, [id]);
 
   // Modals
   const [showCertModal, setShowCertModal] = useState(false);

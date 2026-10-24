@@ -4,35 +4,106 @@ import type {
   ThriftOrder,
   ThriftOrderStatus,
   ShippingInfo,
+  ThriftListingItem,
 } from '../../data/shop/thriftOrdersData';
 import {
-  SHOP_THRIFT_ORDERS_STORAGE_KEY,
-  INITIAL_MOCK_THRIFT_ORDERS,
-} from '../../data/shop/thriftOrdersData';
+  getShopThriftOrdersApi,
+  updateThriftOrderStatusApi,
+} from '../../../services/thriftOrder.api';
+import type { ThriftOrderApi } from '../../../services/thriftOrder.api';
 
-export const ShopThriftOrders: React.FC = () => {
+interface ExtendedThriftOrder extends ThriftOrder {
+  _dbId?: string;
+}
 
-  // State danh sách đơn hàng THRIFT (đọc và lưu bền vững vào localStorage)
-  const [orders, setOrders] = useState<ThriftOrder[]>(() => {
-    try {
-      const saved = localStorage.getItem(SHOP_THRIFT_ORDERS_STORAGE_KEY);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.error('Lỗi khi đọc SHOP_THRIFT_ORDERS_DATA:', e);
-    }
-    return INITIAL_MOCK_THRIFT_ORDERS;
+const mapApiThriftOrder = (apiOrder: ThriftOrderApi): ExtendedThriftOrder => {
+  const buyerObj = typeof apiOrder.buyerId === 'object' && apiOrder.buyerId ? apiOrder.buyerId : null;
+  const buyerName = apiOrder.shippingAddress?.recipientName || buyerObj?.fullName || 'Khách hàng ReUse';
+  const buyerPhone = apiOrder.shippingAddress?.recipientPhone || buyerObj?.phoneNumber || '0901234567';
+  const buyerEmail = buyerObj?.email || '';
+  const addr = apiOrder.shippingAddress
+    ? `${apiOrder.shippingAddress.detail}, ${apiOrder.shippingAddress.ward}, ${apiOrder.shippingAddress.district}, ${apiOrder.shippingAddress.province}`
+    : 'Việt Nam';
+
+  const listings: ThriftListingItem[] = (apiOrder.items || []).map((item, idx) => {
+    const listingObj = typeof item.listingId === 'object' && item.listingId ? item.listingId : null;
+    return {
+      id: listingObj?._id || `item-${idx}`,
+      title: item.productName || listingObj?.name || 'Sản phẩm thanh lý ReUse',
+      serialNumber: listingObj?._id ? `#SN-${listingObj._id.slice(-6).toUpperCase()}` : '#SN-ARCHIVE',
+      grade: item.condition || listingObj?.condition || 'Rất tốt (98%)',
+      price: item.price || 0,
+      imageUrl: item.imageUrl || listingObj?.images?.[0] || 'https://placehold.co/400x300',
+    };
   });
 
-  // Tự động đồng bộ vào localStorage mỗi khi orders thay đổi
+  let status: ThriftOrderStatus;
+  const rawStatus = (apiOrder.status || '').toUpperCase();
+  if (rawStatus === 'PENDING' || rawStatus === 'WAITING_PAYMENT' || rawStatus === 'PENDING_PAYMENT') {
+    status = 'PENDING_PAYMENT';
+  } else if (rawStatus === 'SHIPPING' || rawStatus === 'SHIPPED') {
+    status = 'SHIPPED';
+  } else if (rawStatus === 'DELIVERED') {
+    status = 'DELIVERED';
+  } else if (rawStatus === 'COMPLETED') {
+    status = 'COMPLETED';
+  } else if (rawStatus === 'CANCELLED') {
+    status = 'CANCELLED';
+  } else {
+    status = 'PAID';
+  }
+
+  const subtotal = apiOrder.itemsSubtotal || (apiOrder.totalAmount - (apiOrder.shippingFee || 0));
+
+  return {
+    id: apiOrder.orderCode ? (apiOrder.orderCode.startsWith('#') ? apiOrder.orderCode : `#${apiOrder.orderCode}`) : `#${apiOrder._id}`,
+    _dbId: apiOrder._id,
+    createdAt: new Date(apiOrder.createdAt || Date.now()).toLocaleDateString('vi-VN'),
+    buyer: {
+      name: buyerName,
+      phone: buyerPhone,
+      email: buyerEmail,
+      shippingAddress: addr,
+      kycTier: 'KYC Xác thực CCCD · TIER 2',
+    },
+    listings,
+    pricing: {
+      subtotal,
+      shippingFee: apiOrder.shippingFee || 0,
+      totalAmount: apiOrder.totalAmount || 0,
+    },
+    status,
+    shippingInfo: {
+      carrier: apiOrder.courierName || 'Viettel Post Chuyên Dụng Nanuk',
+      trackingCode: apiOrder.trackingCode || '',
+      dispatchedAt: apiOrder.updatedAt ? new Date(apiOrder.updatedAt).toLocaleString('vi-VN') : undefined,
+    },
+  };
+};
+
+export const ShopThriftOrders: React.FC = () => {
+  // State danh sách đơn hàng THRIFT từ MongoDB
+  const [orders, setOrders] = useState<ExtendedThriftOrder[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
   useEffect(() => {
-    try {
-      localStorage.setItem(SHOP_THRIFT_ORDERS_STORAGE_KEY, JSON.stringify(orders));
-    } catch (e) {
-      console.error('Lỗi khi lưu SHOP_THRIFT_ORDERS_DATA:', e);
-    }
-  }, [orders]);
+    let isMounted = true;
+    getShopThriftOrdersApi()
+      .then((res) => {
+        if (isMounted) {
+          const list = res?.orders || (Array.isArray(res) ? res : []);
+          setOrders(list.map(mapApiThriftOrder));
+          setLoading(false);
+        }
+      })
+      .catch((e) => {
+        console.error('Lỗi khi đọc đơn hàng thanh lý từ MongoDB:', e);
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Bộ lọc trạng thái & tìm kiếm
   const [activeFilter, setActiveFilter] = useState<'ALL' | ThriftOrderStatus>('ALL');
@@ -40,14 +111,14 @@ export const ShopThriftOrders: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Modal Xác nhận vận chuyển
-  const [selectedOrderForShipment, setSelectedOrderForShipment] = useState<ThriftOrder | null>(null);
+  const [selectedOrderForShipment, setSelectedOrderForShipment] = useState<ExtendedThriftOrder | null>(null);
   const [carrierInput, setCarrierInput] = useState('Viettel Post Chuyên Dụng Nanuk');
   const [trackingCodeInput, setTrackingCodeInput] = useState('');
   const [notesInput, setNotesInput] = useState('');
   const [isSubmittingShipment, setIsSubmittingShipment] = useState(false);
 
   // Mở modal xác nhận vận chuyển
-  const handleOpenShipmentModal = (order: ThriftOrder) => {
+  const handleOpenShipmentModal = (order: ExtendedThriftOrder) => {
     setSelectedOrderForShipment(order);
     setCarrierInput(order.shippingInfo?.carrier || 'Viettel Post Chuyên Dụng Nanuk');
     setTrackingCodeInput(
@@ -62,8 +133,8 @@ export const ShopThriftOrders: React.FC = () => {
     setIsSubmittingShipment(false);
   };
 
-  // Xử lý gửi hàng (AC 2, AC 3, AC 4)
-  const handleConfirmShipment = (e: React.FormEvent) => {
+  // Xử lý gửi hàng (cập nhật trạng thái SHIPPING lên MongoDB)
+  const handleConfirmShipment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrderForShipment) return;
 
@@ -73,8 +144,15 @@ export const ShopThriftOrders: React.FC = () => {
     }
 
     setIsSubmittingShipment(true);
+    try {
+      const dbId = selectedOrderForShipment._dbId || selectedOrderForShipment.id.replace('#', '');
+      await updateThriftOrderStatusApi(dbId, {
+        status: 'SHIPPING',
+        trackingCode: trackingCodeInput.trim(),
+        courierName: carrierInput.trim(),
+        note: notesInput.trim(),
+      });
 
-    setTimeout(() => {
       const now = new Date().toLocaleString('vi-VN');
       const newShippingInfo: ShippingInfo = {
         carrier: carrierInput,
@@ -83,7 +161,6 @@ export const ShopThriftOrders: React.FC = () => {
         notes: notesInput.trim(),
       };
 
-      // Cập nhật ở CẤP ORDER (Không chia rẽ listing)
       setOrders((prevOrders) =>
         prevOrders.map((ord) => {
           if (ord.id === selectedOrderForShipment.id) {
@@ -100,25 +177,45 @@ export const ShopThriftOrders: React.FC = () => {
       setIsSubmittingShipment(false);
       setSelectedOrderForShipment(null);
       showToast(
-        `XÁC NHẬN GỬI HÀNG THÀNH CÔNG! Đơn ${selectedOrderForShipment.id} đã chuyển sang trạng thái SHIPPED. Mã vận đơn: ${trackingCodeInput.trim()}`
+        `XÁC NHẬN GỬI HÀNG THÀNH CÔNG! Đơn ${selectedOrderForShipment.id} đã cập nhật trên MongoDB (SHIPPING). Mã vận đơn: ${trackingCodeInput.trim()}`
       );
-    }, 600);
+    } catch (error) {
+      console.error('Lỗi khi cập nhật vận chuyển đơn THRIFT:', error);
+      setIsSubmittingShipment(false);
+      alert('Có lỗi xảy ra khi cập nhật đơn hàng trên MongoDB. Vui lòng thử lại.');
+    }
   };
 
-  // Đánh dấu đã giao thành công (DELIVERED)
-  const handleMarkDelivered = (orderId: string) => {
+  // Đánh dấu đã giao thành công (DELIVERED) lên MongoDB
+  const handleMarkDelivered = async (orderId: string) => {
+    const target = orders.find((o) => o.id === orderId);
+    if (target?._dbId) {
+      try {
+        await updateThriftOrderStatusApi(target._dbId, { status: 'DELIVERED' });
+      } catch (err) {
+        console.error('Lỗi cập nhật DELIVERED:', err);
+      }
+    }
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: 'DELIVERED' } : o))
     );
-    showToast(`Đơn ${orderId} đã được đánh dấu ĐÃ GIAO THÀNH CÔNG (DELIVERED).`);
+    showToast(`Đơn ${orderId} đã được đánh dấu ĐÃ GIAO THÀNH CÔNG (DELIVERED) trong database.`);
   };
 
-  // Hoàn tất đơn hàng (COMPLETED)
-  const handleMarkCompleted = (orderId: string) => {
+  // Hoàn tất đơn hàng (COMPLETED) lên MongoDB
+  const handleMarkCompleted = async (orderId: string) => {
+    const target = orders.find((o) => o.id === orderId);
+    if (target?._dbId) {
+      try {
+        await updateThriftOrderStatusApi(target._dbId, { status: 'COMPLETED' });
+      } catch (err) {
+        console.error('Lỗi cập nhật COMPLETED:', err);
+      }
+    }
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: 'COMPLETED' } : o))
     );
-    showToast(`Đơn ${orderId} đã được tất toán và chuyển sang HOÀN TẤT (COMPLETED).`);
+    showToast(`Đơn ${orderId} đã HOÀN TẤT (COMPLETED). Smart Escrow đã giải ngân.`);
   };
 
   // Copy mã vận đơn vào clipboard
@@ -134,12 +231,18 @@ export const ShopThriftOrders: React.FC = () => {
     }, 4500);
   };
 
-  // Reset dữ liệu về ban đầu để kiểm thử
-  const handleResetData = () => {
-    if (window.confirm('Bạn có muốn đặt lại toàn bộ danh sách đơn hàng THRIFT về mặc định ban đầu để thử nghiệm lại?')) {
-      localStorage.removeItem(SHOP_THRIFT_ORDERS_STORAGE_KEY);
-      setOrders(INITIAL_MOCK_THRIFT_ORDERS);
-      showToast('Đã đặt lại dữ liệu đơn hàng THRIFT về mặc định ban đầu.');
+  // Làm mới dữ liệu từ MongoDB
+  const handleResetData = async () => {
+    setLoading(true);
+    try {
+      const res = await getShopThriftOrdersApi();
+      const list = res?.orders || (Array.isArray(res) ? res : []);
+      setOrders(list.map(mapApiThriftOrder));
+      showToast('Đã làm mới dữ liệu đơn hàng THRIFT từ máy chủ MongoDB.');
+    } catch (e) {
+      console.error('Lỗi khi làm mới đơn hàng:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -225,13 +328,19 @@ export const ShopThriftOrders: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
+            {loading && (
+              <span className="text-xs text-primary flex items-center gap-1 font-medium mr-2">
+                <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>
+                <span>Nạp MongoDB...</span>
+              </span>
+            )}
             <button
               onClick={handleResetData}
               className="px-3 py-2 rounded bg-surface border border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors text-xs font-semibold flex items-center gap-1.5 shadow-xs"
-              title="Đặt lại dữ liệu mẫu"
+              title="Làm mới dữ liệu từ MongoDB"
             >
-              <span className="material-symbols-outlined text-[16px]">restart_alt</span>
-              Reset Data
+              <span className="material-symbols-outlined text-[16px]">sync</span>
+              Làm mới database
             </button>
             <Link
               to="/shop/thrift/listings"

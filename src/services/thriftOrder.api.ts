@@ -176,3 +176,15 @@ export const updateThriftOrderStatusApi = async (
   return res.data?.data || res.data;
 };
 
+/**
+ * Lấy danh sách đơn bán THRIFT của Shop Owner từ MongoDB
+ */
+export const getShopThriftOrdersApi = async (params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+}): Promise<GetMyThriftOrdersResponse> => {
+  const res = await api.get('/thrift/orders/shop', { params });
+  return res.data?.data || res.data;
+};
+
