@@ -23,6 +23,8 @@ import UserWallet from "./pages/wallet/UserWallet";
 import ThriftMarketplace from "./pages/thrift/marketplace/ThriftMarketplace";
 import ThriftDetail from "./pages/thrift/detail/ThriftDetail";
 import ThriftCheckout from "./pages/thrift/checkout/ThriftCheckout";
+import MyThriftOrders from "./pages/thrift/orders/MyThriftOrders";
+import ThriftOrderDetail from "./pages/thrift/orders/ThriftOrderDetail";
 import CategoriesMarketplace from "./pages/categories/marketplace/CategoriesMarketplace";
 import CategoryDetail from "./pages/categories/detail/CategoryDetail";
 import UserDashboard from "./pages/home/User/UserDashboard";
@@ -183,12 +185,16 @@ const App = () => {
             element={<ThriftMarketplace />}
           />
           <Route
-            path="/thrift/:id"
-            element={<ThriftDetail />}
+            path="/thrift/orders/:id"
+            element={<ThriftOrderDetail />}
           />
           <Route
-            path="/thrift/products/:id"
-            element={<ThriftDetail />}
+            path="/thrift/orders"
+            element={<MyThriftOrders />}
+          />
+          <Route
+            path="/my-thrift-orders"
+            element={<MyThriftOrders />}
           />
           <Route
             path="/thrift/checkout"
@@ -197,6 +203,18 @@ const App = () => {
           <Route
             path="/thrift/checkout/:id"
             element={<ThriftCheckout />}
+          />
+          <Route
+            path="/thrift/products/:id"
+            element={<ThriftDetail />}
+          />
+          <Route
+            path="/thrift/detail/:id"
+            element={<ThriftDetail />}
+          />
+          <Route
+            path="/thrift/:id"
+            element={<ThriftDetail />}
           />
           <Route
             path="/categories"
@@ -296,6 +314,18 @@ const App = () => {
             <Route
               path="/my-orders"
               element={<Navigate to="/rent/orders" replace />}
+            />
+            <Route
+              path="/thrift/orders"
+              element={<MyThriftOrders />}
+            />
+            <Route
+              path="/my-thrift-orders"
+              element={<MyThriftOrders />}
+            />
+            <Route
+              path="/thrift/orders/:id"
+              element={<ThriftOrderDetail />}
             />
             <Route
               path="/wallet"
