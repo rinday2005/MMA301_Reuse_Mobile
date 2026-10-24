@@ -74,12 +74,18 @@ export const KycApproval: React.FC = () => {
         if (!isMounted) return;
         const mapped: KycRecord[] = applicantList.map((item) => {
           const isShop = item.tier === "Shop Partner Tier";
+          const profileAvatar =
+            (item.avatarUrl && !item.avatarUrl.includes("/kyc/"))
+              ? item.avatarUrl
+              : (item.email === "hon@gmail.com"
+                ? "https://res.cloudinary.com/qs6kyqau/image/upload/v1792854543/reuse_hub/avatars/zsk3hx9obqvp0b5opilb.png"
+                : (item.avatarUrl || ""));
           return {
             id: item.id,
             code: `#KYC-${item.id.slice(-6).toUpperCase()}`,
             fullName: item.fullName,
             initials: item.initials,
-            avatarUrl: item.avatarUrl,
+            avatarUrl: profileAvatar,
             dob: item.dob,
             avatarBgColor:
               item.status === "APPROVED"
@@ -223,7 +229,9 @@ export const KycApproval: React.FC = () => {
 
   // Handle Approve KYC
   const handleApprove = (id: string, name: string) => {
-    approveKycApi(id).catch((err) => console.warn("Lỗi duyệt KYC API:", err));
+    approveKycApi(id)
+      .then(() => window.dispatchEvent(new Event("kyc_reviewed")))
+      .catch((err) => console.warn("Lỗi duyệt KYC API:", err));
     setRecords((prev) =>
       prev.map((r) =>
         r.id === id
@@ -261,7 +269,9 @@ export const KycApproval: React.FC = () => {
   // Handle Reject KYC
   const handleReject = (id: string, name: string) => {
     const reason = rejectReasonText.trim() || "Ảnh mờ hoặc không đọc được số CCCD/MRZ";
-    rejectKycApi(id, reason).catch((err) => console.warn("Lỗi từ chối KYC API:", err));
+    rejectKycApi(id, reason)
+      .then(() => window.dispatchEvent(new Event("kyc_reviewed")))
+      .catch((err) => console.warn("Lỗi từ chối KYC API:", err));
     setRecords((prev) =>
       prev.map((r) =>
         r.id === id

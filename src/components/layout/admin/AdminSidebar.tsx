@@ -14,7 +14,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onClose,
   rentCount = 0,
   thriftCount = 0,
-  kycCount = 1,
+  kycCount = 0,
   disputeCount = 0,
 }) => {
   const location = useLocation();

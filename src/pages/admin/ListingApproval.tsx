@@ -28,160 +28,8 @@ export interface RentListing {
   publicUrl?: string;
 }
 
-const INITIAL_LISTINGS: RentListing[] = [
-  {
-    id: "rent-1",
-    sku: "#HB-RNT-907X",
-    title: "Canon EOS R6 Mark II Kit",
-    grade: "Grade A+ (Mint)",
-    category: "Máy ảnh & Quang học",
-    shopName: "Kyoto Archival Optics",
-    ownerName: "Vũ Thanh Tùng",
-    ownerKycVerified: true,
-    pricePerDay: 450000,
-    depositAmount: 12500000,
-    depositTier: "Bảo hiểm Escrow Tier 1",
-    submittedAtDisplay: "Hôm nay, 08:30",
-    timezone: "ICT",
-    status: "PENDING",
-    serialNumber: "SN-CN-8839210",
-    images: [
-      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80",
-    ],
-    publicUrl: "/rent/products/1",
-  },
-  {
-    id: "rent-2",
-    sku: "#HB-RNT-50CM",
-    title: "Hasselblad 907X & CFV II 50C Kit",
-    grade: "Collector Pristine",
-    category: "Máy ảnh Trung Khổ",
-    shopName: "Kyoto Archival Optics",
-    ownerName: "Vũ Thanh Tùng (#SHP-0418)",
-    ownerKycVerified: true,
-    pricePerDay: 1200000,
-    depositAmount: 28000000,
-    depositTier: "Bảo lãnh Giám định Cấp 3",
-    submittedAtDisplay: "Hôm nay, 10:15",
-    timezone: "ICT",
-    status: "PENDING",
-    serialNumber: "SN-HB-5029104",
-    images: [
-      "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=600&q=80",
-    ],
-    publicUrl: "/rent/products/2",
-  },
-  {
-    id: "rent-3",
-    sku: "#HB-LCA-35AP",
-    title: "Leica Summilux-M 35mm f/1.4 ASPH",
-    grade: "Grade A (Excellent)",
-    category: "Ống kính & Kính lọc",
-    shopName: "Da Nang Camera Vault",
-    ownerName: "Trần Minh Khoa (#SHP-0209)",
-    ownerKycVerified: true,
-    pricePerDay: 380000,
-    depositAmount: 15000000,
-    depositTier: "Bảo lãnh Smart Escrow",
-    submittedAtDisplay: "Hôm qua, 16:40",
-    timezone: "ICT",
-    status: "APPROVED",
-    serialNumber: "SN-LC-3514092",
-    images: [
-      "https://images.unsplash.com/photo-1617005082133-548c4dd27f35?auto=format&fit=crop&w=600&q=80",
-    ],
-    publicUrl: "/rent/products/3",
-  },
-  {
-    id: "rent-4",
-    sku: "#HB-SNY-FX60",
-    title: "Sony FX6 Cinema Line Full-Frame",
-    grade: "Grade B+ (Cinema used)",
-    category: "Thiết bị Cinema & Video",
-    shopName: "Saigon Cinema Vault",
-    ownerName: "Anh Nguyen Le (#SHP-0881)",
-    ownerKycVerified: true,
-    pricePerDay: 1650000,
-    depositAmount: 45000000,
-    depositTier: "Chờ Ký Quỹ Đầy Đủ",
-    submittedAtDisplay: "2 ngày trước, 11:05",
-    timezone: "ICT",
-    status: "REJECTED",
-    rejectionReason: "Lý do: Serial không khớp hồ sơ & thiếu ảnh macro buồng cảm biến.",
-    serialNumber: "SN-SNY-600123",
-    images: [
-      "https://images.unsplash.com/photo-1589872765304-c6f6fe658932?auto=format&fit=crop&w=600&q=80",
-    ],
-    publicUrl: "/rent/products/4",
-  },
-  {
-    id: "rent-5",
-    sku: "#HB-ARR-ORBT",
-    title: "Arri Orbiter LED High-Output Set",
-    grade: "Studio Tested",
-    category: "Thiết bị Cinema & Video",
-    shopName: "Saigon Cinema Vault",
-    ownerName: "Anh Nguyen Le (#SHP-0881)",
-    ownerKycVerified: true,
-    pricePerDay: 950000,
-    depositAmount: 22000000,
-    depositTier: "Bảo lãnh Smart Escrow",
-    submittedAtDisplay: "3 ngày trước, 09:12",
-    timezone: "ICT",
-    status: "APPROVED",
-    serialNumber: "SN-AR-992018",
-    images: [
-      "https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?auto=format&fit=crop&w=600&q=80",
-    ],
-    publicUrl: "/rent/products/5",
-  },
-  {
-    id: "rent-6",
-    sku: "#HB-SPK-ALPH",
-    title: "Snow Peak Alpha Breeze 4P Tent",
-    grade: "B-Corp Cleaned",
-    category: "Thiết bị Dã ngoại Cao cấp",
-    shopName: "Alpine Nomad Hub",
-    ownerName: "Đặng Hồng Vân (#SHP-1120)",
-    ownerKycVerified: true,
-    pricePerDay: 180000,
-    depositAmount: 3500000,
-    depositTier: "Bảo lãnh Smart Escrow",
-    submittedAtDisplay: "4 ngày trước, 15:20",
-    timezone: "ICT",
-    status: "APPROVED",
-    serialNumber: "SN-SP-441092",
-    images: [
-      "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=600&q=80",
-    ],
-    publicUrl: "/rent/products/6",
-  },
-  {
-    id: "rent-7",
-    sku: "#HB-TE-OP1F",
-    title: "Teenage Engineering OP-1 Field",
-    grade: "Bảo trì cụm phím",
-    category: "Âm thanh & Nhạc cụ",
-    shopName: "Bauhaus Sound Lab",
-    ownerName: "Lê Quang Huy (#SHP-0504)",
-    ownerKycVerified: true,
-    pricePerDay: 320000,
-    depositAmount: 8000000,
-    depositTier: "Đã đóng băng ký quỹ",
-    submittedAtDisplay: "5 ngày trước, 18:45",
-    timezone: "ICT",
-    status: "HIDDEN",
-    hiddenReason: "Chủ xưởng gửi yêu cầu bảo dưỡng bàn phím cơ.",
-    serialNumber: "SN-TE-019283",
-    images: [
-      "https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=600&q=80",
-    ],
-    publicUrl: "/rent/products/7",
-  },
-];
-
 export const ListingApproval: React.FC = () => {
-  const [listings, setListings] = useState<RentListing[]>(INITIAL_LISTINGS);
+  const [listings, setListings] = useState<RentListing[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
@@ -206,46 +54,44 @@ export const ListingApproval: React.FC = () => {
     }, 4000);
   };
 
-  // Synchronize with real MongoDB Rental products from backend
+  // Synchronize strictly with real MongoDB Rental products from backend
   useEffect(() => {
     let isMounted = true;
     fetchAdminDashboardData()
       .then((data) => {
-        if (!isMounted || !data || !Array.isArray(data.rentCatalogList)) return;
-        const dbItems = data.rentCatalogList;
-        if (dbItems.length > 0) {
-          setListings((prev) => {
-            const existingIds = new Set(prev.map((item) => item.id));
-            const newMapped: RentListing[] = dbItems
-              .filter((dbItem) => !existingIds.has(dbItem.id))
-              .map((dbItem, idx) => ({
-                id: dbItem.id,
-                sku: `#HB-RNT-${dbItem.id.slice(-5).toUpperCase()}`,
-                title: dbItem.name,
-                grade: dbItem.condition === "NEW" ? "Grade S (Brand New)" : "Grade A (Like New)",
-                category: dbItem.categoryName || "Thời trang & Sự kiện",
-                shopName: dbItem.ownerName || "ReUse Official Shop",
-                ownerName: dbItem.ownerName || "ReUse Official Shop",
-                ownerKycVerified: true,
-                pricePerDay: dbItem.pricePerDay,
-                depositAmount: dbItem.depositAmount,
-                depositTier: "Bảo lãnh Smart Escrow",
-                submittedAtDisplay: "Đã đồng bộ DB",
-                timezone: "ICT",
-                status: dbItem.status as ListingStatus,
-                serialNumber: `SN-DB-${1000 + idx}`,
-                images: dbItem.images.length > 0 ? dbItem.images : [
-                  "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=600&q=80"
-                ],
-                publicUrl: `/rent/products/${dbItem.id}`,
-              }));
+        if (!isMounted || !data) return;
+        // Lấy danh sách sản phẩm RENT thật từ DB (ưu tiên queue duyệt, sau đó catalog)
+        const pendingItems = data.rentApprovalList || [];
+        const catalogItems = data.rentCatalogList || [];
+        const allItems = [...pendingItems, ...catalogItems.filter(c => !pendingItems.some(p => p.id === c.id))];
 
-            return [...newMapped, ...prev];
-          });
-        }
+        const mapped: RentListing[] = allItems.map((dbItem, idx) => ({
+          id: dbItem.id,
+          sku: `#HB-RNT-${dbItem.id.slice(-5).toUpperCase()}`,
+          title: dbItem.name,
+          grade: dbItem.condition === "NEW" ? "Grade S (Brand New)" : "Grade A (Like New)",
+          category: dbItem.categoryName || "Thời trang & Sự kiện",
+          shopName: dbItem.ownerName || "ReUse Official Shop",
+          ownerName: dbItem.ownerName || "ReUse Official Shop",
+          ownerKycVerified: true,
+          pricePerDay: dbItem.pricePerDay,
+          depositAmount: dbItem.depositAmount,
+          depositTier: "Bảo lãnh Smart Escrow",
+          submittedAtDisplay: dbItem.submittedAt ? new Date(dbItem.submittedAt).toLocaleDateString("vi-VN") : "Đã đồng bộ DB",
+          timezone: "ICT",
+          status: dbItem.status as ListingStatus,
+          serialNumber: `SN-DB-${1000 + idx}`,
+          images: Array.isArray(dbItem.images) && dbItem.images.length > 0 ? dbItem.images : [
+            "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=600&q=80"
+          ],
+          publicUrl: `/rent/products/${dbItem.id}`,
+        }));
+
+        setListings(mapped);
       })
       .catch((err) => {
         console.warn("Không thể tải sản phẩm RENT từ API:", err);
+        setListings([]);
       });
 
     return () => {
@@ -253,13 +99,13 @@ export const ListingApproval: React.FC = () => {
     };
   }, []);
 
-  // Compute live metrics
+  // Compute live metrics strictly from real MongoDB listings
   const metrics = useMemo(() => {
-    const total = listings.length + 398; // scaled volume representation
+    const total = listings.length;
     const pending = listings.filter((l) => l.status === "PENDING").length;
-    const approved = listings.filter((l) => l.status === "APPROVED").length + 379;
-    const rejected = listings.filter((l) => l.status === "REJECTED").length + 8;
-    const hidden = listings.filter((l) => l.status === "HIDDEN").length + 4;
+    const approved = listings.filter((l) => l.status === "APPROVED").length;
+    const rejected = listings.filter((l) => l.status === "REJECTED").length;
+    const hidden = listings.filter((l) => l.status === "HIDDEN").length;
 
     return {
       total,
@@ -898,15 +744,19 @@ export const ListingApproval: React.FC = () => {
                         filter_list_off
                       </span>
                       <p className="font-serif text-base text-[#1c1b19]">
-                        Không tìm thấy sản phẩm RENT nào khớp với bộ lọc
+                        {listings.length === 0
+                          ? "Hiện không có đơn thuê RENT nào chờ duyệt từ Chủ Xưởng"
+                          : "Không tìm thấy sản phẩm RENT nào khớp với bộ lọc"}
                       </p>
-                      <button
-                        type="button"
-                        onClick={handleResetFilters}
-                        className="mt-2 text-xs font-semibold text-[#6c5937] underline"
-                      >
-                        Đặt lại bộ lọc mặc định
-                      </button>
+                      {listings.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleResetFilters}
+                          className="mt-2 text-xs font-semibold text-[#6c5937] underline"
+                        >
+                          Đặt lại bộ lọc mặc định
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ) : (

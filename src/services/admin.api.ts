@@ -594,7 +594,7 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
     };
   });
 
-  // --- Real RENT Approval Queue ---
+  // --- Real RENT Approval Queue (Chỉ lấy đơn PENDING thật từ DB, nếu chưa có thì để TRỐNG) ---
   let rentApprovalList: RentListingItem[] = backendPendingRent;
   if (rentApprovalList.length === 0) {
     const pendingFromCatalog = backendProducts
@@ -609,7 +609,7 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
         categoryName: (typeof item.categoryId === "object" && item.categoryId?.name) ? item.categoryId.name : "Quần áo thời trang",
         pricePerDay: Number(item.pricePerDay) || 150000,
         depositAmount: Number(item.depositAmount) || 300000,
-        images: Array.isArray(item.images) && item.images.length > 0 ? item.images : ["https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&w=600&q=80"],
+        images: Array.isArray(item.images) && item.images.length > 0 ? item.images : [],
         condition: item.condition || "LIKE_NEW",
         location: item.location || "Quận 1, Hồ Chí Minh",
         status: "PENDING" as const,
@@ -618,91 +618,11 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
         totalQuantity: item.totalQuantity || 1,
       }));
 
-    rentApprovalList = pendingFromCatalog.length > 0 ? pendingFromCatalog : [
-      {
-        id: "rent-pending-dam-ren-01",
-        name: "Đầm Dạ Hội Ren Thêu Thủ Công Phục Hưng",
-        description: "Đầm dạ hội phong cách hoàng gia, chất liệu ren Ý cao cấp đính kết đá Swarovski tinh xảo phục vụ tiệc cưới và sự kiện thảm đỏ.",
-        rentalRules: "Không tự ý giặt hấp nhiệt độ cao. Giữ gìn nguyên tem niêm phong và túi chống bụi ReUse Hub.",
-        ownerName: "ReUse Official Shop",
-        categoryName: "Đầm & Trang Phục Sự Kiện",
-        pricePerDay: 180000,
-        depositAmount: 450000,
-        images: [
-          "https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&w=800&q=80",
-          "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=80",
-        ],
-        condition: "LIKE_NEW",
-        location: "123 Lê Lợi, Bến Nghé, Quận 1, TP. Hồ Chí Minh",
-        status: "PENDING",
-        submittedAt: "2026-10-23T14:15:00.000Z",
-        timeDisplay: "Mới nộp (15 phút trước)",
-        totalQuantity: 2,
-      },
-      {
-        id: "rent-pending-suit-tuxedo-02",
-        name: "Bộ Suit Tuxedo Nam May Đo Savile Row",
-        description: "Tuxedo dạ tiệc len lông cừu nguyên chất Super 130s, ve áo satin bóng mờ sang trọng kèm nơ lụa tơ tằm nguyên bản.",
-        rentalRules: "Bảo quản trong túi chống bụi tặng kèm, hoàn trả nguyên vẹn kèm móc treo gỗ sồi.",
-        ownerName: "ReUse Official Shop",
-        categoryName: "Âu Phục & Vest Quý Ông",
-        pricePerDay: 250000,
-        depositAmount: 600000,
-        images: [
-          "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80",
-        ],
-        condition: "NEW",
-        location: "45 Tràng Tiền, Hoàn Kiếm, Hà Nội",
-        status: "PENDING",
-        submittedAt: "2026-10-23T14:45:00.000Z",
-        timeDisplay: "Mới nộp (45 phút trước)",
-        totalQuantity: 1,
-      },
-    ];
+    rentApprovalList = pendingFromCatalog; // Tuyệt đối không dùng mock tĩnh!
   }
 
-  // --- Real THRIFT Approval Queue ---
-  let thriftApprovalList: ThriftListingItem[] = backendPendingThrift;
-  if (thriftApprovalList.length === 0) {
-    thriftApprovalList = [
-      {
-        id: "thrift-pending-ao-da-01",
-        slug: "ao-khoac-da-biker-vintage-harley-1994",
-        name: "Áo Khoác Da Biker Vintage 1994",
-        description: "Áo khoác da thật dày dặn patina tự nhiên tuyệt đẹp, khóa kéo Talon đồng cổ điển, đã được giám định vi vết đạt chuẩn B-Corp.",
-        sellerName: "Trần Văn B (Ký gửi)",
-        categoryName: "Áo Khoác & Da Di Sản",
-        price: 650000,
-        images: [
-          "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=800&q=80",
-        ],
-        condition: "Rất tốt (90%)",
-        source: "Ký gửi cá nhân • Đã qua giám định vi vết",
-        hasCertificate: true,
-        status: "PENDING",
-        submittedAt: "2026-10-23T14:30:00.000Z",
-        timeDisplay: "Mới nộp (30 phút trước)",
-      },
-      {
-        id: "thrift-pending-tui-duffle-02",
-        slug: "tui-xach-duffle-canvas-du-lich-co-dien",
-        name: "Túi Xách Duffle Canvas Du Lịch Cổ Điển",
-        description: "Túi xách du lịch cổ điển quai da bò thuộc thảo mộc, nội thất sạch đẹp không tì vết, có mã số series kiểm tra.",
-        sellerName: "Nguyễn Văn A (Ký gửi)",
-        categoryName: "Phụ Kiện & Túi Du Lịch",
-        price: 890000,
-        images: [
-          "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=800&q=80",
-        ],
-        condition: "Tuyệt hảo (95%)",
-        source: "Sưu tầm cá nhân • Tem đồng nguyên bản",
-        hasCertificate: true,
-        status: "PENDING",
-        submittedAt: "2026-10-23T15:00:00.000Z",
-        timeDisplay: "Mới nộp (1 giờ trước)",
-      },
-    ];
-  }
+  // --- Real THRIFT Approval Queue (Chỉ lấy đơn PENDING thật từ DB, nếu chưa có thì để TRỐNG) ---
+  const thriftApprovalList: ThriftListingItem[] = backendPendingThrift;
 
   // --- Real THRIFT Catalog ---
   const thriftCatalogList: ThriftListingItem[] = THRIFT_PRODUCTS.map((item) => ({
@@ -722,76 +642,8 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
     timeDisplay: "Đã duyệt",
   }));
 
-  // --- Real KYC Applicants from MongoDB / API ---
-  let kycApplicants: KycApplicantItem[] = backendKycRecords;
-  if (kycApplicants.length === 0) {
-    const userPending = backendUsers
-      .filter((u) => u.kycStatus === "PENDING" || (u.kycStatus !== "APPROVED" && u.role === "USER"))
-      .map((u) => {
-        const getInitials = (name: string) => {
-          const parts = name.trim().split(" ");
-          if (parts.length >= 2) {
-            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-          }
-          return name.slice(0, 2).toUpperCase();
-        };
-
-        return {
-          id: u._id,
-          userId: u._id,
-          fullName: u.fullName,
-          initials: getInitials(u.fullName),
-          email: u.email,
-          phoneNumber: u.phoneNumber || "0983333333",
-          idCardNumber: "079201008888",
-          frontImageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-          backImageUrl: "https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&w=600&q=80",
-          docType: "Căn cước công dân gắn chip (CCCD)",
-          tier: "Customer Tier" as const,
-          isUrgent: true,
-          bankInfo: "Sacombank Escrow - 06023348123",
-          status: "PENDING" as const,
-          submittedAt: u.createdAt || new Date().toISOString(),
-        };
-      });
-
-    kycApplicants = userPending.length > 0 ? userPending : [
-      {
-        id: "kyc-pending-rec-01",
-        userId: "user-c-rec-01",
-        fullName: "Lê Văn C",
-        initials: "LC",
-        email: "user_c_nokyc_test_s3@reuse.vn",
-        phoneNumber: "0983333333",
-        idCardNumber: "079201008888",
-        frontImageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
-        backImageUrl: "https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&w=800&q=80",
-        docType: "Căn cước công dân gắn chip (CCCD)",
-        tier: "Customer Tier",
-        isUrgent: true,
-        bankInfo: "Sacombank Escrow - 06023348123",
-        status: "PENDING",
-        submittedAt: "2026-10-23T14:30:00.000Z",
-      },
-      {
-        id: "kyc-pending-rec-02",
-        userId: "user-trang-rec-02",
-        fullName: "Phạm Thị Minh Trang",
-        initials: "MT",
-        email: "trang.pham@fashionhub.vn",
-        phoneNumber: "0912345678",
-        idCardNumber: "001198007766",
-        frontImageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
-        backImageUrl: "https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&w=800&q=80",
-        docType: "Căn cước công dân gắn chip (CCCD)",
-        tier: "Customer Tier",
-        isUrgent: true,
-        bankInfo: "Vietcombank - 0071001289110",
-        status: "PENDING",
-        submittedAt: "2026-10-23T15:10:00.000Z",
-      },
-    ];
-  }
+  // --- Real KYC Applicants from MongoDB (Chỉ lấy hồ sơ thật từ MongoDB, tuyệt đối không dùng fake mock) ---
+  const kycApplicants: KycApplicantItem[] = backendKycRecords;
 
   // --- Real Disputes ---
   const disputes: DisputeItem[] = [];
@@ -799,13 +651,13 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
   // --- Real Activity Trail ---
   const activities: PlatformActivityLog[] = [];
 
-  // --- Compute REAL metrics directly ---
-  const totalUsers = backendUsers.length || 11;
+  // --- Compute REAL metrics directly từ MongoDB ---
+  const totalUsers = backendUsers.length;
   const pendingKycCount = kycApplicants.filter((u) => u.status === "PENDING").length;
   const urgentKycCount = pendingKycCount;
-  const pendingRentListingsCount = rentApprovalList.length;
-  const pendingThriftListingsCount = thriftApprovalList.length;
-  const openDisputesCount = disputes.length;
+  const pendingRentListingsCount = rentApprovalList.filter((l) => l.status === "PENDING").length;
+  const pendingThriftListingsCount = thriftApprovalList.filter((l) => l.status === "PENDING").length;
+  const openDisputesCount = disputes.filter((d) => d.status === "OPEN").length;
   const lockedEscrowAmount = disputes.reduce((sum, d) => sum + d.escrowLocked, 0);
 
   const totalCatalogValue = backendProducts.reduce(
@@ -818,7 +670,7 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
     0
   );
 
-  const totalPlatformRevenue = realOrderSum > 0 ? realOrderSum : totalCatalogValue || 2950000;
+  const totalPlatformRevenue = realOrderSum > 0 ? realOrderSum : totalCatalogValue;
   const monthlyVolume = totalPlatformRevenue;
 
   return {
@@ -852,16 +704,119 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
  */
 export const fetchAdminUsers = async (): Promise<MongoUserItem[]> => {
   try {
-    const res = await api.get("/users");
+    const res = await api.get("/admin/users");
     const payload = res.data?.data || res.data;
-    if (Array.isArray(payload) && payload.length > 0) {
+    if (Array.isArray(payload)) {
       return payload;
     }
-  } catch (err) {
-    console.warn("Lỗi khi tải danh sách users từ backend:", err);
+  } catch {
+    try {
+      const res = await api.get("/users");
+      const payload = res.data?.data || res.data;
+      if (Array.isArray(payload)) {
+        return payload;
+      }
+    } catch (err) {
+      console.warn("Lỗi khi tải danh sách users từ backend:", err);
+    }
   }
-  const data = await fetchAdminDashboardData();
-  return data.users;
+  return [];
+};
+
+// ============================================================================
+// CRUD QUẢN LÝ DANH MỤC THẬT TỪ MONGODB (/api/admin/categories & /api/categories)
+// ============================================================================
+export interface AdminCategoryItemDetail {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  market: "RENT" | "THRIFT" | "COMMON";
+  icon: string;
+  totalItems: number;
+  rentItems: number;
+  thriftItems: number;
+  status: "ACTIVE" | "INACTIVE";
+  updatedAt?: string;
+}
+
+export const fetchAdminCategoriesApi = async (): Promise<AdminCategoryItemDetail[]> => {
+  try {
+    const res = await api.get("/admin/categories");
+    const payload = res.data?.data || res.data;
+    const list = Array.isArray(payload) ? payload : (payload?.categories || []);
+    if (Array.isArray(list)) {
+      return list.map((c: Record<string, unknown>) => ({
+        id: String(c._id || c.id || ""),
+        name: String(c.name || ""),
+        slug: String(c.slug || String(c.name || "").toLowerCase().replace(/\s+/g, "-")),
+        description: String(c.description || "Danh mục lưu ký tuần hoàn ReUse Hub."),
+        market: (c.type === "BOTH" ? "COMMON" : (c.type as string) || "COMMON") as "RENT" | "THRIFT" | "COMMON",
+        icon: String(c.icon || "category"),
+        totalItems: Number(c.totalItems) || 0,
+        rentItems: Number(c.rentItems) || 0,
+        thriftItems: Number(c.thriftItems) || 0,
+        status: (c.isActive === false ? "INACTIVE" : "ACTIVE") as "ACTIVE" | "INACTIVE",
+        updatedAt: c.updatedAt ? new Date(String(c.updatedAt)).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      }));
+    }
+  } catch {
+    try {
+      const res = await api.get("/categories");
+      const payload = res.data?.data || res.data;
+      const list = Array.isArray(payload) ? payload : (payload?.categories || []);
+      if (Array.isArray(list)) {
+        return list.map((c: Record<string, unknown>) => ({
+          id: String(c._id || c.id || ""),
+          name: String(c.name || ""),
+          slug: String(c.slug || String(c.name || "").toLowerCase().replace(/\s+/g, "-")),
+          description: String(c.description || "Danh mục lưu ký tuần hoàn ReUse Hub."),
+          market: (c.type === "BOTH" ? "COMMON" : (c.type as string) || "COMMON") as "RENT" | "THRIFT" | "COMMON",
+          icon: String(c.icon || "category"),
+          totalItems: 0,
+          rentItems: 0,
+          thriftItems: 0,
+          status: (c.isActive === false ? "INACTIVE" : "ACTIVE") as "ACTIVE" | "INACTIVE",
+          updatedAt: new Date().toISOString().split("T")[0],
+        }));
+      }
+    } catch (err) {
+      console.warn("Lỗi khi tải danh mục từ backend:", err);
+    }
+  }
+  return [];
+};
+
+export const createAdminCategoryApi = async (data: {
+  name: string;
+  slug?: string;
+  description?: string;
+  type?: "RENT" | "THRIFT" | "BOTH";
+  isActive?: boolean;
+}) => {
+  const res = await api.post("/admin/categories", data);
+  return res.data?.data || res.data;
+};
+
+export const updateAdminCategoryApi = async (id: string, data: {
+  name?: string;
+  slug?: string;
+  description?: string;
+  type?: "RENT" | "THRIFT" | "BOTH";
+  isActive?: boolean;
+}) => {
+  const res = await api.put(`/admin/categories/${id}`, data);
+  return res.data?.data || res.data;
+};
+
+export const toggleCategoryStatusApi = async (id: string, isActive: boolean) => {
+  const res = await api.patch(`/admin/categories/${id}/status`, { isActive });
+  return res.data?.data || res.data;
+};
+
+export const deleteAdminCategoryApi = async (id: string) => {
+  const res = await api.delete(`/admin/categories/${id}`);
+  return res.data?.data || res.data;
 };
 
 export default {
@@ -873,4 +828,9 @@ export default {
   rejectThriftListingApi,
   approveKycApi,
   rejectKycApi,
+  fetchAdminCategoriesApi,
+  createAdminCategoryApi,
+  updateAdminCategoryApi,
+  toggleCategoryStatusApi,
+  deleteAdminCategoryApi,
 };

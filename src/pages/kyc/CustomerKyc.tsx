@@ -277,14 +277,13 @@ export const CustomerKyc: React.FC = () => {
       }
 
       showToast(
-        `Đã chuyển trạng thái kiểm thử: ${
-          newState === 'NOT_SUBMITTED'
-            ? '1. Chưa gửi'
-            : newState === 'PENDING'
+        `Đã chuyển trạng thái kiểm thử: ${newState === 'NOT_SUBMITTED'
+          ? '1. Chưa gửi'
+          : newState === 'PENDING'
             ? '2. Chờ duyệt (Pending)'
             : newState === 'VERIFIED'
-            ? '3. Đã duyệt (Approved)'
-            : '4. Bị từ chối (Rejected)'
+              ? '3. Đã duyệt (Approved)'
+              : '4. Bị từ chối (Rejected)'
         }`
       );
       setReloadTrigger((prev) => prev + 1);
@@ -385,19 +384,14 @@ export const CustomerKyc: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FBF9F5] text-brand-charcoal antialiased selection:bg-[#E8E2D5]">
-      {/* ── TOP BANNER ── */}
-      <div className="bg-brand-charcoal text-[#EBE6DD] text-[11px] sm:text-xs font-medium tracking-wide py-1.5 px-4 text-center border-b border-[#36322D]">
-        <span>THUÊ NHỮNG GÌ BẠN CẦN · TÁI SỬ DỤNG NHỮNG GÌ ĐÃ CÓ · BẢO HIỂM HÀNG HÓA MINH BẠCH 100% VỚI SMART ESCROW</span>
-      </div>
 
       {/* ── TOAST NOTIFICATION ── */}
       {toastMessage && (
         <div
-          className={`fixed top-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border transition-all animate-fadeIn ${
-            toastType === 'error'
+          className={`fixed top-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border transition-all animate-fadeIn ${toastType === 'error'
               ? 'bg-[#B8382B] text-white border-red-800'
               : 'bg-brand-charcoal text-white border-brand-charcoal/80'
-          }`}
+            }`}
         >
           <span className="material-symbols-outlined text-lg text-[#E7C890]">
             {toastType === 'error' ? 'report_problem' : 'verified'}
@@ -459,44 +453,40 @@ export const CustomerKyc: React.FC = () => {
               <div className="flex items-center gap-1.5 p-1 bg-brand-surface rounded-xl self-stretch md:self-auto overflow-x-auto thin-scrollbar">
                 <button
                   type="button"
-                  className={`state-btn text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                    kycState === 'NOT_SUBMITTED'
+                  className={`state-btn text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${kycState === 'NOT_SUBMITTED'
                       ? 'bg-brand-charcoal text-white shadow-sm'
                       : 'text-brand-muted hover:text-brand-charcoal'
-                  }`}
+                    }`}
                   onClick={() => handleSwitchState('NOT_SUBMITTED')}
                 >
                   1. Chưa gửi
                 </button>
                 <button
                   type="button"
-                  className={`state-btn text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                    kycState === 'PENDING'
+                  className={`state-btn text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${kycState === 'PENDING'
                       ? 'bg-amber-600 text-white shadow-sm'
                       : 'text-brand-muted hover:text-brand-charcoal'
-                  }`}
+                    }`}
                   onClick={() => handleSwitchState('PENDING')}
                 >
                   2. Chờ duyệt (Pending)
                 </button>
                 <button
                   type="button"
-                  className={`state-btn text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                    kycState === 'VERIFIED'
+                  className={`state-btn text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${kycState === 'VERIFIED'
                       ? 'bg-brand-sage text-white shadow-sm'
                       : 'text-brand-muted hover:text-brand-charcoal'
-                  }`}
+                    }`}
                   onClick={() => handleSwitchState('VERIFIED')}
                 >
                   3. Đã duyệt (Approved)
                 </button>
                 <button
                   type="button"
-                  className={`state-btn text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                    kycState === 'REJECTED'
+                  className={`state-btn text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${kycState === 'REJECTED'
                       ? 'bg-[#B8382B] text-white shadow-sm'
                       : 'text-brand-muted hover:text-brand-charcoal'
-                  }`}
+                    }`}
                   onClick={() => handleSwitchState('REJECTED')}
                 >
                   4. Bị từ chối (Rejected)
@@ -536,46 +526,44 @@ export const CustomerKyc: React.FC = () => {
               <div className="mt-8 pt-8 bg-brand-sand/40 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-brand-border/40">
                 <div className="flex items-center gap-4">
                   <div
-                    className={`w-12 h-12 rounded-2xl text-white flex items-center justify-center shrink-0 shadow-sm transition-colors ${
-                      kycState === 'VERIFIED'
+                    className={`w-12 h-12 rounded-2xl text-white flex items-center justify-center shrink-0 shadow-sm transition-colors ${kycState === 'VERIFIED'
                         ? 'bg-brand-sage'
                         : kycState === 'PENDING'
-                        ? 'bg-amber-600'
-                        : kycState === 'REJECTED'
-                        ? 'bg-[#B8382B]'
-                        : 'bg-brand-muted'
-                    }`}
+                          ? 'bg-amber-600'
+                          : kycState === 'REJECTED'
+                            ? 'bg-[#B8382B]'
+                            : 'bg-brand-muted'
+                      }`}
                   >
                     <span className="material-symbols-outlined text-2xl">
                       {kycState === 'VERIFIED'
                         ? 'verified_user'
                         : kycState === 'PENDING'
-                        ? 'hourglass_top'
-                        : kycState === 'REJECTED'
-                        ? 'report_problem'
-                        : 'person_outline'}
+                          ? 'hourglass_top'
+                          : kycState === 'REJECTED'
+                            ? 'report_problem'
+                            : 'person_outline'}
                     </span>
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span
-                        className={`text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
-                          kycState === 'VERIFIED'
+                        className={`text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${kycState === 'VERIFIED'
                             ? 'text-brand-sage bg-brand-sage-light'
                             : kycState === 'PENDING'
-                            ? 'text-amber-800 bg-amber-100'
-                            : kycState === 'REJECTED'
-                            ? 'text-[#B8382B] bg-red-100'
-                            : 'text-brand-muted bg-brand-surface'
-                        }`}
+                              ? 'text-amber-800 bg-amber-100'
+                              : kycState === 'REJECTED'
+                                ? 'text-[#B8382B] bg-red-100'
+                                : 'text-brand-muted bg-brand-surface'
+                          }`}
                       >
                         {kycState === 'VERIFIED'
                           ? 'ĐÃ DUYỆT (APPROVED) · TIER 2'
                           : kycState === 'PENDING'
-                          ? 'ĐANG CHỜ DUYỆT (PENDING)'
-                          : kycState === 'REJECTED'
-                          ? 'BỊ TỪ CHỐI (REJECTED)'
-                          : 'CHƯA NỘP HỒ SƠ (NOT SUBMITTED)'}
+                            ? 'ĐANG CHỜ DUYỆT (PENDING)'
+                            : kycState === 'REJECTED'
+                              ? 'BỊ TỪ CHỐI (REJECTED)'
+                              : 'CHƯA NỘP HỒ SƠ (NOT SUBMITTED)'}
                       </span>
                       <span className="text-[11px] text-brand-muted font-mono">{displayKycCode}</span>
                     </div>
@@ -594,10 +582,10 @@ export const CustomerKyc: React.FC = () => {
                       {kycState === 'VERIFIED'
                         ? `Hồ sơ của ${displayName} đã được thẩm định APPROVED thành công. Tài khoản đủ điều kiện thuê mọi thiết bị RENT.`
                         : kycState === 'PENDING'
-                        ? 'Hồ sơ KYC đang chờ Chuyên viên Giám định duyệt. User không thể tự đặt APPROVED. Vui lòng chờ 4-12 giờ.'
-                        : kycState === 'REJECTED'
-                        ? 'Hồ sơ của bạn đã bị từ chối thẩm định. Vui lòng xem lý do bên dưới và nộp lại hồ sơ.'
-                        : 'Bạn chưa gửi hồ sơ CCCD. Hãy nộp hồ sơ KYC để mở khóa quyền thuê đồ tại RENT Checkout.'}
+                          ? 'Hồ sơ KYC đang chờ Chuyên viên Giám định duyệt. User không thể tự đặt APPROVED. Vui lòng chờ 4-12 giờ.'
+                          : kycState === 'REJECTED'
+                            ? 'Hồ sơ của bạn đã bị từ chối thẩm định. Vui lòng xem lý do bên dưới và nộp lại hồ sơ.'
+                            : 'Bạn chưa gửi hồ sơ CCCD. Hãy nộp hồ sơ KYC để mở khóa quyền thuê đồ tại RENT Checkout.'}
                     </p>
                   </div>
                 </div>
@@ -704,23 +692,22 @@ export const CustomerKyc: React.FC = () => {
                       <p className="text-[10px] text-brand-muted uppercase font-bold tracking-wider">Trạng thái hồ sơ</p>
                       <p className="text-sm font-bold mt-1">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-xs ${
-                            kycState === 'VERIFIED'
+                          className={`inline-block px-2 py-0.5 rounded-full text-xs ${kycState === 'VERIFIED'
                               ? 'text-brand-sage bg-brand-sage-light'
                               : kycState === 'PENDING'
-                              ? 'text-amber-800 bg-amber-100'
-                              : kycState === 'REJECTED'
-                              ? 'text-red-800 bg-red-100'
-                              : 'text-stone-700 bg-stone-200'
-                          }`}
+                                ? 'text-amber-800 bg-amber-100'
+                                : kycState === 'REJECTED'
+                                  ? 'text-red-800 bg-red-100'
+                                  : 'text-stone-700 bg-stone-200'
+                            }`}
                         >
                           {kycState === 'VERIFIED'
                             ? 'APPROVED (Đã duyệt)'
                             : kycState === 'PENDING'
-                            ? 'PENDING (Chờ duyệt)'
-                            : kycState === 'REJECTED'
-                            ? 'REJECTED (Bị từ chối)'
-                            : 'CHƯA NỘP HỒ SƠ'}
+                              ? 'PENDING (Chờ duyệt)'
+                              : kycState === 'REJECTED'
+                                ? 'REJECTED (Bị từ chối)'
+                                : 'CHƯA NỘP HỒ SƠ'}
                         </span>
                       </p>
                     </div>

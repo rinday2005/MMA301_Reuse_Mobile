@@ -24,24 +24,32 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const [counts, setCounts] = useState({
     rent: propRentCount ?? 0,
     thrift: propThriftCount ?? 0,
-    kyc: propKycCount ?? 1,
+    kyc: propKycCount ?? 0,
     dispute: propDisputeCount ?? 0,
   });
 
   useEffect(() => {
     let isMounted = true;
-    fetchAdminDashboardData().then((data) => {
-      if (isMounted && data) {
-        setCounts({
-          rent: data.metrics.pendingRentListingsCount,
-          thrift: data.metrics.pendingThriftListingsCount,
-          kyc: data.metrics.pendingKycCount,
-          dispute: data.metrics.openDisputesCount,
-        });
-      }
-    }).catch(() => {});
+    const reloadCounts = () => {
+      fetchAdminDashboardData().then((data) => {
+        if (isMounted && data) {
+          setCounts({
+            rent: data.metrics.pendingRentListingsCount,
+            thrift: data.metrics.pendingThriftListingsCount,
+            kyc: data.metrics.pendingKycCount,
+            dispute: data.metrics.openDisputesCount,
+          });
+        }
+      }).catch(() => {});
+    };
+
+    reloadCounts();
+    window.addEventListener("kyc_reviewed", reloadCounts);
+    window.addEventListener("listing_reviewed", reloadCounts);
     return () => {
       isMounted = false;
+      window.removeEventListener("kyc_reviewed", reloadCounts);
+      window.removeEventListener("listing_reviewed", reloadCounts);
     };
   }, []);
 
