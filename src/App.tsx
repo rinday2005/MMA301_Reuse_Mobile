@@ -93,7 +93,7 @@ import { ScrollRevealManager } from "./components/common/ScrollRevealManager";
 
 const DashboardRouter = () => {
   const auth = useContext(AuthContext);
-  const role = auth?.user?.role;
+  const role = (auth?.user?.role as string) || "";
   if (role === "ADMIN") return <Navigate to="/admin/dashboard" replace />;
   if (role === "SHOP_OWNER" || role === "SHOP") return <Navigate to="/shop/dashboard" replace />;
   if (role === "USER" || role === "CUSTOMER") return <Navigate to="/user/dashboard" replace />;
