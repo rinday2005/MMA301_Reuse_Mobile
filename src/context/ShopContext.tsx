@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { mockRentProducts } from '../pages/data/shop/rentProductsData';
 import { AuthContext } from './auth-context';
+import { getPublicRentProductsApi } from '../services/rentProduct.api';
 
 // Thêm module augmentation để ép TypeScript hiểu User có name và username
 // (Giúp fix lỗi ở cả file header.tsx)
@@ -80,6 +81,54 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       maintenanceUnits: p.inspectionUnits || 0,
     }));
   });
+
+  // Tự động nạp sản phẩm RENT từ MongoDB khi khởi động
+  useEffect(() => {
+    getPublicRentProductsApi()
+      .then((apiProducts) => {
+        if (apiProducts && apiProducts.length > 0) {
+          const mappedProducts: ShopProductItem[] = apiProducts.map((p) => {
+            const catName =
+              typeof p.categoryId === 'object' && p.categoryId
+                ? p.categoryId.name
+                : typeof p.category === 'object' && p.category
+                ? p.category.name
+                : 'RENT Equipment';
+            const ownerIdStr =
+              typeof p.ownerId === 'object' && p.ownerId
+                ? p.ownerId._id
+                : p.ownerId || currentOwnerId;
+            return {
+              sku: p._id,
+              name: p.name,
+              category: catName,
+              brand: 'Atelier / Chronos',
+              pricePerDay: p.pricePerDay || 0,
+              deposit: p.depositAmount || 0,
+              totalUnits: p.totalQuantity || 1,
+              readyUnits: p.totalQuantity || 1,
+              rentingUnits: 0,
+              approvalStatus:
+                p.status === 'APPROVED'
+                  ? 'APPROVED'
+                  : p.status === 'PENDING'
+                  ? 'PENDING'
+                  : 'DRAFT',
+              coverImage: p.images?.[0] || 'https://placehold.co/600x400',
+              description: p.description,
+              ownerId: ownerIdStr,
+              isVisible: p.status !== 'HIDDEN',
+              maintenanceUnits: 0,
+            };
+          });
+          setProducts(mappedProducts);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(mappedProducts));
+        }
+      })
+      .catch((err) => {
+        console.warn('Lỗi nạp sản phẩm RENT từ MongoDB:', err);
+      });
+  }, [currentOwnerId]);
 
   // Tự động đồng bộ vào localStorage
   useEffect(() => {

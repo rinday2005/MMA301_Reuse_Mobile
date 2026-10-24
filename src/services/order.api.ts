@@ -161,9 +161,61 @@ export const confirmReceivedOrderApi = async (
   }
 };
 
+/**
+ * [BE-S3-06] Gọi API Backend: GET /api/rent/orders/shop
+ * Lấy danh sách đơn thuê của Shop Owner từ MongoDB
+ */
+export const getShopRentalOrdersApi = async (params?: {
+  status?: string;
+  page?: number;
+  limit?: number;
+}): Promise<RentalOrderApi[]> => {
+  try {
+    const res = await api.get("/rent/orders/shop", { params });
+    const payload = res.data?.data || res.data;
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+    if (payload?.orders && Array.isArray(payload.orders)) {
+      return payload.orders;
+    }
+    return [];
+  } catch (error) {
+    console.warn("Could not fetch shop rental orders from backend API:", error);
+    return [];
+  }
+};
+
+/**
+ * [BE-S3-06] Gọi API Backend: POST /api/rent/orders/:id/handover
+ * Shop Owner cập nhật thông tin vận chuyển và bàn giao cho bưu cục
+ */
+export const handoverRentalOrderApi = async (
+  orderId: string,
+  data: {
+    carrierName: string;
+    trackingCode: string;
+    status?: "READY_FOR_HANDOVER" | "HANDED_OVER";
+  }
+): Promise<RentalOrderApi | null> => {
+  try {
+    const res = await api.post(`/rent/orders/${orderId}/handover`, {
+      carrierName: data.carrierName,
+      trackingCode: data.trackingCode,
+      status: data.status || "HANDED_OVER",
+    });
+    return res.data?.data || res.data || null;
+  } catch (error) {
+    console.error("Lỗi khi bàn giao đơn thuê cho đơn vị vận chuyển:", error);
+    throw error;
+  }
+};
+
 export default {
   getMyRentalOrdersApi,
+  getShopRentalOrdersApi,
   getRentalOrderByIdApi,
   requestReturnOrderApi,
   confirmReceivedOrderApi,
+  handoverRentalOrderApi,
 };

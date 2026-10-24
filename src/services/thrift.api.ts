@@ -41,3 +41,16 @@ export const getPublicThriftListingByIdApi = async (id: string): Promise<ThriftL
     return null;
   }
 };
+
+export const getShopThriftListingsApi = async (): Promise<ThriftListingItemApi[]> => {
+  try {
+    const res = await api.get('/thrift/listings/shop/mine');
+    const payload = res.data?.data || res.data;
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.listings)) return payload.listings;
+    return [];
+  } catch (error) {
+    console.warn('Could not load shop thrift listings from API:', error);
+    return [];
+  }
+};
