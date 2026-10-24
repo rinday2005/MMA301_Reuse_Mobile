@@ -407,9 +407,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             </svg>
             <span>Ví cọc &amp; Hoàn tiền (Escrow)</span>
           </div>
-          <span className="text-[10px] text-[#4A6B53] bg-[#EBF3ED] px-1.5 py-0.5 rounded font-bold">
-            900.000₫
-          </span>
         </Link>
         {/* My Rentals */}
         <Link
