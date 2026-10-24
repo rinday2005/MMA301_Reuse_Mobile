@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink, Link } from "react-router-dom";
+import { NavLink, Link, useLocation } from "react-router-dom";
 
 interface AdminSidebarProps {
   isOpen?: boolean;
@@ -9,7 +9,6 @@ interface AdminSidebarProps {
   kycCount?: number;
   disputeCount?: number;
 }
-
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   isOpen = false,
   onClose,
@@ -18,6 +17,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   kycCount = 1,
   disputeCount = 0,
 }) => {
+  const location = useLocation();
   const sidebarNavItems = [
     {
       name: "Bảng Điều Khiển",
@@ -78,7 +78,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 lg:hidden transition-opacity"
         />
       )}
-
       {/* Sidebar Container */}
       <aside
         className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-[#f7f3ec] border-r border-[#ccc5bc]/50 flex flex-col justify-between p-5 transition-transform duration-300 ease-in-out ${
@@ -101,7 +100,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 </span>
               </div>
             </Link>
-
             {/* Mobile close button */}
             <button
               type="button"
@@ -111,7 +109,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
           </div>
-
           {/* Session Clearance Chip */}
           <div className="my-4 px-3 py-2 rounded-lg bg-[#ebe8e1] flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -124,25 +121,38 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               SHA-256
             </span>
           </div>
-
           {/* Nav List */}
           <nav className="space-y-1.5 mt-2" aria-label="Sidebar Menu">
             <div className="text-[10px] font-bold text-[#7b766f] uppercase tracking-wider px-3 mb-2">
               Menu Điều Hành
             </div>
-
             {sidebarNavItems.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
                 onClick={() => onClose && onClose()}
-                className={({ isActive }) =>
-                  `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all group ${
-                    isActive
+                className={({ isActive }) => {
+                  const isCurrentActive =
+                    isActive ||
+                    (item.path === "/admin/rent/listings" &&
+                      (location.pathname.startsWith("/admin/rent") ||
+                        location.pathname.startsWith("/admin/duyet-rent"))) ||
+                    (item.path === "/admin/kyc" &&
+                      (location.pathname.startsWith("/admin/kyc") ||
+                        location.pathname.startsWith("/admin/duyet-kyc"))) ||
+                    (item.path === "/admin/thrift/listings" &&
+                      (location.pathname.startsWith("/admin/thrift") ||
+                        location.pathname.startsWith("/admin/duyet-thrift"))) ||
+                    (item.path === "/admin/users" &&
+                      (location.pathname.startsWith("/admin/user") ||
+                        location.pathname.startsWith("/admin/nguoi-dung")));
+
+                  return `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all group ${
+                    isCurrentActive
                       ? "bg-[#292724] text-[#fdf9f2] shadow-sm font-semibold"
                       : "text-[#4a463f] hover:bg-[#ebe8e1] hover:text-[#1c1c18]"
-                  }`
-                }
+                  }`;
+                }}
               >
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-[19px]">
@@ -150,7 +160,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                   </span>
                   <span>{item.name}</span>
                 </div>
-
                 {item.badge !== undefined && item.badge > 0 && (
                   <span
                     className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${item.badgeColor}`}
@@ -162,14 +171,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             ))}
           </nav>
         </div>
-
         {/* Footer info in sidebar */}
         <div className="pt-4 border-t border-[#ccc5bc]/30 space-y-3 shrink-0">
           <div className="text-[11px] text-[#7b766f] px-1">
             <div className="font-semibold text-[#1c1c18]">Tiêu chuẩn B-Corp V4.2</div>
             <div>Bảo chứng lưu ký tuần hoàn</div>
           </div>
-
           <div className="flex items-center justify-between text-xs pt-1">
             <Link
               to="/rent"
@@ -195,5 +202,4 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     </>
   );
 };
-
 export default AdminSidebar;

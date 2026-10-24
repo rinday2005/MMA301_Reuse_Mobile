@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { getMyRentalOrdersApi } from '../../services/order.api';
-
 export interface UserSidebarProps {
   className?: string;
   activeKey?: string;
@@ -15,9 +14,7 @@ export interface UserSidebarProps {
   onToggleCollapse?: (collapsed: boolean) => void;
   hideFloatingToggle?: boolean;
 }
-
 const HEADER_H = 112;
-
 export const UserSidebar: React.FC<UserSidebarProps> = ({
   className = '',
   activeKey,
@@ -32,9 +29,26 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   const { wishlistCount } = useCartWishlist();
   const location = useLocation();
 
+  // If the logged in user is an ADMIN, AdminLayout already provides AdminSidebar.
+  // Suppress UserSidebar to prevent duplicate sidebars when browsing public market pages.
+  const currentRole = useMemo(() => {
+    if (user?.role) return user.role.toUpperCase();
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        return parsed?.role?.toUpperCase();
+      }
+    } catch {
+      // ignore
+    }
+    return undefined;
+  }, [user]);
+
+
   // Internal collapse state (Default: false = EXPANDED / SHOWN)
   const [internalCollapsed, setInternalCollapsed] = useState<boolean>(() => {
-    try {
+      try {
       return localStorage.getItem('reuse_user_sidebar_collapsed') === 'true';
     } catch {
       return false;
@@ -42,9 +56,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   });
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [avatarImgError, setAvatarImgError] = useState(false);
-
   const effectiveCollapsed = propIsCollapsed !== undefined ? propIsCollapsed : internalCollapsed;
-
   const handleToggle = () => {
     // If mobile (<1024px), toggle mobile drawer
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
@@ -64,7 +76,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
     }
     window.dispatchEvent(new CustomEvent('reuse_user_sidebar_toggle', { detail: next }));
   };
-
   const handleDesktopCollapse = () => {
     const next = !effectiveCollapsed;
     setInternalCollapsed(next);
@@ -78,7 +89,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
     }
     window.dispatchEvent(new CustomEvent('reuse_user_sidebar_toggle', { detail: next }));
   };
-
   // Sync with global toggle events
   React.useEffect(() => {
     const handleSync = (e: Event) => {
@@ -90,7 +100,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
     window.addEventListener('reuse_user_sidebar_toggle', handleSync);
     return () => window.removeEventListener('reuse_user_sidebar_toggle', handleSync);
   }, []);
-
   // Scoped profile data from current user in localStorage
   const userProfileKey = (user?._id || user?.id) ? `user_profile_${user?._id || user?.id}` : '';
   const savedProfile = React.useMemo(() => {
@@ -102,11 +111,9 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
       return null;
     }
   }, [userProfileKey]);
-
   // Dynamic overrides from window events (e.g. avatar upload or profile save)
   const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
   const [nameOverride, setNameOverride] = useState<string | null>(null);
-
   // Derived effective values (props take precedence when supplied)
   const currentAvatar =
     propAvatarUrl !== undefined
@@ -114,21 +121,16 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
       : (avatarOverride !== null
         ? avatarOverride
         : (savedProfile?.avatarUrl || user?.avatarUrl || user?.avatar || ''));
-
   const currentName =
     propDisplayName ||
     (nameOverride !== null
       ? nameOverride
       : (savedProfile?.fullName || user?.fullName || 'Khách hàng'));
-
   const effectiveEmail = propDisplayEmail || user?.email || '';
-
   // Dynamic order counts scoped to current user account
   const uId = user?._id || user?.id || '';
   const [syncVersion, setSyncVersion] = useState<number>(0);
-
   const [apiRentCount, setApiRentCount] = useState<number | null>(null);
-
   React.useEffect(() => {
     if (!uId) return;
     let isMounted = true;
@@ -143,7 +145,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
     }).catch(() => {});
     return () => { isMounted = false; };
   }, [uId, syncVersion]);
-
   const { rentalOrdersCount, thriftOrdersCount } = useMemo(() => {
     // Explicitly reference syncVersion and location.pathname to re-calculate on route changes or sync events
     void syncVersion;
@@ -154,7 +155,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
       }
       let rCount = 0;
       let tCount = 0;
-
       // 1. Rental orders count strictly scoped to current user
       const rKey = `user_rental_orders_${uId}`;
       const rRaw = localStorage.getItem(rKey);
@@ -167,7 +167,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           rCount = active.length;
         }
       }
-
       // 2. Thrift orders count strictly scoped to current user
       const tKey = `user_thrift_orders_${uId}`;
       const tRaw = localStorage.getItem(tKey);
@@ -178,16 +177,13 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           tCount = valid.length;
         }
       }
-
       // If backend API returned a verified count, prefer it for accuracy
       const finalRentCount = apiRentCount !== null ? apiRentCount : rCount;
-
       return { rentalOrdersCount: finalRentCount, thriftOrdersCount: tCount };
     } catch {
       return { rentalOrdersCount: 0, thriftOrdersCount: 0 };
     }
   }, [uId, syncVersion, location.pathname, apiRentCount]);
-
   // Listen to profile & order updates
   React.useEffect(() => {
     const handleProfileSync = (e: Event) => {
@@ -206,29 +202,23 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
         setNameOverride(customEvent.detail.fullName);
       }
     };
-
     window.addEventListener('profile_updated', handleProfileSync);
     window.addEventListener('user_profile_updated', handleProfileSync);
     window.addEventListener('storage', handleProfileSync);
-
     return () => {
       window.removeEventListener('profile_updated', handleProfileSync);
       window.removeEventListener('user_profile_updated', handleProfileSync);
       window.removeEventListener('storage', handleProfileSync);
     };
   }, []);
-
   const currentPath = location.pathname;
-
   const isCurrent = (key: string, path: string) => {
     if (activeKey) return activeKey === key;
     return currentPath === path || currentPath.startsWith(path + '/');
   };
-
   const handleLinkClick = () => {
     setMobileDrawerOpen(false);
   };
-
   // Initials computation
   const initials = React.useMemo(() => {
     const name = currentName.trim();
@@ -239,6 +229,8 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
     }
     return name.slice(0, 2).toUpperCase();
   }, [currentName]);
+
+
 
   const sidebarContent = (
     <div className="space-y-6">
@@ -267,13 +259,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           </div>
         </div>
       </div>
-
       {/* Navigation Group 1: Quản lý tài khoản */}
       <div className="space-y-1">
         <div className="px-3 pb-1.5 text-[10px] uppercase font-bold tracking-wider text-[#76726B]">
           Quản lý tài khoản
         </div>
-
         {/* Dashboard */}
         <Link
           to="/user/dashboard"
@@ -298,7 +288,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             <span className="w-1.5 h-1.5 rounded-full bg-white" />
           )}
         </Link>
-
         {/* RENT */}
         <Link
           to="/rent"
@@ -328,7 +317,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             HOT
           </span>
         </Link>
-
         {/* THRIFT */}
         <Link
           to="/thrift"
@@ -358,7 +346,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             340+
           </span>
         </Link>
-
         {/* Categories Bộ sưu tầm */}
         <Link
           to="/categories"
@@ -389,13 +376,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           </span>
         </Link>
       </div>
-
       {/* Navigation Group 2: Đơn hàng & Tiện ích */}
       <div className="space-y-1">
         <div className="px-3 pb-1.5 text-[10px] uppercase font-bold tracking-wider text-[#76726B]">
           Đơn hàng &amp; Tiện ích
         </div>
-
         {/* Smart Escrow Wallet / Ví lưu ký hoàn cọc */}
         <Link
           to="/user/wallet"
@@ -426,7 +411,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             900.000₫
           </span>
         </Link>
-
         {/* My Rentals */}
         <Link
           to="/rent/orders"
@@ -456,7 +440,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             {rentalOrdersCount > 0 ? `${rentalOrdersCount} Đang giữ` : 'Chưa có'}
           </span>
         </Link>
-
         {/* My Thrift Orders */}
         <Link
           to="/thrift/orders"
@@ -486,7 +469,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             {thriftOrdersCount > 0 ? `${thriftOrdersCount} Đơn` : 'Chưa có'}
           </span>
         </Link>
-
         {/* Wishlist */}
         <Link
           to="/wishlist"
@@ -514,7 +496,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           </div>
           <span className="text-[10px] text-[#76726B] font-semibold">{wishlistCount}</span>
         </Link>
-
         {/* Messages / Chat */}
         <Link
           to="/chat"
@@ -543,13 +524,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           <span className="text-[10px] text-[#76726B]">Mở</span>
         </Link>
       </div>
-
       {/* Navigation Group 3: Tín nhiệm & Bảo mật */}
       <div className="space-y-1">
         <div className="px-3 pb-1.5 text-[10px] uppercase font-bold tracking-wider text-[#76726B]">
           Tín nhiệm &amp; Bảo mật
         </div>
-
         {/* Profile */}
         <Link
           to="/profile"
@@ -576,7 +555,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             <span>Hồ sơ cá nhân</span>
           </div>
         </Link>
-
         {/* Verification (KYC) */}
         <Link
           to="/kyc"
@@ -607,7 +585,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           </span>
         </Link>
       </div>
-
       {/* Escrow Guarantee Box */}
       <div className="p-3.5 rounded-2xl bg-[#EFECE6]/70 border border-[#E8E4DC] text-[11px] text-[#76726B] space-y-1.5">
         <div className="flex items-center gap-1.5 font-bold text-[#1C1A18] text-xs">
@@ -622,6 +599,9 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
       </div>
     </div>
   );
+  if (currentRole === 'ADMIN') {
+    return null;
+  }
 
   return (
     <>
@@ -649,7 +629,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           />
         </button>
       )}
-
       {/* ── 2. Desktop Fixed/Static Sidebar (Shown by default on left side) ── */}
       <aside
         className={`hidden lg:block self-stretch transition-all duration-300 ease-in-out shrink-0 select-none ${effectiveCollapsed
@@ -662,7 +641,6 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#5E6D5B]" />
-
             </div>
             <button
               type="button"
@@ -671,14 +649,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
               className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-[#76726B] hover:text-[#1C1A18] hover:bg-[#EFECE6] rounded-lg transition-colors cursor-pointer group"
             >
               <span className="material-symbols-outlined text-[15px] group-hover:scale-110 transition-transform">menu</span>
-
             </button>
           </div>
-
           {sidebarContent}
         </div>
       </aside>
-
       {/* ── 3. Mobile Slide-out Drawer (only on screens < lg) ── */}
       {mobileDrawerOpen && (
         <div
@@ -714,5 +689,4 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
     </>
   );
 };
-
 export default UserSidebar;
