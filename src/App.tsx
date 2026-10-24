@@ -30,13 +30,13 @@ import CategoryDetail from "./pages/categories/detail/CategoryDetail";
 import UserDashboard from "./pages/home/User/UserDashboard";
 import Cart from "./pages/cart/Cart";
 import Profile from "./pages/profile/Profile";
-import Wishlist from "./pages/wishlist/Wishlist";
-import NotificationCenter from "./pages/notification/NotificationCenter";
 import PaymentReturn from "./pages/payment/PaymentReturn";
 import PaymentSuccess from "./pages/payment/PaymentSuccess";
 import PaymentFailed from "./pages/payment/PaymentFailed";
 import CustomerKyc from "./pages/kyc/CustomerKyc";
 import ChatPage from "./pages/chat/ChatPage";
+import Wishlist from "./pages/wishlist/Wishlist";
+import NotificationCenter from "./pages/notification/NotificationCenter";
 
 import Dashboard from "./pages/admin/Dashboard";
 import UserManagement from "./pages/admin/UserManagement";

@@ -14,7 +14,7 @@ interface MasterLayoutProps {
 export const MasterLayout: React.FC<MasterLayoutProps> = ({
   children,
   userRole = 'GUEST',
-  onLogout
+  onLogout,
 }) => {
   // Dedicated layout for ADMIN role
   if (userRole === 'ADMIN') {
