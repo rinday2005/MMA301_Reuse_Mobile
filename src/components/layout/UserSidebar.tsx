@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { getMyRentalOrdersApi } from '../../services/order.api';
+import { getKycStatusApi } from '../../services/kyc.api';
 export interface UserSidebarProps {
   className?: string;
   activeKey?: string;
@@ -131,6 +132,30 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   const uId = user?._id || user?.id || '';
   const [syncVersion, setSyncVersion] = useState<number>(0);
   const [apiRentCount, setApiRentCount] = useState<number | null>(null);
+  const [kycStatus, setKycStatus] = useState<string>(() => user?.kycStatus || 'NOT_SUBMITTED');
+
+  React.useEffect(() => {
+    if (!uId) return;
+    let isMounted = true;
+    getKycStatusApi()
+      .then((res) => {
+        if (!isMounted) return;
+        const status = res?.kycStatus || res?.kyc?.status || user?.kycStatus || 'NOT_SUBMITTED';
+        const hasCccd = Boolean(res?.kyc?.citizenId || res?.kyc?.cardFrontUrl || res?.kyc?.cardBackUrl);
+        if (!hasCccd && status === 'NOT_SUBMITTED') {
+          setKycStatus('NOT_SUBMITTED');
+        } else {
+          setKycStatus(status);
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setKycStatus(user?.kycStatus || 'NOT_SUBMITTED');
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [uId, syncVersion, user?.kycStatus]);
   React.useEffect(() => {
     if (!uId) return;
     let isMounted = true;
@@ -584,12 +609,13 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
         </Link>
         {/* Verification (KYC) */}
         <Link
-          to="/kyc"
+          to="/profile/kyc"
           onClick={handleLinkClick}
-          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-colors group ${isCurrent('kyc', '/kyc')
+          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-colors group ${
+            isCurrent('kyc', '/kyc') || isCurrent('profile/kyc', '/profile/kyc') || isCurrent('user/kyc', '/user/kyc')
               ? 'bg-[#1C1A18] text-white'
               : 'text-[#1C1A18] hover:bg-white border border-transparent hover:border-[#E8E4DC]/60'
-            }`}
+          }`}
         >
           <div className="flex items-center gap-3">
             <svg
@@ -607,9 +633,35 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             </svg>
             <span>Định danh KYC</span>
           </div>
-          <span className="text-[9px] bg-[#5E6D5B] text-white px-1.5 py-0.5 rounded font-bold uppercase">
-            ĐÃ DUYỆT
-          </span>
+          {(() => {
+            const s = String((uId ? kycStatus : 'NOT_SUBMITTED') || '').toUpperCase();
+            if (s === 'APPROVED' || s === 'VERIFIED') {
+              return (
+                <span className="text-[9px] bg-[#5E6D5B] text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                  ĐÃ DUYỆT
+                </span>
+              );
+            }
+            if (s === 'PENDING') {
+              return (
+                <span className="text-[9px] bg-amber-600 text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                  CHỜ DUYỆT
+                </span>
+              );
+            }
+            if (s === 'REJECTED') {
+              return (
+                <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                  TỪ CHỐI
+                </span>
+              );
+            }
+            return (
+              <span className="text-[9px] bg-[#76726B] text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                CHƯA XÁC THỰC
+              </span>
+            );
+          })()}
         </Link>
       </div>
       {/* Escrow Guarantee Box */}

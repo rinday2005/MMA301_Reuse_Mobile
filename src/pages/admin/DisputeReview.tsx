@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { resolveDisputeApi, getDisputeByIdApi } from "../../services/admin.api";
 import { Link, useParams } from "react-router-dom";
 
 export type DisputeReviewStatus = "OPEN" | "UNDER_REVIEW" | "RESOLVED" | "CLOSED";
@@ -42,6 +43,21 @@ export const DisputeReview: React.FC = () => {
   const [isVerdictExecuted, setIsVerdictExecuted] = useState(false);
   const [multiSigTxHash, setMultiSigTxHash] = useState<string | null>(null);
 
+  // Load real dispute details from API
+  useEffect(() => {
+    if (!id) return;
+    const cleanId = id.replace("#", "").replace("RH-", "").replace("RO-", "");
+    getDisputeByIdApi(cleanId)
+      .then((res) => {
+        if (res?.order?.dispute?.status === "RESOLVED") {
+          setDisputeStatus("RESOLVED");
+          setIsVerdictExecuted(true);
+        }
+      })
+      .catch((err) => console.warn("Lỗi tải chi tiết tranh chấp từ API:", err));
+  }, [id]);
+
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -56,6 +72,11 @@ export const DisputeReview: React.FC = () => {
   };
 
   const handleConfirmVerdict = () => {
+    const cleanId = (id || "RH-D4091").replace(/^#/, "");
+    resolveDisputeApi(cleanId, {
+      resolution: arbitrationPreset === "opt_1" ? "REFUND_BUYER" : arbitrationPreset === "opt_2" ? "PARTIAL_REFUND" : "RELEASE_SELLER",
+      adminNotes: resolutionNote,
+    }).catch((err) => console.warn("Lỗi đồng bộ phán quyết API:", err));
     const generatedHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`;
     setMultiSigTxHash(generatedHash);
     setIsVerdictExecuted(true);

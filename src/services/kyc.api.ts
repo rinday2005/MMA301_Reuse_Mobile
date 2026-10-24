@@ -12,6 +12,7 @@ export interface UserKycDetails {
   kycCode: string;
   tier: 'TIER_1' | 'TIER_2' | 'TIER_3';
   creditLimit: number;
+  status?: 'NOT_SUBMITTED' | 'PENDING' | 'APPROVED' | 'VERIFIED' | 'REJECTED' | string;
   rejectionReason?: string | null;
   submittedAt?: string;
   verifiedAt?: string;

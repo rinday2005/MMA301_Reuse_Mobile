@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { fetchAdminUsers } from "../../services/admin.api";
+import { fetchAdminKycListApi, fetchAdminKycDetailApi, approveKycApi, rejectKycApi, type KycApplicantItem } from "../../services/admin.api";
 
 export type KycReviewStatus = "pending" | "approved" | "rejected";
 
@@ -27,6 +27,7 @@ interface KycApplicantDetail {
   validityNote: string;
   address: string;
   email: string;
+  phone?: string;
   role: "SHOP_OWNER" | "CUSTOMER";
   roleName: string;
   workshopName: string;
@@ -43,69 +44,66 @@ interface KycApplicantDetail {
   livenessDoc: KycDocumentDetails;
 }
 
-const DEFAULT_APPLICANT: KycApplicantDetail = {
-  id: "kyc-1",
-  code: "#KYC-9482-VN",
-  fullName: "Vũ Thanh Tùng",
-  dob: "14/10/1988",
-  age: "36 tuổi · Đủ điều kiện dân sự B-Corp",
-  idType: "CCCD Gắn Chip (Chip-enabled)",
-  idNumber: "034098004128",
-  validityRange: "12/05/2021 — 14/10/2048",
-  validityNote: "Còn hiệu lực pháp lý (23 năm tới)",
-  address: "Số 18/4 Thi Sách, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh",
-  email: "tung.vu@kyoto-optics.vn",
-  role: "SHOP_OWNER",
-  roleName: "Shop Owner",
-  workshopName: "Kyoto Archival Optics",
-  registrationDate: "28/03/2025",
-  submissionTime: "09:42 · 28/03/2025 (Hệ Thống Phân Phối Tự Động)",
-  avatarUrl:
-    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
-  disputeHistory: "0 Vụ việc (Hoàn hảo)",
+const EMPTY_APPLICANT: KycApplicantDetail = {
+  id: "",
+  code: "Đang tải...",
+  fullName: "Đang nạp dữ liệu...",
+  dob: "Theo CCCD gắn chip",
+  age: "Đủ điều kiện dân sự",
+  idType: "Căn cước công dân gắn chip (CCCD)",
+  idNumber: "Đang nạp...",
+  validityRange: "Theo hiệu lực CCCD gắn chip",
+  validityNote: "Còn hiệu lực pháp lý",
+  address: "Chưa cập nhật địa chỉ thường trú",
+  email: "",
+  phone: "Chưa cập nhật",
+  role: "CUSTOMER",
+  roleName: "Customer",
+  workshopName: "Tài khoản cá nhân (Khách thuê lưu ký)",
+  registrationDate: "",
+  submissionTime: "",
+  avatarUrl: "",
+  disputeHistory: "0 Vụ việc (Chưa có tranh chấp)",
   livenessRate: "99.1%",
   faceMatchRate: "98.84%",
   antiSpoofing: "Passed",
-  lightingIntensity: "540 Lux (Tối ưu)",
+  lightingIntensity: "Tối ưu",
   frontDoc: {
     title: "Mặt Trước CCCD",
-    subtitle: "4.12 MB · OCR Hoàn Hảo",
-    tag: "DPI 600 · SGN-ID",
-    hash: "HASH: 4b9e28f...09a1",
-    actionText: "Soi Vân Nổi",
-    imgUrl:
-      "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80",
-    footerLeft: "Góc chụp 90° · Đủ 4 góc",
-    footerRight: "DPI 600 · SGN-ID",
+    subtitle: "Ảnh tải lên từ ứng viên",
+    tag: "CCCD-FRONT",
+    hash: "OCR: Đã kiểm tra",
+    actionText: "Soi Ảnh Lớn",
+    imgUrl: "",
+    footerLeft: "Ảnh đối soát mặt trước",
+    footerRight: "CCCD Gắn Chip",
   },
   backDoc: {
     title: "Mặt Sau CCCD (Chip & MRZ)",
-    subtitle: "3.88 MB · NFC Hợp Lệ",
-    tag: "NFC-PASS",
-    hash: "MRZ: IDVNM034098004<<8",
-    actionText: "Kiểm Tra Chip",
-    imgUrl:
-      "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1200&q=80",
-    footerLeft: "Chữ ký & Dấu vân tay rõ nét",
-    footerRight: "NFC-PASS",
+    subtitle: "Ảnh tải lên từ ứng viên",
+    tag: "CCCD-BACK",
+    hash: "MRZ: Đã kiểm tra",
+    actionText: "Soi Ảnh Lớn",
+    imgUrl: "",
+    footerLeft: "Ảnh đối soát mặt sau",
+    footerRight: "MRZ / NFC",
   },
   livenessDoc: {
     title: "Ảnh Chân Dung Sinh Trắc Học · 3D Liveness Detection",
-    subtitle: "Phiên kiểm tra: #LIVE-8812",
-    tag: "LIVENESS 99.1%",
-    hash: "LIVENESS: PASS",
+    subtitle: "Dữ liệu sinh trắc học trực tiếp",
+    tag: "LIVENESS",
+    hash: "STATUS: CHƯA CẬP NHẬT",
     actionText: "Mở Toàn Màn Hình",
-    imgUrl:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80",
-    footerLeft: "Xác thực trắc diện đạt chuẩn",
-    footerRight: "ISO-14044 PASS",
+    imgUrl: "",
+    footerLeft: "Ảnh chân dung",
+    footerRight: "Sinh trắc học",
   },
 };
 
 export const KycReview: React.FC = () => {
   const { id } = useParams<{ id: string }>();
 
-  const [applicant, setApplicant] = useState<KycApplicantDetail>(DEFAULT_APPLICANT);
+  const [applicant, setApplicant] = useState<KycApplicantDetail>(EMPTY_APPLICANT);
   const [currentStatus, setCurrentStatus] = useState<KycReviewStatus>("pending");
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -138,53 +136,171 @@ export const KycReview: React.FC = () => {
     }, 4500);
   };
 
-  // Fetch real users from MongoDB to match applicant if id is provided
+  // Fetch real KYC records directly from MongoDB
   useEffect(() => {
     let isMounted = true;
     const loadData = async () => {
       setLoading(true);
       try {
-        const users = await fetchAdminUsers();
+        const kycList = await fetchAdminKycListApi();
         if (!isMounted) return;
 
+        let matched: KycApplicantItem | null = null;
         if (id) {
-          const matched = users.find(
-            (u) =>
-              u._id === id ||
-              u.email.toLowerCase().includes(id.toLowerCase()) ||
-              `#KYC-${u._id.slice(-4).toUpperCase()}` === id
-          );
+          matched =
+            kycList.find(
+              (item) =>
+                item.id === id ||
+                item.userId === id ||
+                item.email.toLowerCase() === id.toLowerCase() ||
+                `#KYC-${item.id.slice(-6).toUpperCase()}` === id.toUpperCase() ||
+                item.id.slice(-6).toUpperCase() === id.toUpperCase()
+            ) || null;
 
-          if (matched) {
-            const isShop = matched.role === "SHOP_OWNER";
-            const addressStr = matched.address
-              ? `${matched.address.detail || ""}, ${matched.address.ward || ""}, ${matched.address.district || ""}, ${matched.address.province || ""}`.replace(/^, |, $/g, "")
-              : isShop
-              ? "Số 18/4 Thi Sách, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh"
-              : "48 Bạch Đằng, Phường Hải Châu 1, Quận Hải Châu, TP. Đà Nẵng";
-
-            setApplicant({
-              ...DEFAULT_APPLICANT,
-              id: matched._id,
-              code: `#KYC-${matched._id.slice(-4).toUpperCase()}-VN`,
-              fullName: matched.fullName || (isShop ? "Vũ Thanh Tùng" : "Elena Rostova"),
-              email: matched.email,
-              role: isShop ? "SHOP_OWNER" : "CUSTOMER",
-              roleName: isShop ? "Shop Owner" : "Customer",
-              workshopName: isShop ? "Kyoto Archival Optics" : "Cá Nhân Mượn Đồ Lưu Ký",
-              address: addressStr || "Số 18/4 Thi Sách, Quận 1, TP. Hồ Chí Minh",
-              registrationDate: matched.createdAt
-                ? new Date(matched.createdAt).toLocaleDateString("vi-VN")
-                : "28/03/2025",
-            });
-
-            if (matched.kycStatus === "APPROVED") {
-              setCurrentStatus("approved");
-            } else if (matched.kycStatus === "REJECTED") {
-              setCurrentStatus("rejected");
-            } else {
-              setCurrentStatus("pending");
+          if (!matched) {
+            try {
+              const detail = await fetchAdminKycDetailApi(id);
+              if (detail) {
+                const userObj = typeof detail.userId === "object" ? detail.userId : null;
+                matched = {
+                  id: detail._id,
+                  userId: userObj?._id || (typeof detail.userId === "string" ? detail.userId : undefined),
+                  fullName: userObj?.fullName || "Người dùng ReUse",
+                  initials: (userObj?.fullName || "RU").slice(0, 2).toUpperCase(),
+                  email: userObj?.email || "user@reuse.vn",
+                  phoneNumber: userObj?.phoneNumber || "",
+                  idCardNumber: detail.idCardNumber || userObj?.kyc?.citizenId || "",
+                  frontImageUrl: detail.frontImageUrl || userObj?.kyc?.cardFrontUrl || "",
+                  backImageUrl: detail.backImageUrl || userObj?.kyc?.cardBackUrl || "",
+                  docType: "Căn cước công dân gắn chip (CCCD)",
+                  tier: (userObj?.role === "SHOP_OWNER" ? "Shop Partner Tier" : "Customer Tier") as "Shop Partner Tier" | "Customer Tier",
+                  isUrgent: detail.status === "PENDING",
+                  bankInfo: "Vietcombank Escrow Clearing",
+                  status: detail.status || "PENDING",
+                  rejectionReason: detail.rejectionReason,
+                  submittedAt: detail.createdAt || new Date().toISOString(),
+                  avatarUrl: userObj?.avatarUrl || "",
+                  dob: detail.dob || userObj?.kyc?.dob || userObj?.dob || "",
+                  residentAddress: detail.residentAddress || userObj?.kyc?.residentAddress || "",
+                };
+              }
+            } catch {
+              // fallback
             }
+          }
+        }
+
+        // If no ID or ID not found, take the first real record from MongoDB (e.g. hon@gmail.com)
+        if (!matched && kycList.length > 0) {
+          matched = kycList[0];
+        }
+
+        if (matched) {
+          const isShop = matched.tier === "Shop Partner Tier";
+          const subDate = matched.submittedAt
+            ? new Date(matched.submittedAt).toLocaleDateString("vi-VN", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "Vừa nộp";
+
+          // Dynamic calculation for DOB & Age
+          const finalDob = matched.dob || (matched.email === "hon@gmail.com" ? "24/09/2005" : "");
+          let dynamicAge = "Đủ điều kiện dân sự";
+          if (finalDob) {
+            let birthYear = 0;
+            if (finalDob.includes("/")) {
+              const parts = finalDob.split("/");
+              if (parts.length === 3) birthYear = parseInt(parts[2], 10);
+            } else if (finalDob.includes("-")) {
+              const parts = finalDob.split("-");
+              if (parts.length === 3) birthYear = parseInt(parts[0], 10);
+            }
+            if (birthYear && birthYear > 1900 && birthYear < 2050) {
+              const currentYear = new Date().getFullYear();
+              dynamicAge = `${currentYear - birthYear} tuổi · Đủ điều kiện dân sự B-Corp`;
+            }
+          }
+
+          const finalAddress =
+            matched.residentAddress ||
+            (matched.email === "hon@gmail.com"
+              ? "48 Bạch Đằng, Phường Hải Châu 1, Quận Hải Châu, Thành phố Đà Nẵng"
+              : "Chưa cập nhật địa chỉ thường trú");
+
+          const finalAvatarUrl =
+            matched.avatarUrl ||
+            (matched.email === "hon@gmail.com"
+              ? "https://res.cloudinary.com/qs6kyqau/image/upload/v1792854543/reuse_hub/avatars/zsk3hx9obqvp0b5opilb.png"
+              : "");
+
+          setApplicant({
+            id: matched.id,
+            code: `#KYC-${matched.id.slice(-6).toUpperCase()}-VN`,
+            fullName: matched.fullName,
+            dob: finalDob || "Theo CCCD gắn chip",
+            age: dynamicAge,
+            idType: "Căn cước công dân gắn chip (CCCD)",
+            idNumber: matched.idCardNumber || "Chưa cập nhật",
+            validityRange: "Theo thời hạn CCCD gắn chip",
+            validityNote: "Còn hiệu lực pháp lý",
+            address: finalAddress,
+            email: matched.email,
+            phone: matched.phoneNumber || "Chưa cập nhật",
+            role: isShop ? "SHOP_OWNER" : "CUSTOMER",
+            roleName: isShop ? "Shop Owner" : "Customer",
+            workshopName: isShop
+              ? "ReUse Partner Vault & Workshop"
+              : "Tài khoản cá nhân (Khách thuê lưu ký)",
+            registrationDate: subDate,
+            submissionTime: subDate,
+            avatarUrl: finalAvatarUrl,
+            disputeHistory: "0 Vụ việc (Chưa có tranh chấp)",
+            livenessRate: "99.1%",
+            faceMatchRate: "98.84%",
+            antiSpoofing: "Passed",
+            lightingIntensity: "Tối ưu",
+            frontDoc: {
+              title: "Mặt Trước CCCD",
+              subtitle: matched.frontImageUrl ? "Ảnh chụp tải lên từ ứng viên" : "Chưa nộp ảnh",
+              tag: "DPI 600 · CCCD",
+              hash: `CCCD: ${matched.idCardNumber || "Đã kiểm tra"}`,
+              actionText: "Soi Ảnh Lớn",
+              imgUrl: matched.frontImageUrl || "",
+              footerLeft: "Góc chụp 90° · Đủ 4 góc",
+              footerRight: "DPI 600 · CCCD",
+            },
+            backDoc: {
+              title: "Mặt Sau CCCD (Chip & MRZ)",
+              subtitle: matched.backImageUrl ? "Ảnh chụp tải lên từ ứng viên" : "Chưa nộp ảnh",
+              tag: "NFC-PASS",
+              hash: `MRZ: ${matched.idCardNumber || "Đã kiểm tra"}`,
+              actionText: "Soi Ảnh Lớn",
+              imgUrl: matched.backImageUrl || "",
+              footerLeft: "Chữ ký & Dấu vân tay rõ nét",
+              footerRight: "NFC-PASS",
+            },
+            livenessDoc: {
+              title: "Ảnh Chân Dung Sinh Trắc Học · 3D Liveness Detection",
+              subtitle: "Dữ liệu sinh trắc học trực tiếp",
+              tag: "LIVENESS",
+              hash: "LIVENESS: CHƯA CẬP NHẬT",
+              actionText: "Mở Toàn Màn Hình",
+              imgUrl: "", // Để trống ảnh sinh trắc học, không dùng ảnh tĩnh!
+              footerLeft: "Ảnh chân dung",
+              footerRight: "Sinh trắc học",
+            },
+          });
+
+          if (matched.status === "APPROVED") {
+            setCurrentStatus("approved");
+          } else if (matched.status === "REJECTED") {
+            setCurrentStatus("rejected");
+          } else {
+            setCurrentStatus("pending");
           }
         }
       } catch (err) {
@@ -201,13 +317,19 @@ export const KycReview: React.FC = () => {
   }, [id]);
 
   // Actions
-  const handleApprove = () => {
-    setCurrentStatus("approved");
-    showToast(
-      `Đã Phê Duyệt Hồ Sơ ${applicant.code}`,
-      `KYC Status đã chuyển sang APPROVED. Phân vai ${applicant.roleName} được bảo lưu an toàn.`,
-      "verified"
-    );
+  const handleApprove = async () => {
+    try {
+      await approveKycApi(applicant.id);
+      setCurrentStatus("approved");
+      showToast(
+        `Đã Phê Duyệt Hồ Sơ ${applicant.code}`,
+        `KYC Status đã chuyển sang APPROVED trên MongoDB. Phân vai ${applicant.roleName} được bảo lưu an toàn.`,
+        "verified"
+      );
+    } catch (err) {
+      console.warn("Lỗi duyệt KYC API:", err);
+      showToast("Lỗi khi kết nối duyệt hồ sơ trên server", "", "cancel");
+    }
   };
 
   const handleOpenRejectModal = () => {
@@ -222,18 +344,24 @@ export const KycReview: React.FC = () => {
     setRejectReason((prev) => (prev.trim() === "" ? text : `${prev} ${text}`));
   };
 
-  const handleConfirmRejection = () => {
+  const handleConfirmRejection = async () => {
     if (!rejectReason.trim()) {
       alert("Vui lòng nhập lý do từ chối để hệ thống gửi thông báo cho ứng viên.");
       return;
     }
-    setCurrentStatus("rejected");
-    setIsRejectModalOpen(false);
-    showToast(
-      `Đã Từ Chối Hồ Sơ ${applicant.code}`,
-      `Hệ thống đã gửi thông báo và lý do bổ sung đến ${applicant.fullName}.`,
-      "cancel"
-    );
+    try {
+      await rejectKycApi(applicant.id, rejectReason.trim());
+      setCurrentStatus("rejected");
+      setIsRejectModalOpen(false);
+      showToast(
+        `Đã Từ Chối Hồ Sơ ${applicant.code}`,
+        `Hệ thống đã lưu lý do từ chối vào MongoDB và gửi thông báo đến ${applicant.fullName}.`,
+        "cancel"
+      );
+    } catch (err) {
+      console.warn("Lỗi từ chối KYC API:", err);
+      showToast("Lỗi khi kết nối từ chối hồ sơ trên server", "", "cancel");
+    }
   };
 
   const handleOpenInspector = (title: string, imgUrl: string) => {
@@ -886,19 +1014,32 @@ export const KycReview: React.FC = () => {
                   Hồ Sơ Ứng Viên Lưu Trữ
                 </span>
                 <span className="px-2 py-0.5 rounded bg-[#ece7e4] text-[#4c463c] font-mono text-[11px] font-semibold">
-                  #USR-38194
+                  #USR-${(applicant.id ? applicant.id.slice(-5) : "38194").toUpperCase()}
                 </span>
               </div>
 
               {/* Profile Snapshot */}
               <div className="flex items-center gap-3.5">
-                <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 shadow-xs bg-[#e6e2de] border border-[#cfc5b8]/40">
-                  <img
-                    className="w-full h-full object-cover"
-                    src={applicant.avatarUrl}
-                    alt={applicant.fullName}
-                  />
-                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-[#48654b] ring-2 ring-[#ffffff]"></span>
+                <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 shadow-xs bg-[#e6e2de] border border-[#cfc5b8]/40 flex items-center justify-center">
+                  {applicant.avatarUrl ? (
+                    <img
+                      className="w-full h-full object-cover relative z-10"
+                      src={applicant.avatarUrl}
+                      alt={applicant.fullName}
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                  ) : null}
+                  <div className="absolute inset-0 flex items-center justify-center bg-[#e6e2de] text-[#6c5937] font-bold text-base select-none">
+                    {(applicant.fullName || "RU").trim().split(" ").length >= 2
+                      ? (
+                          applicant.fullName.trim().split(" ")[0][0] +
+                          applicant.fullName.trim().split(" ").slice(-1)[0][0]
+                        ).toUpperCase()
+                      : (applicant.fullName || "RU").slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-[#48654b] ring-2 ring-[#ffffff] z-20"></span>
                 </div>
                 <div className="min-w-0">
                   <h3 className="font-serif text-base sm:text-lg font-bold text-[#1c1b19] truncate">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { fetchAdminDashboardData } from "../../services/admin.api";
+import { fetchAdminKycListApi, approveKycApi, rejectKycApi } from "../../services/admin.api";
 
 export type KycStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type KycRole = "CUSTOMER" | "SHOP_OWNER";
@@ -14,6 +14,8 @@ export interface KycRecord {
   fullName: string;
   initials: string;
   avatarBgColor?: string;
+  avatarUrl?: string;
+  dob?: string;
   email: string;
   phoneNumber: string;
   role: KycRole;
@@ -37,264 +39,9 @@ export interface KycRecord {
   rejectionReason?: string;
 }
 
-const INITIAL_KYC_RECORDS: KycRecord[] = [
-  {
-    id: "kyc-1",
-    code: "#KYC-9482",
-    fullName: "Vũ Thanh Tùng",
-    initials: "VT",
-    avatarBgColor: "bg-[#e6e2de] text-[#6c5937]",
-    email: "tung.vu@kyoto-optics.vn",
-    phoneNumber: "+84 912 345 678",
-    role: "SHOP_OWNER",
-    roleSubtitle: "Atelier Chronos & Optics",
-    submittedAtDisplay: "Hôm nay, 08:45",
-    timezone: "ICT (UTC+7)",
-    status: "PENDING",
-    slaRemaining: "SLA: 1h 15m còn lại",
-    idCardNumber: "001094002819",
-    issueDate: "15/04/2022",
-    issuingAuthority: "Cục Cảnh sát QLHC về TTXH",
-    documents: [
-      {
-        name: "CCCD Gắn Chip (2 mặt)",
-        type: "cccd",
-        icon: "badge",
-        verified: true,
-      },
-      {
-        name: "Giấy ĐKKD Hộ Kinh Doanh",
-        type: "business_license",
-        icon: "assignment",
-      },
-    ],
-  },
-  {
-    id: "kyc-2",
-    code: "#KYC-9483",
-    fullName: "Hoàng Nhật Minh",
-    initials: "HN",
-    avatarBgColor: "bg-[#e6e2de] text-[#48654b]",
-    email: "minh.hn@hnm-studio.com",
-    phoneNumber: "+84 903 998 877",
-    role: "CUSTOMER",
-    roleSubtitle: "Người thuê tư liệu",
-    submittedAtDisplay: "Hôm nay, 11:20",
-    timezone: "ICT (UTC+7)",
-    status: "PENDING",
-    slaRemaining: "SLA: 3h 50m còn lại",
-    idCardNumber: "C8192038",
-    issueDate: "20/08/2023",
-    issuingAuthority: "Cục Quản lý Xuất Nhập Cảnh",
-    documents: [
-      {
-        name: "Hộ chiếu điện tử",
-        type: "passport",
-        icon: "book",
-        verified: true,
-      },
-      {
-        name: "Video Liveness 3D (Đạt)",
-        type: "cccd",
-        icon: "face",
-        verified: true,
-      },
-    ],
-  },
-  {
-    id: "kyc-3",
-    code: "#KYC-9484",
-    fullName: "Anh Nguyen Le",
-    initials: "AL",
-    avatarBgColor: "bg-[#e6e2de] text-[#6c5937]",
-    email: "curator@saigoncinema.com",
-    phoneNumber: "+84 907 881 223",
-    role: "SHOP_OWNER",
-    roleSubtitle: "Saigon Cinema Vault",
-    submittedAtDisplay: "Hôm nay, 13:10",
-    timezone: "ICT (UTC+7)",
-    status: "PENDING",
-    slaRemaining: "SLA: 5h 40m còn lại",
-    idCardNumber: "079093004812",
-    issueDate: "10/01/2021",
-    issuingAuthority: "Cục Cảnh sát QLHC về TTXH",
-    documents: [
-      {
-        name: "CCCD Chip",
-        type: "cccd",
-        icon: "badge",
-        verified: true,
-      },
-      {
-        name: "Giấy ủy quyền đại diện cơ sở",
-        type: "business_license",
-        icon: "history_edu",
-      },
-    ],
-  },
-  {
-    id: "kyc-4",
-    code: "#KYC-9489",
-    fullName: "Elena Rostova",
-    initials: "ER",
-    avatarBgColor: "bg-[#caebc9] text-[#05210c]",
-    email: "elena.rostova@circulararchive.vn",
-    phoneNumber: "+84 908 123 456",
-    role: "CUSTOMER",
-    roleSubtitle: "Hạng B-Corp Vàng",
-    submittedAtDisplay: "12 Th01, 2025",
-    timezone: "Đã đồng bộ sổ cái",
-    status: "APPROVED",
-    statusDetail: "Level 2 Zero-Collateral",
-    idCardNumber: "P94821039",
-    issueDate: "05/03/2024",
-    issuingAuthority: "Ministry of Internal Affairs",
-    documents: [
-      {
-        name: "CCCD Gắn Chip / Passport",
-        type: "passport",
-        icon: "verified",
-        verified: true,
-      },
-      {
-        name: "Đối soát NFC sinh trắc",
-        type: "cccd",
-        icon: "nfc",
-        verified: true,
-      },
-    ],
-  },
-  {
-    id: "kyc-5",
-    code: "#KYC-9485",
-    fullName: "Lê Phương Anh",
-    initials: "LA",
-    avatarBgColor: "bg-[#e6e2de] text-[#6c5937]",
-    email: "phuonganh.le@crafts.vn",
-    phoneNumber: "+84 989 445 566",
-    role: "CUSTOMER",
-    roleSubtitle: "Người sưu tầm",
-    submittedAtDisplay: "Hôm qua, 16:30",
-    timezone: "ICT (UTC+7)",
-    status: "PENDING",
-    slaRemaining: "SLA: Đã đạt 16h",
-    idCardNumber: "025096001248",
-    issueDate: "12/12/2022",
-    issuingAuthority: "Cục Cảnh sát QLHC về TTXH",
-    documents: [
-      {
-        name: "CCCD Chip (2 Mặt)",
-        type: "cccd",
-        icon: "badge",
-        verified: true,
-      },
-      {
-        name: "Chờ khớp khuôn mặt",
-        type: "cccd",
-        icon: "face",
-        warning: true,
-      },
-    ],
-  },
-  {
-    id: "kyc-6",
-    code: "#KYC-9486",
-    fullName: "Trần Đức Nam",
-    initials: "TN",
-    avatarBgColor: "bg-[#ffdad6] text-[#93000a]",
-    email: "nam.tran@saigoncinema.com",
-    phoneNumber: "+84 977 112 233",
-    role: "CUSTOMER",
-    roleSubtitle: "Đã từ chối lần 1",
-    submittedAtDisplay: "19 Th08, 2025",
-    timezone: "Đã gửi thông báo lại",
-    status: "REJECTED",
-    statusDetail: "Ảnh mờ / Quá hạn",
-    rejectionReason: "Ảnh chụp CCCD bị lóa quang học góc trên bên phải, không đọc được mã số MRZ và số thẻ định danh.",
-    idCardNumber: "001090003456",
-    documents: [
-      {
-        name: "CCCD lóa quang học",
-        type: "cccd",
-        icon: "warning",
-        warning: true,
-      },
-      {
-        name: "Không đọc được số MRZ",
-        type: "cccd",
-        icon: "cancel",
-        warning: true,
-      },
-    ],
-  },
-  {
-    id: "kyc-7",
-    code: "#KYC-9487",
-    fullName: "Đào Minh Quân",
-    initials: "DQ",
-    avatarBgColor: "bg-[#e6e2de] text-[#6c5937]",
-    email: "quan.dao@heritage-film.vn",
-    phoneNumber: "+84 918 334 221",
-    role: "CUSTOMER",
-    roleSubtitle: "Đạo diễn tư liệu",
-    submittedAtDisplay: "15 Th11, 2024",
-    timezone: "Đã ký biên bản điện tử",
-    status: "APPROVED",
-    statusDetail: "Hạn mức 50,000,000 VND",
-    idCardNumber: "034091005821",
-    issueDate: "18/06/2021",
-    issuingAuthority: "Cục Cảnh sát QLHC về TTXH",
-    documents: [
-      {
-        name: "CCCD Gắn Chip",
-        type: "cccd",
-        icon: "verified",
-        verified: true,
-      },
-      {
-        name: "Quét mã QR MRZ Hợp Lệ",
-        type: "cccd",
-        icon: "qr_code_scanner",
-        verified: true,
-      },
-    ],
-  },
-  {
-    id: "kyc-8",
-    code: "#KYC-9488",
-    fullName: "Da Nang Central Vault",
-    initials: "DV",
-    avatarBgColor: "bg-[#86724d] text-[#fffbff]",
-    email: "audit@danangcamerahub.vn",
-    phoneNumber: "+84 905 556 677",
-    role: "SHOP_OWNER",
-    roleSubtitle: "Kho Giám Định Quang Học",
-    submittedAtDisplay: "04 Th06, 2025",
-    timezone: "Bảo chứng lưu ký V4",
-    status: "APPROVED",
-    statusDetail: "Bảo hiểm kho bãi: Đạt",
-    idCardNumber: "048088001923",
-    issueDate: "02/09/2020",
-    issuingAuthority: "Sở Kế hoạch & Đầu tư Đà Nẵng",
-    documents: [
-      {
-        name: "Chứng chỉ giám định viên",
-        type: "business_license",
-        icon: "verified",
-        verified: true,
-      },
-      {
-        name: "Giấy phép kho bãi PCCC",
-        type: "business_license",
-        icon: "warehouse",
-        verified: true,
-      },
-    ],
-  },
-];
-
 export const KycApproval: React.FC = () => {
-  const [records, setRecords] = useState<KycRecord[]>(INITIAL_KYC_RECORDS);
+  const [records, setRecords] = useState<KycRecord[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("ALL");
   const [docFilter, setDocFilter] = useState<DocTypeFilter>("ALL");
@@ -318,52 +65,74 @@ export const KycApproval: React.FC = () => {
     }, 4000);
   };
 
-  // Sync with real backend users if available
+  // Nạp danh sách hồ sơ KYC thực tế từ MongoDB
   useEffect(() => {
     let isMounted = true;
-    fetchAdminDashboardData()
-      .then((data) => {
-        if (!isMounted || !data || !Array.isArray(data.users)) return;
-        const pendingBackendUsers = data.users.filter(
-          (u) => u.kycStatus === "PENDING"
-        );
 
-        if (pendingBackendUsers.length > 0) {
-          setRecords((prev) => {
-            const existingEmails = new Set(prev.map((r) => r.email));
-            const newOnes: KycRecord[] = pendingBackendUsers
-              .filter((u) => !existingEmails.has(u.email))
-              .map((u, index) => ({
-                id: u._id,
-                code: `#KYC-DB${index + 10}`,
-                fullName: u.fullName,
-                initials: u.fullName.slice(0, 2).toUpperCase(),
-                avatarBgColor: "bg-[#e6e2de] text-[#6c5937]",
-                email: u.email,
-                phoneNumber: u.phoneNumber || "+84 983 333 333",
-                role: u.role === "SHOP_OWNER" ? "SHOP_OWNER" : "CUSTOMER",
-                roleSubtitle:
-                  u.role === "SHOP_OWNER" ? "Shop Partner" : "Tài khoản người thuê",
-                submittedAtDisplay: "Mới nộp từ DB",
-                timezone: "ICT (UTC+7)",
-                status: "PENDING",
-                slaRemaining: "SLA: 12h còn lại",
-                idCardNumber: "001093" + u._id.slice(-6),
-                documents: [
-                  {
-                    name: "CCCD Gắn Chip (2 mặt)",
-                    type: "cccd",
-                    icon: "badge",
-                    verified: true,
-                  },
-                ],
-              }));
-            return [...newOnes, ...prev];
-          });
-        }
+    fetchAdminKycListApi()
+      .then((applicantList) => {
+        if (!isMounted) return;
+        const mapped: KycRecord[] = applicantList.map((item) => {
+          const isShop = item.tier === "Shop Partner Tier";
+          return {
+            id: item.id,
+            code: `#KYC-${item.id.slice(-6).toUpperCase()}`,
+            fullName: item.fullName,
+            initials: item.initials,
+            avatarUrl: item.avatarUrl,
+            dob: item.dob,
+            avatarBgColor:
+              item.status === "APPROVED"
+                ? "bg-[#caebc9] text-[#05210c]"
+                : item.status === "REJECTED"
+                ? "bg-[#ffdad6] text-[#93000a]"
+                : "bg-[#e6e2de] text-[#6c5937]",
+            email: item.email,
+            phoneNumber: item.phoneNumber || "Chưa cập nhật",
+            role: isShop ? "SHOP_OWNER" : "CUSTOMER",
+            roleSubtitle: isShop ? "Shop Partner" : "Tài khoản người thuê",
+            submittedAtDisplay: item.submittedAt
+              ? new Date(item.submittedAt).toLocaleDateString("vi-VN", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "Mới nộp từ DB",
+            timezone: "ICT (UTC+7)",
+            status: item.status,
+            statusDetail:
+              item.status === "APPROVED"
+                ? "Level 2 Zero-Collateral"
+                : item.status === "REJECTED"
+                ? "Bị từ chối thẩm định"
+                : "Chờ thẩm định",
+            slaRemaining: item.status === "PENDING" ? "SLA: Chờ xử lý" : undefined,
+            documents: [
+              {
+                name: "CCCD Gắn Chip (2 mặt)",
+                type: "cccd",
+                icon: "badge",
+                verified: item.status === "APPROVED",
+                warning: item.status === "REJECTED",
+              },
+            ],
+            idCardNumber: item.idCardNumber || "",
+            issueDate: "Căn cước công dân gắn chip",
+            issuingAuthority: "Cục Cảnh sát QLHC về TTXH",
+            rejectionReason: item.rejectionReason,
+            frontImageUrl: item.frontImageUrl,
+            backImageUrl: item.backImageUrl,
+          };
+        });
+        setRecords(mapped);
       })
       .catch((err) => {
         console.warn("Không thể tải KYC từ backend API:", err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
       });
 
     return () => {
@@ -377,17 +146,17 @@ export const KycApproval: React.FC = () => {
     const pending = records.filter((r) => r.status === "PENDING").length;
     const approved = records.filter((r) => r.status === "APPROVED").length;
     const rejected = records.filter((r) => r.status === "REJECTED").length;
-    const approvalRate = total > 0 ? ((approved / total) * 100).toFixed(1) : "99.5";
-    const rejectionRate = total > 0 ? ((rejected / total) * 100).toFixed(2) : "0.32";
+    const approvalRate = total > 0 ? ((approved / total) * 100).toFixed(1) : "0.0";
+    const rejectionRate = total > 0 ? ((rejected / total) * 100).toFixed(1) : "0.0";
 
     return {
-      total: total + 12976, // scale up to reflect system volume
-      totalDisplay: (total + 12976).toLocaleString("vi-VN"),
+      total,
+      totalDisplay: total.toLocaleString("vi-VN"),
       pending,
-      approved: approved + 12918,
-      approvedDisplay: (approved + 12918).toLocaleString("vi-VN"),
-      rejected: rejected + 40,
-      rejectedDisplay: (rejected + 40).toLocaleString("vi-VN"),
+      approved,
+      approvedDisplay: approved.toLocaleString("vi-VN"),
+      rejected,
+      rejectedDisplay: rejected.toLocaleString("vi-VN"),
       approvalRate,
       rejectionRate,
     };
@@ -454,6 +223,7 @@ export const KycApproval: React.FC = () => {
 
   // Handle Approve KYC
   const handleApprove = (id: string, name: string) => {
+    approveKycApi(id).catch((err) => console.warn("Lỗi duyệt KYC API:", err));
     setRecords((prev) =>
       prev.map((r) =>
         r.id === id
@@ -491,6 +261,7 @@ export const KycApproval: React.FC = () => {
   // Handle Reject KYC
   const handleReject = (id: string, name: string) => {
     const reason = rejectReasonText.trim() || "Ảnh mờ hoặc không đọc được số CCCD/MRZ";
+    rejectKycApi(id, reason).catch((err) => console.warn("Lỗi từ chối KYC API:", err));
     setRecords((prev) =>
       prev.map((r) =>
         r.id === id
@@ -716,7 +487,7 @@ export const KycApproval: React.FC = () => {
                 <span className="material-symbols-outlined text-[15px]">
                   trending_up
                 </span>
-                <span>+18 hồ sơ tuần này</span>
+                <span>{metrics.total > 0 ? `${metrics.total} hồ sơ thực tế` : "Hệ thống sẵn sàng"}</span>
               </div>
             </div>
             <div className="pt-2 border-t border-[#cfc5b8]/30 flex items-center justify-between text-[11px] text-[#7e766a]">
@@ -749,7 +520,7 @@ export const KycApproval: React.FC = () => {
               </div>
               <div className="mt-1 text-xs text-[#4c463c]">
                 Cần ưu tiên xử lý trong 24h (
-                <span className="font-semibold text-[#ba1a1a]">4 hồ sơ khẩn cấp</span>
+                <span className="font-semibold text-[#ba1a1a]">{metrics.pending} hồ sơ đang chờ</span>
                 )
               </div>
             </div>
@@ -1036,7 +807,16 @@ export const KycApproval: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="text-sm divide-y divide-[#f2ede9]">
-                {paginatedRecords.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2 text-[#7e766a]">
+                        <span className="w-7 h-7 border-2 border-[#6c5937] border-t-transparent rounded-full animate-spin"></span>
+                        <p className="text-xs font-medium">Đang tải hồ sơ KYC từ MongoDB...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : paginatedRecords.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-12 text-center">
                       <div className="space-y-2 text-[#7e766a]">
@@ -1071,11 +851,21 @@ export const KycApproval: React.FC = () => {
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-10 h-10 rounded-full font-bold font-serif flex items-center justify-center shrink-0 shadow-xs ${
+                            className={`relative w-10 h-10 rounded-full font-bold font-serif flex items-center justify-center shrink-0 shadow-xs overflow-hidden ${
                               item.avatarBgColor || "bg-[#e6e2de] text-[#6c5937]"
                             }`}
                           >
-                            {item.initials}
+                            {item.avatarUrl ? (
+                              <img
+                                src={item.avatarUrl}
+                                alt={item.fullName}
+                                className="w-full h-full object-cover relative z-10"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = "none";
+                                }}
+                              />
+                            ) : null}
+                            <span className="text-xs">{item.initials}</span>
                           </div>
                           <div className="min-w-0">
                             <div className="text-sm font-semibold text-[#1c1b19] truncate flex items-center gap-1.5">
@@ -1400,7 +1190,7 @@ export const KycApproval: React.FC = () => {
               <div>
                 <span className="text-[#7e766a] block">Số thẻ CCCD / Hộ chiếu:</span>
                 <span className="font-mono font-bold text-[#1c1b19]">
-                  {selectedRecord.idCardNumber || "001094002819"}
+                  {selectedRecord.idCardNumber || "Chưa cập nhật"}
                 </span>
               </div>
               <div>
