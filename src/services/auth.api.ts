@@ -22,6 +22,8 @@ export interface User {
     ward?: string;
     detail?: string;
   };
+  name?: string;
+  username?: string;
 }
 
 export interface LoginResponse {

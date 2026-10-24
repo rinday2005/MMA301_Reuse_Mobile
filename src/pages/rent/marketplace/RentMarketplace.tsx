@@ -7,7 +7,13 @@ import { UserSidebar } from '../../../components/layout/UserSidebar';
 import {
   RENT_PRODUCTS,
   RENT_SORT_OPTIONS,
+  RENT_CATEGORY_OPTIONS,
+  RENT_PRICE_OPTIONS,
+  RENT_CONDITION_OPTIONS,
+  RENT_LOCATION_OPTIONS,
+  RENT_SIZE_OPTIONS,
   RENT_HOW_IT_WORKS_STEPS,
+  type FilterOption,
 } from '../../data/rent/marketplaceData';
 import type { Product, SortKey } from '../../data/rent/marketplaceData';
 // ─── ProductCard ───────────────────────────────────────────────────────────────
@@ -196,19 +202,57 @@ const ProductCard: React.FC<{
 const RentMarketplace: React.FC = () => {
   const { user } = useAuth();
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<FilterOption[]>(RENT_CATEGORY_OPTIONS);
+
+  // Fetch dynamic categories from DB with fallback
+  useEffect(() => {
+    let isMounted = true;
+    getCategoriesApi()
+      .then((cats) => {
+        if (!isMounted) return;
+        if (Array.isArray(cats) && cats.length > 0) {
+          const active = cats.filter((c) => c.isActive !== false);
+          const rentCats = active.filter((c) => c.type === 'RENT' || c.type === 'BOTH');
+          const list = rentCats.length > 0 ? rentCats : active;
+          setCategoryOptions([
+            { label: `Tất cả danh mục (${list.length})`, value: 'all' },
+            ...list.map((c) => ({
+              label: c.name,
+              value: c.slug || c._id,
+            })),
+          ]);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load categories from API:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
-    getPublicRentProductsApi()
+    getPublicRentProductsApi({ limit: 200 })
       .then((items) => {
         if (!isMounted) return;
         if (Array.isArray(items) && items.length > 0) {
+          try {
+            localStorage.setItem('cached_rent_products_db', JSON.stringify(items));
+          } catch {
+            // ignore
+          }
           const mapped: Product[] = items.map((item) => {
-            const catSlug = typeof item.categoryId === 'object' && item.categoryId?.slug ? item.categoryId.slug : 'fashion';
-            const catName = typeof item.categoryId === 'object' && item.categoryId?.name ? item.categoryId.name : 'Thời trang';
+            const catSlug = typeof item.categoryId === 'object' && item.categoryId?.slug
+              ? item.categoryId.slug
+              : (typeof item.category === 'string' ? item.category : 'camera');
+            const catName = typeof item.categoryId === 'object' && item.categoryId?.name
+              ? item.categoryId.name
+              : (catSlug === 'shoes' ? 'Giày dép' : catSlug === 'clothing' ? 'Quần áo' : catSlug === 'dam-du-tiec' ? 'Đầm dự tiệc' : catSlug === 'phu-kien' ? 'Phụ kiện' : 'Camera');
             const cond = item.condition || 'GOOD';
             const condLabel = cond === 'NEW' ? 'Mới 100%' : cond === 'LIKE_NEW' ? 'Như mới 99%' : 'Rất tốt 95%';
-            const img = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : '';
+            const img = Array.isArray(item.images) && item.images.length > 0 ? normalizeImageUrl(item.images[0]) : '';
             const dep = item.depositAmount ? `${Number(item.depositAmount).toLocaleString('vi-VN')}đ` : '0đ';
             return {
               id: item._id,
@@ -237,6 +281,7 @@ const RentMarketplace: React.FC = () => {
       isMounted = false;
     };
   }, []);
+
   const [searchParams] = useSearchParams();
   const urlCategory = searchParams.get('category');
   const [authModal, setAuthModal] = useState<{ open: boolean; action: string; targetHref: string }>({
@@ -279,9 +324,17 @@ const RentMarketplace: React.FC = () => {
   const visibleProducts = useMemo(() => {
     const sourceList = dbProducts.length > 0 ? dbProducts : RENT_PRODUCTS;
     let list = sourceList.filter((p) => {
-      const matchQuery = !query || p.title.toLowerCase().includes(query.toLowerCase());
-      const matchCat = (() => {
-        if (!category || category === 'all') return true;
+      // 1. Keyword search
+      if (query.trim()) {
+        const q = query.toLowerCase().trim();
+        const matchTitle = (p.title || '').toLowerCase().includes(q);
+        const matchCat = (p.categoryLabel || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q);
+        const matchLoc = (p.location || '').toLowerCase().includes(q);
+        if (!matchTitle && !matchCat && !matchLoc) return false;
+      }
+
+      // 2. Category matching (matching DB categories: camera, shoes, dam-du-tiec, clothing, phu-kien)
+      if (category !== 'all') {
         const target = category.toLowerCase().trim();
         const pCat = (p.category || '').toLowerCase().trim();
         const pLabel = (p.categoryLabel || '').toLowerCase().trim();
@@ -333,9 +386,11 @@ const RentMarketplace: React.FC = () => {
       else if (priceRange === 'above500') matchPrice = p.price > 500000;
       return matchQuery && matchCat && matchCond && matchLoc && matchPrice;
     });
+
     if (sort === 'price-asc') list = [...list].sort((a, b) => a.price - b.price);
     else if (sort === 'price-desc') list = [...list].sort((a, b) => b.price - a.price);
     else if (sort === 'rating') list = [...list].sort((a, b) => b.rating - a.rating);
+    else if (sort === 'newest') list = [...list].sort((a, b) => b.reviewCount - a.reviewCount);
     return list;
   }, [dbProducts, query, category, priceRange, condition, location, sort]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -378,6 +433,7 @@ const RentMarketplace: React.FC = () => {
     setCondition('all');
     setLocation('all');
     setSort('recommended');
+    navigate('/rent', { replace: true });
   };
   const sel =
     'w-full py-2 pl-3 pr-7 bg-[#F4F0EA]/50 rounded-lg text-[#1C1A18] focus:outline-none focus:bg-[#F4F0EA] text-xs font-medium cursor-pointer appearance-none';
@@ -529,49 +585,47 @@ const RentMarketplace: React.FC = () => {
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Danh mục</label>
               <div className="relative">
-                <select value={category.toLowerCase()} onChange={(e) => setUserCategory(e.target.value)} className={sel}>
-                  <option value="all">Tất cả danh mục</option>
-                  <option value="camera">Camera &amp; Ống kính</option>
-                  <option value="fashion">Thời trang &amp; Dạ hội</option>
-                  <option value="camping">Cắm trại &amp; Dã ngoại</option>
-                  <option value="electronics">Điện tử &amp; Âm thanh</option>
-                  <option value="shoes">Giày dép &amp; Sneakers</option>
+                <select
+                  value={category.toLowerCase()}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  className={sel}
+                >
+                  {categoryOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Giá / ngày</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Khoảng giá / ngày</label>
               <div className="relative">
                 <select value={priceRange} onChange={(e) => setPriceRange(e.target.value)} className={sel}>
-                  <option value="all">Tất cả mức giá</option>
-                  <option value="under200">Dưới 200.000đ</option>
-                  <option value="200to500">200.000đ - 500.000đ</option>
-                  <option value="above500">Trên 500.000đ</option>
+                  {RENT_PRICE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Tình trạng</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Tình trạng máy / đồ</label>
               <div className="relative">
                 <select value={condition} onChange={(e) => setCondition(e.target.value)} className={sel}>
-                  <option value="all">Tất cả</option>
-                  <option value="Như mới">Như mới (99%)</option>
-                  <option value="Rất tốt">Rất tốt (95%)</option>
-                  <option value="Tốt">Tốt (90%)</option>
+                  {RENT_CONDITION_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Khu vực</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Khu vực kho</label>
               <div className="relative">
                 <select value={location} onChange={(e) => setLocation(e.target.value)} className={sel}>
-                  <option value="all">Toàn quốc</option>
-                  <option value="Đà Nẵng">Đà Nẵng</option>
-                  <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                  <option value="Hà Nội">Hà Nội</option>
+                  {RENT_LOCATION_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
               </div>
@@ -587,7 +641,7 @@ const RentMarketplace: React.FC = () => {
           </div>
           <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <span className="text-[11px] font-medium text-[#5E5A53]">
-              Đang hiển thị {visibleProducts.length} sản phẩm sẵn sàng thuê
+              Đang hiển thị <strong className="text-[#1C1A18]">{visibleProducts.length}</strong> sản phẩm sẵn sàng thuê
             </span>
             <div className="flex items-center flex-wrap gap-1.5">
               <span className="text-[10px] uppercase font-bold text-[#78736A] tracking-wider mr-1">Sắp xếp:</span>
@@ -596,7 +650,7 @@ const RentMarketplace: React.FC = () => {
                   key={opt.key}
                   type="button"
                   onClick={() => setSort(opt.key)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${sort === opt.key
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${sort === opt.key
                     ? 'bg-[#1C1A18] text-white'
                     : 'bg-[#F4F0EA] text-[#5E5A53] hover:text-[#1C1A18]'
                     }`}
@@ -617,22 +671,22 @@ const RentMarketplace: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="w-full py-16 px-6 text-center bg-white rounded-2xl shadow-sm my-6">
-            <div className="w-14 h-14 rounded-full bg-[#F4F0EA] mx-auto flex items-center justify-center text-[#1C1A18] mb-4 shadow-sm">
-              <span className="material-symbols-outlined text-[26px]">manage_search</span>
-            </div>
-            <h3 className="text-xl font-bold text-[#1C1A18]">
-              Không có sản phẩm nào phù hợp với bộ lọc hiện tại.
+          <div className="text-center py-16 bg-[#F7F5F0] border border-dashed border-[#E6E2DC] rounded-2xl mb-12">
+            <svg className="w-12 h-12 mx-auto text-[#79716B] mb-3" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+            </svg>
+            <h3 className="text-lg text-[#1C1A18] font-semibold mb-1">
+              Không tìm thấy sản phẩm RENT phù hợp.
             </h3>
-            <p className="text-[#78736A] text-xs mt-1.5 max-w-md mx-auto">
-              Hãy thử mở rộng khoảng giá, thay đổi khu vực hoặc chọn lại danh mục để khám phá thêm nhiều đồ lưu trữ khác.
+            <p className="text-xs text-[#79716B] mb-4">
+              Vui lòng điều chỉnh lại từ khóa, bộ lọc giá hoặc danh mục sản phẩm.
             </p>
             <button
               type="button"
-              onClick={resetAll}
-              className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1C1A18] text-white text-xs font-semibold hover:bg-[#292724] transition-colors shadow-sm"
+              onClick={handleResetFilters}
+              className="px-4 py-2 bg-[#1C1A18] text-white text-xs rounded-lg font-medium hover:bg-stone-800 transition-colors cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[16px]">restart_alt</span>
               Xóa bộ lọc
             </button>
           </div>
