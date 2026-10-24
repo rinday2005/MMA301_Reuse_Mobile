@@ -194,7 +194,7 @@ interface RawPendingThriftItem {
   name: string;
   description?: string;
   ownerId?: { _id?: string; fullName?: string };
-  categoryId?: { _id?: string; name?: string };
+  categoryId?: { _id?: string; name?: string; slug?: string };
   price?: number;
   images?: string[];
   condition?: string;
@@ -350,19 +350,43 @@ export const fetchAdminThriftListingsApi = async (): Promise<RawPendingThriftIte
     const payload = res.data?.data || res.data;
     const list = Array.isArray(payload) ? payload : (payload?.listings || payload?.items || []);
     if (Array.isArray(list) && list.length > 0) {
-      return list.map((item: { _id: string; name?: string; title?: string; slug?: string; categoryId?: unknown; category?: unknown; price?: number; images?: string[]; condition?: string; sourceType?: string; status?: string; rejectionReason?: string; createdAt?: string }) => ({
-        _id: item._id,
-        name: item.name || item.title || "Sản phẩm THRIFT",
-        slug: item.slug || item._id,
-        categoryId: (item.categoryId || item.category) as { _id?: string; name: string } | string | undefined,
-        price: Number(item.price) || 0,
-        images: Array.isArray(item.images) ? item.images : [],
-        condition: item.condition || "LIKE_NEW",
-        sourceType: item.sourceType || "SHOP_INVENTORY",
-        status: item.status || "APPROVED",
-        rejectionReason: item.rejectionReason,
-        createdAt: item.createdAt,
-      }));
+      return list.map((item: {
+        _id: string;
+        name?: string;
+        title?: string;
+        slug?: string;
+        categoryId?: unknown;
+        category?: unknown;
+        price?: number;
+        images?: string[];
+        condition?: string;
+        sourceType?: string;
+        status?: string;
+        rejectionReason?: string;
+        createdAt?: string;
+      }) => {
+        const rawCat = item.categoryId || item.category;
+        const categoryId: { _id?: string; name?: string; slug?: string } | undefined =
+          typeof rawCat === "object" && rawCat !== null
+            ? (rawCat as { _id?: string; name?: string; slug?: string })
+            : typeof rawCat === "string"
+            ? { name: rawCat }
+            : undefined;
+
+        return {
+          _id: item._id,
+          name: item.name || item.title || "Sản phẩm THRIFT",
+          slug: item.slug || item._id,
+          categoryId,
+          price: Number(item.price) || 0,
+          images: Array.isArray(item.images) ? item.images : [],
+          condition: item.condition || "LIKE_NEW",
+          sourceType: item.sourceType || "SHOP_INVENTORY",
+          status: item.status || "APPROVED",
+          rejectionReason: item.rejectionReason,
+          createdAt: item.createdAt,
+        };
+      });
     }
   } catch (err2) {
     console.warn("Lỗi khi fallback tải thrift listings từ DB:", err2);
