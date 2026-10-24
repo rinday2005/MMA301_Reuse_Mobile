@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
 import { getPublicThriftListingsApi } from '../../../services/thrift.api';
+import { getCategoriesApi } from '../../../services/category.api';
+import { normalizeImageUrl } from '../../../utils/imageUrl';
 import { UserSidebar } from '../../../components/layout/UserSidebar';
 import {
     THRIFT_PRODUCTS,
@@ -13,7 +15,7 @@ import {
     THRIFT_SOURCE_OPTIONS,
     THRIFT_CIRCULAR_STEPS,
 } from '../../data/thrift/thriftMarketplaceData';
-import type { ThriftProduct, ThriftSortKey } from '../../data/thrift/thriftMarketplaceData';
+import type { ThriftProduct, ThriftSortKey, ThriftFilterOption } from '../../data/thrift/thriftMarketplaceData';
 
 function getPageNumbers(current: number, total: number): (number | string)[] {
     if (total <= 5) {
@@ -33,7 +35,32 @@ export const ThriftMarketplace: React.FC = () => {
     const navigate = useNavigate();
     const { isWishlisted, toggleWishlist, addToCart } = useCartWishlist();
     const [dbProducts, setDbProducts] = useState<ThriftProduct[]>([]);
+    const [categoryOptions, setCategoryOptions] = useState<ThriftFilterOption[]>(THRIFT_CATEGORY_OPTIONS);
 
+    // Load active categories from MongoDB
+    useEffect(() => {
+        let isMounted = true;
+        getCategoriesApi()
+            .then((cats) => {
+                if (!isMounted) return;
+                if (Array.isArray(cats) && cats.length > 0) {
+                    const active = cats.filter((c) => c.isActive !== false);
+                    setCategoryOptions([
+                        { label: `Tất cả danh mục (${active.length})`, value: 'all' },
+                        ...active.map((c) => ({
+                            label: c.name,
+                            value: c.slug || c._id,
+                        })),
+                    ]);
+                }
+            })
+            .catch((err) => {
+                console.warn('Could not load categories from API:', err);
+            });
+        return () => { isMounted = false; };
+    }, []);
+
+    // Load Thrift Listings from MongoDB API
     useEffect(() => {
         let isMounted = true;
         getPublicThriftListingsApi()
@@ -41,22 +68,51 @@ export const ThriftMarketplace: React.FC = () => {
                 if (!isMounted) return;
                 if (Array.isArray(items) && items.length > 0) {
                     const mapped: ThriftProduct[] = items.map((item) => {
-                        const catSlug = typeof item.categoryId === 'object' && item.categoryId?.slug ? item.categoryId.slug : 'lifestyle';
-                        const catName = typeof item.categoryId === 'object' && item.categoryId?.name ? item.categoryId.name : 'Đồ phong cách sống';
-                        const img = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : '';
+                        let catName = 'Đồ phong cách sống';
+                        let catSlug = 'lifestyle';
+                        if (typeof item.categoryId === 'object' && item.categoryId !== null) {
+                            if (item.categoryId.name) catName = item.categoryId.name;
+                            if (item.categoryId.slug) catSlug = item.categoryId.slug;
+                        } else if (typeof item.category === 'object' && item.category !== null) {
+                            if (item.category.name) catName = item.category.name;
+                            if (item.category.slug) catSlug = item.category.slug;
+                        } else if (typeof item.categoryLabel === 'string') {
+                            catName = item.categoryLabel;
+                        } else if (typeof item.category === 'string') {
+                            catName = item.category;
+                        }
+
+                        if (catSlug === 'lifestyle') {
+                            const n = (catName + ' ' + (item.name || '')).toLowerCase();
+                            if (n.includes('camera') || n.includes('máy ảnh') || n.includes('leica') || n.includes('fujifilm') || n.includes('canon')) catSlug = 'camera';
+                            else if (n.includes('giày') || n.includes('shoe') || n.includes('sneaker') || n.includes('boot') || n.includes('derby')) catSlug = 'shoes';
+                            else if (n.includes('đầm') || n.includes('váy') || n.includes('tiệc')) catSlug = 'dam-du-tiec';
+                            else if (n.includes('quần') || n.includes('áo') || n.includes('thời trang') || n.includes('clothing') || n.includes('blazer') || n.includes('jacket') || n.includes('wool')) catSlug = 'clothing';
+                            else if (n.includes('phụ kiện') || n.includes('accessory') || n.includes('bông tai') || n.includes('quạt')) catSlug = 'phu-kien';
+                        }
+
+                        const rawImg = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : '';
+                        const img = normalizeImageUrl(rawImg);
+
+                        let conditionLevel: ThriftProduct['conditionLevel'] = '95';
+                        const condStr = (item.condition || '').toLowerCase();
+                        if (condStr.includes('99') || condStr.includes('mới') || condStr.includes('like_new')) conditionLevel = '99';
+                        else if (condStr.includes('98') || condStr.includes('mint')) conditionLevel = '98';
+                        else if (condStr.includes('90') || condStr.includes('used') || condStr.includes('good')) conditionLevel = '90';
+
                         return {
                             id: item._id,
                             slug: item.slug || item._id,
-                            title: item.name,
-                            category: (catSlug === 'camera' || catSlug === 'fashion' || catSlug === 'electronics' ? catSlug : 'lifestyle') as ThriftProduct['category'],
+                            title: item.name || item.title || 'Sản phẩm THRIFT',
+                            category: catSlug as ThriftProduct['category'],
                             categoryLabel: catName,
                             location: item.location || 'TP. Hồ Chí Minh',
                             rating: 5.0,
                             reviewCount: 1,
-                            condition: item.condition || 'Rất tốt (95%)',
-                            conditionLevel: '95',
-                            source: 'used',
-                            sourceLabel: 'Đồ cũ',
+                            condition: item.condition === 'LIKE_NEW' ? 'Grade Mint (99%)' : item.condition === 'GOOD' ? 'Tốt (90%)' : item.condition || 'Rất tốt (95%)',
+                            conditionLevel,
+                            source: (item.sourceType === 'rent' || item.source === 'rent' || item.sourceType === 'RENTAL_PRODUCT') ? 'rent' : 'used',
+                            sourceLabel: (item.sourceType === 'rent' || item.source === 'rent' || item.sourceType === 'RENTAL_PRODUCT') ? 'Từ sản phẩm RENT' : 'Đồ đã qua sử dụng',
                             price: Number(item.price) || 0,
                             href: `/thrift/products/${item._id}`,
                             image: img,
@@ -84,9 +140,9 @@ export const ThriftMarketplace: React.FC = () => {
     const [selectedSource, setSelectedSource] = useState('all');
     const [currentSort, setCurrentSort] = useState<ThriftSortKey>('recommended');
 
-    // Pagination (mock pagination: 8 items per page)
+    // Pagination (20 items per page)
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 8;
+    const itemsPerPage = 20;
 
     // Track sidebar collapsed state to display inline restore chip when collapsed
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -185,22 +241,29 @@ export const ThriftMarketplace: React.FC = () => {
                 if (!matchTitle && !matchCat && !matchLoc) return false;
             }
 
-            // Category (5 major categories: camera, shoes, dam-du-tiec, clothing, phu-kien)
+            // Category (matches slug, label, or keyword)
             if (selectedCategory !== 'all') {
                 const target = selectedCategory.toLowerCase();
                 const pCat = (item.category || '').toLowerCase();
+                const pLabel = (item.categoryLabel || '').toLowerCase();
                 const pTitle = (item.title || '').toLowerCase();
 
-                if (target === 'camera') {
-                    if (!pCat.includes('camera') && !pTitle.includes('camera') && !pTitle.includes('leica') && !pTitle.includes('contax')) return false;
-                } else if (target === 'shoes') {
-                    if (!pCat.includes('shoe') && !pTitle.includes('sneaker') && !item.id.includes('sneaker')) return false;
-                } else if (target === 'dam-du-tiec') {
-                    if (!pCat.includes('dam') && !pTitle.includes('đầm') && !pTitle.includes('dress')) return false;
-                } else if (target === 'clothing' || target === 'fashion') {
-                    if (!pCat.includes('fashion') && !pCat.includes('clothing') && !pTitle.includes('jacket') && !pTitle.includes('wool') && !pTitle.includes('áo')) return false;
-                } else if (target === 'phu-kien' || target === 'lifestyle' || target === 'electronics') {
-                    if (!pCat.includes('lifestyle') && !pCat.includes('electronics') && !pTitle.includes('backpack') && !pTitle.includes('op-1')) return false;
+                const isDirectMatch = pCat === target || pCat.includes(target) || target.includes(pCat) || pLabel.includes(target) || target.includes(pLabel);
+
+                if (!isDirectMatch) {
+                    if (target === 'camera') {
+                        if (!pCat.includes('camera') && !pTitle.includes('camera') && !pTitle.includes('leica') && !pTitle.includes('contax') && !pTitle.includes('máy ảnh')) return false;
+                    } else if (target === 'shoes' || target.includes('giay') || target.includes('giày')) {
+                        if (!pCat.includes('shoe') && !pCat.includes('giay') && !pTitle.includes('sneaker') && !pTitle.includes('boot') && !pTitle.includes('giày') && !item.id.includes('sneaker')) return false;
+                    } else if (target === 'dam-du-tiec' || target.includes('dam') || target.includes('đầm')) {
+                        if (!pCat.includes('dam') && !pCat.includes('tiec') && !pTitle.includes('đầm') && !pTitle.includes('dress') && !pTitle.includes('váy')) return false;
+                    } else if (target === 'clothing' || target === 'fashion' || target.includes('quan-ao') || target.includes('áo') || target.includes('quần')) {
+                        if (!pCat.includes('fashion') && !pCat.includes('clothing') && !pCat.includes('quan-ao') && !pTitle.includes('jacket') && !pTitle.includes('wool') && !pTitle.includes('áo') && !pTitle.includes('blazer') && !pTitle.includes('quần')) return false;
+                    } else if (target === 'phu-kien' || target === 'lifestyle' || target === 'electronics') {
+                        if (!pCat.includes('lifestyle') && !pCat.includes('electronics') && !pCat.includes('phu-kien') && !pTitle.includes('backpack') && !pTitle.includes('op-1') && !pTitle.includes('trâm') && !pTitle.includes('dây chuyền') && !pTitle.includes('túi')) return false;
+                    } else {
+                        return false;
+                    }
                 }
             }
 
@@ -213,13 +276,24 @@ export const ThriftMarketplace: React.FC = () => {
             }
 
             // Condition
-            if (selectedCondition !== 'all' && item.conditionLevel !== selectedCondition) {
-                return false;
+            if (selectedCondition !== 'all') {
+                const itemCond = (item.conditionLevel || '').toLowerCase();
+                const itemCondText = (item.condition || '').toLowerCase();
+                if (itemCond !== selectedCondition && !itemCondText.includes(selectedCondition)) {
+                    return false;
+                }
             }
 
             // Location
-            if (selectedLocation !== 'all' && item.location !== selectedLocation) {
-                return false;
+            if (selectedLocation !== 'all') {
+                const targetLoc = selectedLocation.toLowerCase();
+                const itemLoc = (item.location || '').toLowerCase();
+                const isMatchLoc =
+                    itemLoc.includes(targetLoc) ||
+                    targetLoc.includes(itemLoc) ||
+                    (targetLoc.includes('hồ chí minh') && itemLoc.includes('hcm')) ||
+                    (targetLoc.includes('hcm') && itemLoc.includes('hồ chí minh'));
+                if (!isMatchLoc) return false;
             }
 
             // Source
@@ -461,7 +535,7 @@ export const ThriftMarketplace: React.FC = () => {
                                     onChange={(e) => setUserCategory(e.target.value)}
                                     className="w-full py-2 pl-3 pr-7 bg-[#F4F0EA]/50 rounded-lg text-[#1C1A18] focus:outline-none focus:bg-[#F4F0EA] text-xs font-medium cursor-pointer appearance-none"
                                 >
-                                    {THRIFT_CATEGORY_OPTIONS.map((opt) => (
+                                    {categoryOptions.map((opt) => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                                     ))}
                                 </select>
@@ -569,35 +643,35 @@ export const ThriftMarketplace: React.FC = () => {
                         {paginatedProducts.map((product) => {
                             const isSaved = isWishlisted(product.id);
 
+                            let conditionBadge = 'Như mới (99%)';
+                            const rawC = (product.condition || '').toLowerCase();
+                            if (rawC.includes('98') || rawC.includes('mint')) conditionBadge = 'Grade Mint (98%)';
+                            else if (rawC.includes('90') || rawC.includes('used') || rawC.includes('tốt') || rawC.includes('good')) conditionBadge = 'Đã qua sử dụng (90%)';
+                            else if (rawC.includes('99') || rawC.includes('mới') || rawC.includes('like_new')) conditionBadge = 'Như mới (99%)';
+
                             return (
                                 <article
                                     key={product.id}
-                                    className="group bg-white rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all duration-300 reveal-on-scroll"
-                                    data-reveal
+                                    className="group bg-white rounded-2xl overflow-hidden flex flex-col border border-[#EFECE6] hover:border-[#DDD7CD] shadow-xs hover:shadow-md transition-all duration-300"
                                 >
                                     <div className="relative aspect-[4/3] bg-[#F4F0EA] overflow-hidden">
-                                        {/* Badges */}
-                                        <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-                                            <span className="bg-[#1C1A18]/85 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded">
-                                                {product.condition}
+                                        {/* Dual Badges top-left */}
+                                        <div className="absolute top-3 left-3 flex flex-col items-start gap-1.5 z-10 pointer-events-none">
+                                            <span className="bg-black/75 backdrop-blur-xs text-white text-[11px] font-medium px-2.5 py-0.5 rounded-full shadow-xs">
+                                                {conditionBadge}
                                             </span>
-                                            <span
-                                                className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border ${product.source === 'rent'
-                                                    ? 'bg-blue-100/90 text-blue-900 border-blue-200'
-                                                    : 'bg-amber-100/90 text-amber-900 border-amber-200'
-                                                    }`}
-                                            >
-                                                {product.sourceLabel}
+                                            <span className="bg-[#FAF0D7] text-[#8C6D1F] text-[11px] font-semibold px-2 py-0.5 rounded-md shadow-2xs">
+                                                Đồ cũ
                                             </span>
                                         </div>
 
-                                        {/* Wishlist Button */}
+                                        {/* Wishlist Button top-right */}
                                         <button
                                             type="button"
                                             onClick={() => handleToggleWishlist(product)}
                                             className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center shadow-xs transition-transform active:scale-90 cursor-pointer ${isSaved
                                                 ? 'bg-[#1C1A18] text-rose-400'
-                                                : 'bg-white/90 hover:bg-white text-[#1C1A18]'
+                                                : 'bg-white hover:bg-white text-[#1C1A18]'
                                                 }`}
                                             title={isSaved ? 'Đã lưu' : 'Lưu món đồ'}
                                         >
@@ -628,49 +702,49 @@ export const ThriftMarketplace: React.FC = () => {
                                     </div>
 
                                     {/* Product Details */}
-                                    <div className="p-5 flex-1 flex flex-col justify-between">
-                                        <div>
-                                            <div className="flex items-center justify-between text-[11px] text-[#79716B] mb-1">
-                                                <span className="font-medium">{product.categoryLabel}</span>
-                                                <span className="flex items-center gap-1">
-                                                    <svg className="w-3 h-3 text-[#79716B]" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                                                        <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeLinecap="round" strokeLinejoin="round"></path>
-                                                        <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round"></path>
-                                                    </svg>
+                                    <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
+                                        <div className="space-y-1.5">
+                                            {/* Category & Location */}
+                                            <div className="flex items-center justify-between text-[11px] text-[#78736A]">
+                                                <span className="font-medium text-[#78736A]">{product.categoryLabel}</span>
+                                                <span className="flex items-center gap-1 font-medium">
+                                                    <span className="material-symbols-outlined text-[13px] text-[#78736A]">location_on</span>
                                                     {product.location}
                                                 </span>
                                             </div>
 
-                                            <h2 className="text-base font-semibold text-[#1C1A18] group-hover:underline line-clamp-1 mb-1.5">
+                                            {/* Title */}
+                                            <h2 className="font-semibold text-base text-[#1C1A18] group-hover:text-amber-900 transition-colors line-clamp-1">
                                                 <Link to={product.href}>{product.title}</Link>
                                             </h2>
 
-                                            <div className="flex items-center gap-1.5 text-xs text-[#79716B] mb-2">
+                                            {/* Rating */}
+                                            <div className="flex items-center gap-1 text-xs text-[#1C1A18] pt-0.5">
                                                 <span className="text-amber-500 font-bold">★ {product.rating.toFixed(1)}</span>
-                                                <span>({product.reviewCount} đánh giá)</span>
+                                                <span className="text-[#78736A] text-[11px]">({product.reviewCount} đánh giá)</span>
                                             </div>
 
-                                            {/* Shop Owner Indicator */}
-                                            <div className="text-[10px] text-[#79716B] bg-[#F7F5F0] py-1 px-2 rounded inline-flex items-center gap-1 mb-3">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                                                Được kiểm chứng bởi <strong className="text-[#1C1A18]">{product.verifiedBy}</strong>
+                                            {/* ReUse Hub Inspection Chip */}
+                                            <div className="pt-1">
+                                                <div className="bg-[#EBF7EE] text-[#1E7E34] text-[11px] font-medium py-1 px-2.5 rounded-md inline-flex items-center gap-1.5">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-[#1E7E34]"></span>
+                                                    <span>Được kiểm chứng bởi <strong className="font-semibold">{product.verifiedBy}</strong></span>
+                                                </div>
                                             </div>
                                         </div>
 
                                         {/* Price and Buy Action */}
-                                        <div className="pt-2 bg-[#F4F0EA]/30 -mx-5 -mb-5 p-5 space-y-3">
-                                            <div className="flex items-baseline justify-between">
-                                                <div>
-                                                    <span className="text-[10px] uppercase font-bold text-[#78736A]">Giá mua</span>
-                                                    <p className="text-sm font-bold text-[#1C1A18]">{formatVND(product.price)}</p>
-                                                </div>
+                                        <div className="pt-2 space-y-2 border-t border-[#F2EFE9]/80">
+                                            <div>
+                                                <span className="text-[10px] uppercase font-bold tracking-wider text-[#8A857D]">Giá mua</span>
+                                                <p className="text-base sm:text-lg font-bold text-[#1C1A18]">{formatVND(product.price)}</p>
                                             </div>
 
                                             <div className="flex items-center gap-2 pt-1">
                                                 <button
                                                     type="button"
                                                     onClick={() => handleBuyNow(product)}
-                                                    className="flex-1 py-2 rounded-xl bg-[#1C1A18] text-white text-xs font-medium text-center hover:bg-[#292724] transition-colors shadow-sm cursor-pointer"
+                                                    className="flex-1 py-2.5 rounded-full bg-[#1C1A18] hover:bg-black text-white text-xs font-semibold text-center transition-colors shadow-xs cursor-pointer"
                                                 >
                                                     Mua ngay
                                                 </button>
@@ -678,7 +752,7 @@ export const ThriftMarketplace: React.FC = () => {
                                                     type="button"
                                                     onClick={() => handleAddToCart(product)}
                                                     title="Thêm vào giỏ"
-                                                    className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors shadow-sm cursor-pointer"
+                                                    className="w-9 h-9 rounded-full border border-[#E6E2DC] bg-white hover:bg-[#F4F0EA] flex items-center justify-center text-[#1C1A18] transition-colors shadow-2xs cursor-pointer shrink-0"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
                                                         <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" strokeLinecap="round" strokeLinejoin="round"></path>

@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { fetchAdminDashboardData } from "../../services/admin.api";
+import {
+  fetchAdminDashboardData,
+  fetchAdminThriftListingsApi,
+  approveThriftListingApi,
+  rejectThriftListingApi,
+} from "../../services/admin.api";
 
 export type ThriftStatus = "PENDING" | "APPROVED" | "REJECTED" | "SOLD";
 export type ThriftStatusFilter = "ALL" | "PENDING" | "APPROVED" | "REJECTED" | "AVAILABLE" | "SOLD";
@@ -35,6 +40,95 @@ export interface ThriftListing {
   bCorpCertified?: boolean;
 }
 
+const mapRawThriftToAdminListing = (item: {
+  _id: string;
+  name: string;
+  description?: string;
+  ownerId?: { _id?: string; fullName?: string };
+  categoryId?: { _id?: string; name?: string; slug?: string };
+  price?: number;
+  images?: string[];
+  condition?: string;
+  sourceType?: string;
+  status?: string;
+  rejectionReason?: string;
+  createdAt?: string;
+}): ThriftListing => {
+  const rawStatus = (item.status || "PENDING").toUpperCase();
+  const status: ThriftStatus =
+    rawStatus === "PENDING_APPROVAL"
+      ? "PENDING"
+      : rawStatus === "APPROVED"
+      ? "APPROVED"
+      : rawStatus === "REJECTED"
+      ? "REJECTED"
+      : rawStatus === "SOLD"
+      ? "SOLD"
+      : "PENDING";
+
+  const catName =
+    typeof item.categoryId === "object" && item.categoryId?.name
+      ? item.categoryId.name
+      : "Đồ thanh lý";
+
+  let conditionGrade = "Rất tốt (95%)";
+  const cond = (item.condition || "").toUpperCase();
+  if (cond.includes("LIKE_NEW") || cond.includes("99") || cond.includes("MỚI")) {
+    conditionGrade = "Grade Mint (99%)";
+  } else if (cond.includes("GOOD") || cond.includes("90")) {
+    conditionGrade = "Tốt (90%)";
+  } else if (cond.includes("EXCELLENT") || cond.includes("95")) {
+    conditionGrade = "Rất tốt (95%)";
+  } else if (item.condition) {
+    conditionGrade = item.condition;
+  }
+
+  const rawImg = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : "";
+  const shopName =
+    typeof item.ownerId === "object" && item.ownerId?.fullName
+      ? item.ownerId.fullName
+      : "ReUse Official Shop";
+
+  return {
+    id: item._id,
+    sku: `#RH-THF-${item._id.slice(-6).toUpperCase()}`,
+    title: item.name || "Sản phẩm THRIFT",
+    category: catName,
+    conditionGrade,
+    conditionNote: item.description || "Đã kiểm định vi vết & hồ sơ kỹ thuật tại ReUse Hub",
+    price: Number(item.price) || 0,
+    priceNote: "Đã bao gồm VAT & kiểm định",
+    originType:
+      item.sourceType === "RENTAL_PRODUCT" ? "SECOND_LIFE" : "SHOP_INVENTORY",
+    originNote:
+      item.sourceType === "RENTAL_PRODUCT"
+        ? "Chuyển giao từ kho cho thuê RENT (Second Life)"
+        : "Ký gửi thanh lý xưởng",
+    shopName,
+    ownerName: shopName,
+    ownerKycVerified: true,
+    submittedAtDisplay: item.createdAt
+      ? new Date(item.createdAt).toLocaleDateString("vi-VN")
+      : "Hôm nay",
+    submittedAtSub: item.createdAt
+      ? new Date(item.createdAt).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "Vừa gửi duyệt",
+    status,
+    isAvailable: status === "APPROVED",
+    rejectionReason: item.rejectionReason,
+    imageUrl: rawImg || "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=600&q=80",
+    publicUrl: `/thrift/products/${item._id}`,
+    mechanicalCheck: true,
+    opticalCheck: true,
+    serialMatch: true,
+    provenanceDocs: true,
+    bCorpCertified: true,
+  };
+};
+
 export const ThriftListingApproval: React.FC = () => {
   const [listings, setListings] = useState<ThriftListing[]>([]);
   const [activeTab, setActiveTab] = useState<ThriftStatusFilter>("ALL");
@@ -63,16 +157,85 @@ export const ThriftListingApproval: React.FC = () => {
   // Toast feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Sync API counts if needed
+  const handleRefresh = async () => {
+    try {
+      const items = await fetchAdminThriftListingsApi();
+      if (Array.isArray(items) && items.length > 0) {
+        setListings(items.map(mapRawThriftToAdminListing));
+      } else {
+        const dashData = await fetchAdminDashboardData();
+        if (dashData?.thriftCatalogList && dashData.thriftCatalogList.length > 0) {
+          const mapped: ThriftListing[] = dashData.thriftCatalogList.map((item) => ({
+            id: item.id,
+            sku: `#RH-THF-${item.id.slice(-6).toUpperCase()}`,
+            title: item.name,
+            category: item.categoryName,
+            conditionGrade: item.condition,
+            conditionNote: item.description || "Giám định trực tiếp từ xưởng ReUse Hub",
+            price: item.price,
+            originType: (item.source?.includes("RENT") ? "SECOND_LIFE" : "SHOP_INVENTORY") as OriginType,
+            originNote: item.source,
+            shopName: item.sellerName || "ReUse Official Shop",
+            ownerName: item.sellerName || "ReUse Official Shop",
+            ownerKycVerified: true,
+            submittedAtDisplay: item.timeDisplay,
+            submittedAtSub: item.submittedAt,
+            status: item.status as ThriftStatus,
+            isAvailable: item.status === "APPROVED",
+            rejectionReason: item.rejectionReason,
+            imageUrl: item.images[0] || "",
+            publicUrl: `/thrift/${item.slug}`,
+          }));
+          setListings(mapped);
+        }
+      }
+      showToast("Đã làm mới dữ liệu hàng đợi THRIFT từ MongoDB.");
+    } catch {
+      showToast("Lỗi làm mới dữ liệu từ MongoDB.");
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
-    fetchAdminDashboardData()
-      .then((data) => {
-        if (isMounted && data) {
-          // Can sync metrics if needed
+    fetchAdminThriftListingsApi()
+      .then((items) => {
+        if (!isMounted) return;
+        if (Array.isArray(items) && items.length > 0) {
+          setListings(items.map(mapRawThriftToAdminListing));
+        } else {
+          fetchAdminDashboardData().then((dashData) => {
+            if (!isMounted) return;
+            if (dashData?.thriftCatalogList && dashData.thriftCatalogList.length > 0) {
+              const mapped: ThriftListing[] = dashData.thriftCatalogList.map((item) => ({
+                id: item.id,
+                sku: `#RH-THF-${item.id.slice(-6).toUpperCase()}`,
+                title: item.name,
+                category: item.categoryName,
+                conditionGrade: item.condition,
+                conditionNote: item.description || "Giám định trực tiếp từ xưởng ReUse Hub",
+                price: item.price,
+                originType: (item.source?.includes("RENT") ? "SECOND_LIFE" : "SHOP_INVENTORY") as OriginType,
+                originNote: item.source,
+                shopName: item.sellerName || "ReUse Official Shop",
+                ownerName: item.sellerName || "ReUse Official Shop",
+                ownerKycVerified: true,
+                submittedAtDisplay: item.timeDisplay,
+                submittedAtSub: item.submittedAt,
+                status: item.status as ThriftStatus,
+                isAvailable: item.status === "APPROVED",
+                rejectionReason: item.rejectionReason,
+                imageUrl: item.images[0] || "",
+                publicUrl: `/thrift/${item.slug}`,
+              }));
+              setListings(mapped);
+            }
+          });
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn("Lỗi khi tải listings THRIFT từ MongoDB:", err);
+      });
+
     return () => {
       isMounted = false;
     };
@@ -133,11 +296,12 @@ export const ThriftListingApproval: React.FC = () => {
 
       // Category filter
       if (selectedCategory) {
-        if (selectedCategory === "optics" && !item.category.includes("Quang học")) return false;
-        if (selectedCategory === "horology" && !item.category.includes("Horology") && !item.category.includes("Đồng hồ")) return false;
-        if (selectedCategory === "audio" && !item.category.includes("Âm thanh")) return false;
-        if (selectedCategory === "furniture" && !item.category.includes("Nội thất")) return false;
-        if (selectedCategory === "fashion" && !item.category.includes("Thời trang")) return false;
+        const cat = item.category.toLowerCase();
+        if (selectedCategory === "camera" && !cat.includes("camera") && !cat.includes("máy ảnh") && !cat.includes("quang học")) return false;
+        if (selectedCategory === "shoes" && !cat.includes("giày") && !cat.includes("shoe")) return false;
+        if (selectedCategory === "clothing" && !cat.includes("quần") && !cat.includes("áo") && !cat.includes("thời trang")) return false;
+        if (selectedCategory === "dam-du-tiec" && !cat.includes("đầm") && !cat.includes("tiệc") && !cat.includes("váy")) return false;
+        if (selectedCategory === "phu-kien" && !cat.includes("phụ kiện") && !cat.includes("accessory")) return false;
       }
 
       // Origin filter
@@ -174,43 +338,53 @@ export const ThriftListingApproval: React.FC = () => {
     });
   };
 
-  const handleApproveListing = (id: string) => {
-    setListings((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status: "APPROVED",
-              isAvailable: true,
-              rejectionReason: undefined,
-            }
-          : item
-      )
-    );
-    showToast(`Đã phê duyệt niêm yết bán đứt THRIFT thành công! Hiện vật đã sẵn sàng hiển thị.`);
-    setInspectingItem(null);
+  const handleApproveListing = async (id: string) => {
+    try {
+      await approveThriftListingApi(id);
+      setListings((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                status: "APPROVED",
+                isAvailable: true,
+                rejectionReason: undefined,
+              }
+            : item
+        )
+      );
+      showToast("Đã phê duyệt niêm yết bán đứt THRIFT thành công vào Database MongoDB!");
+      setInspectingItem(null);
+    } catch {
+      showToast("Lỗi khi cập nhật trạng thái phê duyệt trên MongoDB.");
+    }
   };
 
-  const handleRejectListing = (id: string) => {
+  const handleRejectListing = async (id: string) => {
     if (!rejectionInput.trim()) {
       alert("Vui lòng nhập lý do từ chối để thông báo cho Chủ Xưởng hiệu chỉnh.");
       return;
     }
-    setListings((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status: "REJECTED",
-              isAvailable: false,
-              rejectionReason: rejectionInput.trim(),
-            }
-          : item
-      )
-    );
-    showToast(`Đã từ chối niêm yết THRIFT #${id} và gửi văn bản yêu cầu bổ sung.`);
-    setInspectingItem(null);
-    setIsRejecting(false);
+    try {
+      await rejectThriftListingApi(id, rejectionInput.trim());
+      setListings((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                status: "REJECTED",
+                isAvailable: false,
+                rejectionReason: rejectionInput.trim(),
+              }
+            : item
+        )
+      );
+      showToast(`Đã từ chối niêm yết THRIFT thành công. Đã lưu lý do vào MongoDB.`);
+      setInspectingItem(null);
+      setIsRejecting(false);
+    } catch {
+      showToast("Lỗi khi cập nhật từ chối trên MongoDB.");
+    }
   };
 
   const handleResetFilters = () => {
@@ -637,11 +811,11 @@ export const ThriftListingApproval: React.FC = () => {
                 className="w-full px-3 py-2.5 bg-white text-[#1c1c18] rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#141310] border border-[#ccc5bc]/40 transition-colors cursor-pointer"
               >
                 <option value="">Tất cả danh mục</option>
-                <option value="optics">Máy ảnh &amp; Quang học</option>
-                <option value="horology">Đồng hồ &amp; Horology</option>
-                <option value="fashion">Thời trang lưu trữ</option>
-                <option value="audio">Âm thanh Hi-Fi</option>
-                <option value="furniture">Nội thất thiết kế</option>
+                <option value="camera">Camera &amp; Máy ảnh</option>
+                <option value="shoes">Giày dép</option>
+                <option value="clothing">Quần áo thời trang</option>
+                <option value="dam-du-tiec">Đầm dự tiệc</option>
+                <option value="phu-kien">Phụ kiện</option>
               </select>
             </div>
 
@@ -1038,40 +1212,8 @@ export const ThriftListingApproval: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={async () => {
-                  try {
-                    const dashData = await fetchAdminDashboardData();
-                    if (dashData?.thriftApprovalList) {
-                      const items: ThriftListing[] = dashData.thriftApprovalList.map(
-                        (item) => ({
-                          id: item.id,
-                          sku: `#TH-${item.id.slice(-6).toUpperCase()}`,
-                          title: item.name,
-                          category: item.categoryName,
-                          conditionGrade: item.condition,
-                          conditionNote: "Giám định trực tiếp từ xưởng ReUse Hub",
-                          price: item.price,
-                          originType: "SECOND_LIFE" as OriginType,
-                          originNote: item.source,
-                          shopName: "ReUse Official Shop",
-                          ownerName: item.sellerName,
-                          ownerKycVerified: true,
-                          submittedAtDisplay: item.timeDisplay,
-                          submittedAtSub: item.submittedAt,
-                          status: item.status,
-                          isAvailable: item.status === "APPROVED",
-                          imageUrl: item.images[0] || "",
-                          publicUrl: `/thrift/${item.slug}`,
-                        })
-                      );
-                      setListings(items);
-                    }
-                    showToast("Đã làm mới dữ liệu hàng đợi THRIFT từ MongoDB.");
-                  } catch {
-                    showToast("Lỗi làm mới dữ liệu từ MongoDB.");
-                  }
-                }}
-                className="px-4 py-2 rounded-lg bg-[#141310] text-[#fdf9f2] text-xs font-semibold transition-colors shadow-sm"
+                onClick={handleRefresh}
+                className="px-4 py-2 rounded-lg bg-[#141310] text-[#fdf9f2] text-xs font-semibold transition-colors shadow-sm cursor-pointer"
               >
                 Làm Mới Hàng Đợi (Refresh)
               </button>

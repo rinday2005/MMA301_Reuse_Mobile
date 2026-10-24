@@ -1,4 +1,5 @@
 import { THRIFT_PRODUCTS } from './thriftMarketplaceData';
+import { resolveWishlistProduct } from '../../../services/wishlistProductResolver';
 import {
   CAMERA_CATEGORY_CONFIG,
   FASHION_CATEGORY_CONFIG,
@@ -300,6 +301,27 @@ export function getThriftProductDetail(slugOrId?: string): ThriftProductDetail {
 
   const clean = slugOrId.trim();
   const lower = clean.toLowerCase();
+
+  // 0. Tra cứu tức thì từ MongoDB / Wishlist resolver
+  const resolved = resolveWishlistProduct(clean);
+  if (resolved) {
+    return createThriftProductDetail({
+      id: resolved.id,
+      slug: clean,
+      title: resolved.title,
+      subtitle: resolved.description,
+      categoryLabel: resolved.categoryLabel,
+      location: resolved.location,
+      source: resolved.mode === 'thrift' ? 'used' : 'rent',
+      sourceLabel: resolved.mode === 'thrift' ? 'Đồ đã qua sử dụng' : 'Từ sản phẩm RENT',
+      rating: 5.0,
+      reviewCount: 16,
+      conditionLabel: resolved.gradeBadge,
+      price: resolved.price,
+      mainImage: resolved.image,
+      verifiedBy: resolved.origin || 'ReUse Hub Kiểm định',
+    });
+  }
 
   // 1. Tìm trong THRIFT_DETAIL_PRODUCTS
   const found = THRIFT_DETAIL_PRODUCTS.find((p) => p.slug.toLowerCase() === lower || p.id.toLowerCase() === lower);

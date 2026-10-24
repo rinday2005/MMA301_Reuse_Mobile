@@ -4,6 +4,7 @@ export interface ThriftListingItemApi {
   _id: string;
   name: string;
   slug: string;
+  title?: string;
   description?: string;
   price: number;
   condition: string;
@@ -11,7 +12,9 @@ export interface ThriftListingItemApi {
   location?: string;
   categoryId?: { _id: string; name: string; slug: string } | string;
   category?: { _id: string; name: string; slug: string } | string;
+  categoryLabel?: string;
   status: string;
+  source?: string;
   sourceType?: string;
   quantity?: number;
   sizes?: string[];
@@ -21,10 +24,17 @@ export interface ThriftListingItemApi {
 
 export const getPublicThriftListingsApi = async (params: Record<string, unknown> = {}): Promise<ThriftListingItemApi[]> => {
   try {
-    const res = await api.get('/thrift/listings', { params });
+    const cleanParams: Record<string, unknown> = {};
+    if (params.category && params.category !== 'all') cleanParams.category = params.category;
+    if (params.status) cleanParams.status = params.status;
+    const res = await api.get('/thrift/listings', {
+      params: Object.keys(cleanParams).length > 0 ? cleanParams : undefined,
+    });
     const payload = res.data?.data || res.data;
     if (Array.isArray(payload)) return payload;
     if (Array.isArray(payload?.listings)) return payload.listings;
+    if (Array.isArray(payload?.items)) return payload.items;
+    if (Array.isArray(payload?.products)) return payload.products;
     return [];
   } catch (error) {
     console.warn('Could not load public thrift listings from API:', error);

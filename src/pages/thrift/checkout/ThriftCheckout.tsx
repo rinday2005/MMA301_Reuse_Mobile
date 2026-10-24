@@ -187,13 +187,43 @@ export const ThriftCheckout: React.FC = () => {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
+  const LEGACY_SLUG_TO_OBJECT_ID: Record<string, string> = {
+    'vintage-leather-jacket': '6ad273b0f22df3063ffd9985',
+    'classic-sneakers': '6ad273b0f22df3063ffd9986',
+    'canon-eos-camera-kit': '6ad273b0f22df3063ffd9987',
+    'minimal-backpack': '6ad273b0f22df3063ffd9988',
+    'leica-m6-classic': '6ad273b0f22df3063ffd9989',
+    'contax-t2-titanium': '6ad286f6f507857852155c74',
+    'teenage-engineering-op1': '6ad286f6f507857852155c8a',
+    'dam-da-hoi-sequin': '6ad286f6f507857852155c7d',
+    'fujifilm-x100v-silver': '6ad286f6f507857852155c73',
+    'ao-blazer-linen-oversized': '6ad286f6f507857852155c82',
+    'giay-derby-da-bo': '6ad286f6f507857852155c7c',
+    'sony-alpha-a7c': '6ad286f6f507857852155c75',
+    'tui-tote-canvas-vintage': '6ad286f6f507857852155c88',
+    'ban-phim-co-custom': '6ad286f6f507857852155c8b',
+    'dam-lua-to-tam': '6ad286f6f507857852155c80',
+  };
+
+  const ensureMongoObjectId = (rawId?: string): string => {
+    if (!rawId) return '6ad273b0f22df3063ffd9985';
+    const clean = rawId.trim();
+    if (/^[0-9a-fA-F]{24}$/.test(clean)) {
+      return clean;
+    }
+    if (LEGACY_SLUG_TO_OBJECT_ID[clean]) {
+      return LEGACY_SLUG_TO_OBJECT_ID[clean];
+    }
+    return '6ad273b0f22df3063ffd9985';
+  };
+
   // Helper to ensure order exists in DB
   const getOrCreateOrder = async () => {
     if (createdOrder) return createdOrder;
 
     const payload = {
       items: itemizedList.map((item) => ({
-        listingId: item.id,
+        listingId: ensureMongoObjectId(item.id),
         quantity: item.qty,
         productName: item.title,
         price: item.price,
@@ -227,6 +257,8 @@ export const ThriftCheckout: React.FC = () => {
       const key = uId ? `user_thrift_orders_${uId}` : 'user_thrift_orders';
       const existing = JSON.parse(localStorage.getItem(key) || '[]');
       localStorage.setItem(key, JSON.stringify([orderRes, ...existing]));
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('rental_order_updated'));
     } catch {
       // ignore
     }
@@ -324,6 +356,8 @@ export const ThriftCheckout: React.FC = () => {
               : o
           );
           localStorage.setItem(key, JSON.stringify(updated));
+          window.dispatchEvent(new Event('storage'));
+          window.dispatchEvent(new Event('rental_order_updated'));
         }
       } catch {
         // ignore

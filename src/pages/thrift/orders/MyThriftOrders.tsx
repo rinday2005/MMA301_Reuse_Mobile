@@ -215,7 +215,7 @@ export const MyThriftOrders: React.FC = () => {
     setIsLoading(true);
     try {
       const res = await getMyThriftOrdersApi();
-      const rawList = res?.orders || [];
+      const rawList: ThriftOrderApi[] = Array.isArray(res) ? res : (res?.orders || []);
 
       // Also merge any offline localStorage orders if not yet synced
       let localList: ThriftOrderApi[] = [];
@@ -230,13 +230,16 @@ export const MyThriftOrders: React.FC = () => {
         // ignore
       }
 
-      // Merge unique by orderCode
+      // Merge unique by orderCode or _id
       const mergedMap = new Map<string, ThriftOrderApi>();
       rawList.forEach((o) => {
-        mergedMap.set(o.orderCode.replace('#', '').trim(), o);
+        const code = (o.orderCode || o._id || '').replace('#', '').trim();
+        if (code) {
+          mergedMap.set(code, o);
+        }
       });
       localList.forEach((o) => {
-        const code = (o.orderCode || '').replace('#', '').trim();
+        const code = (o.orderCode || o._id || '').replace('#', '').trim();
         if (code && !mergedMap.has(code)) {
           mergedMap.set(code, o);
         }
@@ -266,6 +269,16 @@ export const MyThriftOrders: React.FC = () => {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchOrders();
+
+    const handleSync = () => {
+      fetchOrders();
+    };
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('rental_order_updated', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('rental_order_updated', handleSync);
+    };
   }, [fetchOrders]);
 
   // Auto show banner if returning from VNPay
