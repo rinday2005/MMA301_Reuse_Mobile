@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
+import { getPublicThriftListingsApi } from '../../../services/thrift.api';
 import { UserSidebar } from '../../../components/layout/UserSidebar';
 import {
     THRIFT_PRODUCTS,
@@ -13,6 +14,7 @@ import {
     THRIFT_CIRCULAR_STEPS,
 } from '../../data/thrift/thriftMarketplaceData';
 import type { ThriftProduct, ThriftSortKey } from '../../data/thrift/thriftMarketplaceData';
+
 function getPageNumbers(current: number, total: number): (number | string)[] {
     if (total <= 5) {
         return Array.from({ length: total }, (_, i) => i + 1);
@@ -25,12 +27,53 @@ function getPageNumbers(current: number, total: number): (number | string)[] {
     }
     return [1, '...', current, '...', total];
 }
+
 export const ThriftMarketplace: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { isWishlisted, toggleWishlist, addToCart } = useCartWishlist();
+    const [dbProducts, setDbProducts] = useState<ThriftProduct[]>([]);
+
+    useEffect(() => {
+        let isMounted = true;
+        getPublicThriftListingsApi()
+            .then((items) => {
+                if (!isMounted) return;
+                if (Array.isArray(items) && items.length > 0) {
+                    const mapped: ThriftProduct[] = items.map((item) => {
+                        const catSlug = typeof item.categoryId === 'object' && item.categoryId?.slug ? item.categoryId.slug : 'lifestyle';
+                        const catName = typeof item.categoryId === 'object' && item.categoryId?.name ? item.categoryId.name : 'Đồ phong cách sống';
+                        const img = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : '';
+                        return {
+                            id: item._id,
+                            slug: item.slug || item._id,
+                            title: item.name,
+                            category: (catSlug === 'camera' || catSlug === 'fashion' || catSlug === 'electronics' ? catSlug : 'lifestyle') as ThriftProduct['category'],
+                            categoryLabel: catName,
+                            location: item.location || 'TP. Hồ Chí Minh',
+                            rating: 5.0,
+                            reviewCount: 1,
+                            condition: item.condition || 'Rất tốt (95%)',
+                            conditionLevel: '95',
+                            source: 'used',
+                            sourceLabel: 'Đồ cũ',
+                            price: Number(item.price) || 0,
+                            href: `/thrift/products/${item._id}`,
+                            image: img,
+                            verifiedBy: 'ReUse Hub Kiểm định',
+                        };
+                    });
+                    setDbProducts(mapped);
+                }
+            })
+            .catch((err) => {
+                console.warn('Could not load thrift products from API:', err);
+            });
+        return () => { isMounted = false; };
+    }, []);
     const [searchParams] = useSearchParams();
     const urlCat = searchParams.get('category')?.toLowerCase();
+
     // Search & Filter state
     const [searchQuery, setSearchQuery] = useState('');
     const [userCategory, setUserCategory] = useState<string | null>(null);
@@ -40,9 +83,11 @@ export const ThriftMarketplace: React.FC = () => {
     const [selectedLocation, setSelectedLocation] = useState('all');
     const [selectedSource, setSelectedSource] = useState('all');
     const [currentSort, setCurrentSort] = useState<ThriftSortKey>('recommended');
+
     // Pagination (mock pagination: 8 items per page)
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8;
+
     // Track sidebar collapsed state to display inline restore chip when collapsed
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
         try {
@@ -51,6 +96,7 @@ export const ThriftMarketplace: React.FC = () => {
             return false;
         }
     });
+
     useEffect(() => {
         const handleSync = (e: Event) => {
             const customEvent = e as CustomEvent<boolean>;
@@ -61,6 +107,7 @@ export const ThriftMarketplace: React.FC = () => {
         window.addEventListener('reuse_user_sidebar_toggle', handleSync);
         return () => window.removeEventListener('reuse_user_sidebar_toggle', handleSync);
     }, []);
+
     // Auth requirement modal state
     const [authModal, setAuthModal] = useState<{
         open: boolean;
@@ -71,6 +118,7 @@ export const ThriftMarketplace: React.FC = () => {
         actionName: '',
         targetUrl: '',
     });
+
     // Protected action helper
     const handleProtectedAction = (actionTitle: string, targetUrl: string, onSuccess: () => void) => {
         if (!user) {
@@ -83,6 +131,7 @@ export const ThriftMarketplace: React.FC = () => {
         }
         onSuccess();
     };
+
     // User interactions
     const handleBuyNow = (product: ThriftProduct) => {
         handleProtectedAction(
@@ -104,6 +153,7 @@ export const ThriftMarketplace: React.FC = () => {
             }
         );
     };
+
     const handleAddToCart = (product: ThriftProduct) => {
         addToCart({
             id: product.id,
@@ -117,12 +167,15 @@ export const ThriftMarketplace: React.FC = () => {
             quantity: 1,
         });
     };
+
     const handleToggleWishlist = (product: ThriftProduct) => {
-        toggleWishlist(product.id);
+        toggleWishlist(product.id, 'THRIFT');
     };
+
     // Filter & sort logic
     const filteredProducts = useMemo(() => {
-        const list = THRIFT_PRODUCTS.filter((item) => {
+        const sourceProducts = dbProducts.length > 0 ? dbProducts : THRIFT_PRODUCTS;
+        const list = sourceProducts.filter((item) => {
             // Search text
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
@@ -131,11 +184,13 @@ export const ThriftMarketplace: React.FC = () => {
                 const matchLoc = item.location.toLowerCase().includes(q);
                 if (!matchTitle && !matchCat && !matchLoc) return false;
             }
+
             // Category (5 major categories: camera, shoes, dam-du-tiec, clothing, phu-kien)
             if (selectedCategory !== 'all') {
                 const target = selectedCategory.toLowerCase();
                 const pCat = (item.category || '').toLowerCase();
                 const pTitle = (item.title || '').toLowerCase();
+
                 if (target === 'camera') {
                     if (!pCat.includes('camera') && !pTitle.includes('camera') && !pTitle.includes('leica') && !pTitle.includes('contax')) return false;
                 } else if (target === 'shoes') {
@@ -148,6 +203,7 @@ export const ThriftMarketplace: React.FC = () => {
                     if (!pCat.includes('lifestyle') && !pCat.includes('electronics') && !pTitle.includes('backpack') && !pTitle.includes('op-1')) return false;
                 }
             }
+
             // Price range
             if (selectedPrice !== 'all') {
                 if (selectedPrice === 'under1m' && item.price >= 1000000) return false;
@@ -155,20 +211,25 @@ export const ThriftMarketplace: React.FC = () => {
                 if (selectedPrice === '5mto20m' && (item.price < 5000000 || item.price > 20000000)) return false;
                 if (selectedPrice === 'above20m' && item.price <= 20000000) return false;
             }
+
             // Condition
             if (selectedCondition !== 'all' && item.conditionLevel !== selectedCondition) {
                 return false;
             }
+
             // Location
             if (selectedLocation !== 'all' && item.location !== selectedLocation) {
                 return false;
             }
+
             // Source
             if (selectedSource !== 'all' && item.source !== selectedSource) {
                 return false;
             }
+
             return true;
         });
+
         // Sorting
         if (currentSort === 'price-asc') {
             list.sort((a, b) => a.price - b.price);
@@ -177,8 +238,10 @@ export const ThriftMarketplace: React.FC = () => {
         } else if (currentSort === 'latest') {
             list.sort((a, b) => b.reviewCount - a.reviewCount);
         }
+
         return list;
     }, [
+        dbProducts,
         searchQuery,
         selectedCategory,
         selectedPrice,
@@ -187,23 +250,28 @@ export const ThriftMarketplace: React.FC = () => {
         selectedSource,
         currentSort,
     ]);
+
     const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
+
     const paginatedProducts = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
         return filteredProducts.slice(start, start + itemsPerPage);
     }, [filteredProducts, currentPage, itemsPerPage]);
+
     const filterKey = `${searchQuery}|${selectedCategory}|${selectedPrice}|${selectedCondition}|${selectedLocation}|${selectedSource}|${currentSort}`;
     const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
     if (prevFilterKey !== filterKey) {
         setPrevFilterKey(filterKey);
         setCurrentPage(1);
     }
+
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= totalPages) {
             setCurrentPage(newPage);
             window.scrollTo({ top: 380, behavior: 'smooth' });
         }
     };
+
     const handleResetFilters = () => {
         setSearchQuery('');
         setUserCategory('all');
@@ -214,11 +282,14 @@ export const ThriftMarketplace: React.FC = () => {
         setCurrentSort('recommended');
         setCurrentPage(1);
     };
+
     const formatVND = (price: number) => {
         return price.toLocaleString('vi-VN') + '₫';
     };
+
     return (
         <div className="w-full min-h-screen bg-[#FBF9F5] text-[#1C1A18] antialiased">
+
             {/* Guest Auth Required Modal */}
             {authModal.open && (
                 <div
@@ -236,9 +307,11 @@ export const ThriftMarketplace: React.FC = () => {
                         >
                             <span className="material-symbols-outlined text-[20px]">close</span>
                         </button>
+
                         <div className="w-14 h-14 rounded-full bg-[#F0ECE1] flex items-center justify-center text-[#1C1A18] mx-auto shadow-xs">
                             <span className="material-symbols-outlined text-[28px]">lock_person</span>
                         </div>
+
                         <div className="space-y-2">
                             <h3 className="text-xl font-bold text-[#1C1A18]">Yêu cầu Đăng nhập</h3>
                             <p className="text-xs text-[#79716B] leading-relaxed">
@@ -246,6 +319,7 @@ export const ThriftMarketplace: React.FC = () => {
                                 <strong>{authModal.actionName}</strong>, vui lòng đăng nhập hoặc tạo tài khoản thành viên ReUse Hub.
                             </p>
                         </div>
+
                         <div className="p-3.5 bg-[#F7F5F0] rounded-2xl text-left space-y-1.5 text-xs text-[#79716B] border border-[#E6E2DC]">
                             <div className="flex items-center gap-2 font-semibold text-[#1C1A18]">
                                 <span className="material-symbols-outlined text-[16px] text-emerald-700">verified</span>
@@ -257,6 +331,7 @@ export const ThriftMarketplace: React.FC = () => {
                                 <li>Hưởng chính sách giảm phát thải CO2 tích điểm xanh</li>
                             </ul>
                         </div>
+
                         <div className="flex flex-col sm:flex-row gap-3 pt-2">
                             <Link
                                 to={`/login?redirect=${encodeURIComponent(authModal.targetUrl)}&message=${encodeURIComponent(
@@ -276,14 +351,16 @@ export const ThriftMarketplace: React.FC = () => {
                     </div>
                 </div>
             )}
+
             {/* ── MAIN WORKSPACE CONTAINER WITH PERSISTENT SIDEBAR ── */}
             <div className="max-w-[1520px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 flex gap-8">
                 {/* User Navigation Sidebar (Fixed on left) */}
                 <UserSidebar activeKey="thrift" />
+
                 {/* ── MAIN CONTENT AREA ── */}
                 <main className="flex-1 min-w-0 space-y-8">
                     {/* Quick inline restore chip if user clicked 3-bar button to hide sidebar */}
-                    {isSidebarCollapsed && user?.role !== 'ADMIN' && (
+                    {isSidebarCollapsed && (
                         <div className="flex items-center gap-2 -mb-4 animate-fade-in">
                             <button
                                 type="button"
@@ -316,6 +393,7 @@ export const ThriftMarketplace: React.FC = () => {
                                 Khám phá những sản phẩm đã qua sử dụng và những món đồ RENT được trao thêm một vòng đời. Sở hữu trọn vẹn với quy trình kiểm định minh bạch.
                             </p>
                         </div>
+
                         {/* Stats Badges */}
                         <div className="flex items-center gap-4 bg-[#F4F0EA]/60 px-5 py-3.5 rounded-xl self-start md:self-auto shadow-sm">
                             <div className="flex flex-col">
@@ -334,6 +412,7 @@ export const ThriftMarketplace: React.FC = () => {
                             </div>
                         </div>
                     </div>
+
                     {/* Reassurance strip */}
                     <div className="w-full bg-[#F4F0EA]/70 rounded-xl px-5 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#1C1A18]">
                         <div className="flex items-center gap-2.5">
@@ -347,6 +426,7 @@ export const ThriftMarketplace: React.FC = () => {
                     </div>
                 </section>
                 {/* END: HeroArchiveHeader */}
+
                 {/* BEGIN: SearchAndFilters */}
                 <section className="bg-white rounded-2xl p-5 shadow-sm mb-8 reveal-on-scroll" data-reveal>
                     {/* Main Search Bar */}
@@ -369,6 +449,7 @@ export const ThriftMarketplace: React.FC = () => {
                             </button>
                         )}
                     </div>
+
                     {/* Filters Grid Row */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-1 text-xs">
                         {/* Filter: Danh mục */}
@@ -387,6 +468,7 @@ export const ThriftMarketplace: React.FC = () => {
                                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
                             </div>
                         </div>
+
                         {/* Filter: Khoảng giá */}
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Khoảng giá</label>
@@ -403,6 +485,7 @@ export const ThriftMarketplace: React.FC = () => {
                                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
                             </div>
                         </div>
+
                         {/* Filter: Tình trạng */}
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Tình trạng máy / đồ</label>
@@ -419,6 +502,7 @@ export const ThriftMarketplace: React.FC = () => {
                                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
                             </div>
                         </div>
+
                         {/* Filter: Khu vực */}
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Khu vực kho</label>
@@ -435,6 +519,7 @@ export const ThriftMarketplace: React.FC = () => {
                                 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
                             </div>
                         </div>
+
                         {/* Filter: Nguồn gốc */}
                         <div className="flex flex-col gap-1 col-span-2 sm:col-span-1">
                             <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Nguồn gốc sản phẩm</label>
@@ -452,6 +537,7 @@ export const ThriftMarketplace: React.FC = () => {
                             </div>
                         </div>
                     </div>
+
                     {/* Sorting & Results Counts Bar */}
                     <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                         <span className="text-[11px] font-medium text-[#5E5A53]">
@@ -476,11 +562,13 @@ export const ThriftMarketplace: React.FC = () => {
                     </div>
                 </section>
                 {/* END: SearchAndFilters */}
+
                 {/* BEGIN: ProductGrid */}
                 {filteredProducts.length > 0 ? (
                     <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                         {paginatedProducts.map((product) => {
                             const isSaved = isWishlisted(product.id);
+
                             return (
                                 <article
                                     key={product.id}
@@ -502,6 +590,7 @@ export const ThriftMarketplace: React.FC = () => {
                                                 {product.sourceLabel}
                                             </span>
                                         </div>
+
                                         {/* Wishlist Button */}
                                         <button
                                             type="button"
@@ -526,6 +615,7 @@ export const ThriftMarketplace: React.FC = () => {
                                                 ></path>
                                             </svg>
                                         </button>
+
                                         {/* Product Image link */}
                                         <Link to={product.href} className="block w-full h-full">
                                             <img
@@ -536,6 +626,7 @@ export const ThriftMarketplace: React.FC = () => {
                                             />
                                         </Link>
                                     </div>
+
                                     {/* Product Details */}
                                     <div className="p-5 flex-1 flex flex-col justify-between">
                                         <div>
@@ -549,19 +640,23 @@ export const ThriftMarketplace: React.FC = () => {
                                                     {product.location}
                                                 </span>
                                             </div>
+
                                             <h2 className="text-base font-semibold text-[#1C1A18] group-hover:underline line-clamp-1 mb-1.5">
                                                 <Link to={product.href}>{product.title}</Link>
                                             </h2>
+
                                             <div className="flex items-center gap-1.5 text-xs text-[#79716B] mb-2">
                                                 <span className="text-amber-500 font-bold">★ {product.rating.toFixed(1)}</span>
                                                 <span>({product.reviewCount} đánh giá)</span>
                                             </div>
+
                                             {/* Shop Owner Indicator */}
                                             <div className="text-[10px] text-[#79716B] bg-[#F7F5F0] py-1 px-2 rounded inline-flex items-center gap-1 mb-3">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                                                 Được kiểm chứng bởi <strong className="text-[#1C1A18]">{product.verifiedBy}</strong>
                                             </div>
                                         </div>
+
                                         {/* Price and Buy Action */}
                                         <div className="pt-2 bg-[#F4F0EA]/30 -mx-5 -mb-5 p-5 space-y-3">
                                             <div className="flex items-baseline justify-between">
@@ -570,6 +665,7 @@ export const ThriftMarketplace: React.FC = () => {
                                                     <p className="text-sm font-bold text-[#1C1A18]">{formatVND(product.price)}</p>
                                                 </div>
                                             </div>
+
                                             <div className="flex items-center gap-2 pt-1">
                                                 <button
                                                     type="button"
@@ -618,6 +714,7 @@ export const ThriftMarketplace: React.FC = () => {
                     </div>
                 )}
                 {/* END: ProductGrid */}
+
                 {/* BEGIN: PaginationBar */}
                 <nav aria-label="Phân trang" className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#E6E2DC] pt-6 mb-16 text-xs text-[#79716B]">
                     <span className="font-medium">
@@ -675,6 +772,7 @@ export const ThriftMarketplace: React.FC = () => {
                     )}
                 </nav>
                 {/* END: PaginationBar */}
+
                 {/* BEGIN: CircularGuaranteeSection */}
                 <section className="w-full bg-[#F4F0EA]/60 rounded-3xl p-6 sm:p-8 mb-8 border border-[#E6E2DC] reveal-on-scroll" data-reveal>
                     <div className="max-w-2xl mb-8">
@@ -688,6 +786,7 @@ export const ThriftMarketplace: React.FC = () => {
                             Mỗi món đồ đến tay người nhận đều trải qua quy trình 4 giai đoạn độc quyền, loại bỏ mọi nỗi lo về nguồn gốc và chất lượng.
                         </p>
                     </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {THRIFT_CIRCULAR_STEPS.map((step) => (
                             <div
@@ -715,4 +814,5 @@ export const ThriftMarketplace: React.FC = () => {
         </div>
     );
 };
+
 export default ThriftMarketplace;
