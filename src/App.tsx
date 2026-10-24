@@ -5,17 +5,14 @@ import {
   Routes,
   Outlet,
 } from "react-router-dom";
-
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Unauthorized from "./pages/errors/Unauthorized";
-
 import Home from "./pages/home/Home";
 import HowItWorks from "./pages/home/HowItWorks";
 import AboutPage from "./pages/home/About";
 import FaqPage from "./pages/home/FAQ";
 import ContactPage from "./pages/home/Contact";
-
 import RentMarketplace from "./pages/rent/marketplace/RentMarketplace";
 import RentProductDetail from "./pages/rent/detail/RentProductDetail";
 import RentOrderDetail from "./pages/rent/orders/RentOrderDetail";
@@ -28,7 +25,6 @@ import ThriftCheckout from "./pages/thrift/checkout/ThriftCheckout";
 
 import CategoriesMarketplace from "./pages/categories/marketplace/CategoriesMarketplace";
 import CategoryDetail from "./pages/categories/detail/CategoryDetail";
-
 import UserDashboard from "./pages/home/User/UserDashboard";
 import Cart from "./pages/cart/Cart";
 import Profile from "./pages/profile/Profile";
@@ -62,12 +58,12 @@ import PublicRoutes from "./routes/PublicRoutes";
 import ProtectedRoutes from "./routes/ProtectedRoutes";
 
 import { MasterLayout } from "./components/layout/MasterLayout";
+import { AdminLayout } from "./components/layout/admin/AdminLayout";
 import { AuthContext } from "./context/auth-context";
 import { ShopProvider } from "./context/ShopContext";
 
 import { NavigationLoader } from "./components/common/NavigationLoader";
 import { ScrollRevealManager } from "./components/common/ScrollRevealManager";
-
 const AppLayout = ({
   role,
 }: {
@@ -75,7 +71,6 @@ const AppLayout = ({
 }) => {
   const auth = useContext(AuthContext);
   const user = auth?.user;
-
   const getMappedRole = (rawRole?: string) => {
     if (rawRole === "SHOP_OWNER" || rawRole === "SHOP") return "SHOP";
     if (rawRole === "CUSTOMER" || rawRole === "USER") return "USER";
@@ -118,23 +113,6 @@ const MyOrdersPage = () => (
     </h1>
   </div>
 );
-
-const AdminDashboard = () => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-    <h1 className="text-2xl font-bold text-gray-800">
-      Admin Dashboard
-    </h1>
-  </div>
-);
-
-const DashboardRouter = () => {
-  const auth = useContext(AuthContext);
-  if (auth?.user) {
-    return <UserDashboard />;
-  }
-  return <Home />;
-};
-
 const App = () => {
   return (
     <>
@@ -269,5 +247,4 @@ const App = () => {
     </>
   );
 };
-
 export default App;
