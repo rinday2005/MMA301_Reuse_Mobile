@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
 import { getPublicRentProductsApi } from '../../../services/rentProduct.api';
+import { normalizeImageUrl } from '../../../utils/imageUrl';
+import { getCategoriesApi } from '../../../services/category.api';
 import { UserSidebar } from '../../../components/layout/UserSidebar';
 import {
   RENT_PRODUCTS,
@@ -11,7 +13,6 @@ import {
   RENT_PRICE_OPTIONS,
   RENT_CONDITION_OPTIONS,
   RENT_LOCATION_OPTIONS,
-  RENT_SIZE_OPTIONS,
   RENT_HOW_IT_WORKS_STEPS,
   type FilterOption,
 } from '../../data/rent/marketplaceData';
@@ -201,6 +202,7 @@ const ProductCard: React.FC<{
 
 const RentMarketplace: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<FilterOption[]>(RENT_CATEGORY_OPTIONS);
 
@@ -296,6 +298,10 @@ const RentMarketplace: React.FC = () => {
   const [condition, setCondition] = useState('all');
   const [location, setLocation] = useState('all');
   const [sort, setSort] = useState<SortKey>('recommended');
+  const handleCategoryChange = (val: string) => {
+    setUserCategory(val);
+    setCurrentPage(1);
+  };
   // Track sidebar collapsed state to display inline restore chip when collapsed
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     try {
@@ -333,58 +339,143 @@ const RentMarketplace: React.FC = () => {
         if (!matchTitle && !matchCat && !matchLoc) return false;
       }
 
-      // 2. Category matching (matching DB categories: camera, shoes, dam-du-tiec, clothing, phu-kien)
+      // 2. Category matching
       if (category !== 'all') {
         const target = category.toLowerCase().trim();
         const pCat = (p.category || '').toLowerCase().trim();
         const pLabel = (p.categoryLabel || '').toLowerCase().trim();
-        if (pCat === target || pLabel === target) return true;
+        const pTitle = (p.title || '').toLowerCase().trim();
+
         if (target === 'camera' || target === 'cameras') {
-          return pCat.includes('camera') || pCat.includes('optic') || pLabel.includes('camera') || pLabel.includes('quang học');
+          if (
+            !pCat.includes('camera') &&
+            !pLabel.includes('camera') &&
+            !pTitle.includes('camera') &&
+            !pTitle.includes('canon') &&
+            !pTitle.includes('sony') &&
+            !pTitle.includes('nikon') &&
+            !pTitle.includes('fujifilm') &&
+            !pTitle.includes('dji') &&
+            !pTitle.includes('lens')
+          ) {
+            return false;
+          }
+        } else if (target === 'shoes' || target === 'shoe') {
+          if (
+            !pCat.includes('shoe') &&
+            !pCat.includes('giay') &&
+            !pLabel.includes('giày') &&
+            !pTitle.includes('giày') &&
+            !pTitle.includes('sneaker') &&
+            !pTitle.includes('loafer') &&
+            !pTitle.includes('derby') &&
+            !pTitle.includes('boots') &&
+            !pTitle.includes('sandal')
+          ) {
+            return false;
+          }
+        } else if (target === 'dam-du-tiec') {
+          if (
+            !pCat.includes('dam') &&
+            !pLabel.includes('đầm') &&
+            !pTitle.includes('đầm') &&
+            !pTitle.includes('váy') &&
+            !pTitle.includes('dress') &&
+            !pTitle.includes('dạ hội')
+          ) {
+            return false;
+          }
+        } else if (target === 'clothing' || target === 'fashion') {
+          if (
+            !pCat.includes('clothing') &&
+            !pCat.includes('fashion') &&
+            !pLabel.includes('quần áo') &&
+            !pLabel.includes('thời trang') &&
+            !pTitle.includes('áo') &&
+            !pTitle.includes('suit') &&
+            !pTitle.includes('trench') &&
+            !pTitle.includes('tweed') &&
+            !pTitle.includes('blazer') &&
+            !pTitle.includes('dạ')
+          ) {
+            return false;
+          }
+        } else if (target === 'camping' || target === 'outdoor') {
+          if (
+            !pCat.includes('camping') &&
+            !pCat.includes('outdoor') &&
+            !pCat.includes('cam-trai') &&
+            !pCat.includes('da-ngoai') &&
+            !pLabel.includes('cắm trại') &&
+            !pLabel.includes('dã ngoại')
+          ) {
+            return false;
+          }
+        } else if (target === 'electronics' || target === 'audio') {
+          if (
+            !pCat.includes('electronic') &&
+            !pCat.includes('audio') &&
+            !pCat.includes('dien-tu') &&
+            !pCat.includes('am-thanh') &&
+            !pLabel.includes('điện tử') &&
+            !pLabel.includes('âm thanh')
+          ) {
+            return false;
+          }
+        } else if (target === 'phu-kien' || target === 'accessory') {
+          if (
+            !pCat.includes('phu-kien') &&
+            !pCat.includes('accessory') &&
+            !pLabel.includes('phụ kiện') &&
+            !pTitle.includes('dây chuyền') &&
+            !pTitle.includes('bông tai') &&
+            !pTitle.includes('vòng') &&
+            !pTitle.includes('trâm') &&
+            !pTitle.includes('quạt')
+          ) {
+            return false;
+          }
+        } else {
+          if (!pCat.includes(target) && !pLabel.includes(target) && !pTitle.includes(target)) {
+            return false;
+          }
         }
-        if (target === 'fashion' || target === 'clothing') {
-          return (
-            pCat.includes('fashion') ||
-            pCat.includes('thoi-trang') ||
-            pCat.includes('quan-ao') ||
-            pCat.includes('da-hoi') ||
-            pLabel.includes('thời trang') ||
-            pLabel.includes('quần áo') ||
-            pLabel.includes('dạ hội')
-          );
+      }
+
+      // 3. Price range matching
+      if (priceRange !== 'all') {
+        if (priceRange === 'under150' && p.price >= 150000) return false;
+        if (priceRange === '150to300' && (p.price < 150000 || p.price > 300000)) return false;
+        if (priceRange === 'above300' && p.price < 300000) return false;
+      }
+
+      // 4. Condition matching
+      if (condition !== 'all') {
+        const normCond = (p.condition || '').toLowerCase();
+        const normLabel = (p.conditionLabel || '').toLowerCase();
+        if (condition === 'LIKE_NEW' || condition === 'Như mới') {
+          if (!normCond.includes('như mới') && !normLabel.includes('99%') && !normLabel.includes('như mới') && normCond !== 'like_new') {
+            return false;
+          }
+        } else if (condition === 'GOOD' || condition === 'Rất tốt') {
+          if (!normCond.includes('rất tốt') && !normLabel.includes('95%') && !normLabel.includes('rất tốt') && normCond !== 'good') {
+            return false;
+          }
         }
-        if (target === 'camping' || target === 'outdoor') {
-          return (
-            pCat.includes('camping') ||
-            pCat.includes('outdoor') ||
-            pCat.includes('cam-trai') ||
-            pCat.includes('da-ngoai') ||
-            pLabel.includes('cắm trại') ||
-            pLabel.includes('dã ngoại')
-          );
+      }
+
+      // 5. Location matching
+      if (location !== 'all') {
+        const normLoc = (p.location || '').toLowerCase();
+        const normSel = location.toLowerCase();
+        if (normSel.includes('hồ chí minh') || normSel.includes('hcm')) {
+          if (!normLoc.includes('hồ chí minh') && !normLoc.includes('hcm')) return false;
+        } else if (!normLoc.includes(normSel)) {
+          return false;
         }
-        if (target === 'electronics' || target === 'audio') {
-          return (
-            pCat.includes('electronic') ||
-            pCat.includes('audio') ||
-            pCat.includes('dien-tu') ||
-            pCat.includes('am-thanh') ||
-            pLabel.includes('điện tử') ||
-            pLabel.includes('âm thanh')
-          );
-        }
-        if (target === 'shoes' || target === 'shoe') {
-          return pCat.includes('shoe') || pCat.includes('giay') || pLabel.includes('giày');
-        }
-        return pCat.includes(target) || target.includes(pCat) || pLabel.includes(target);
-      })();
-      const matchCond = condition === 'all' || p.condition === condition;
-      const matchLoc = location === 'all' || p.location === location;
-      let matchPrice = true;
-      if (priceRange === 'under200') matchPrice = p.price < 200000;
-      else if (priceRange === '200to500') matchPrice = p.price >= 200000 && p.price <= 500000;
-      else if (priceRange === 'above500') matchPrice = p.price > 500000;
-      return matchQuery && matchCat && matchCond && matchLoc && matchPrice;
+      }
+
+      return true;
     });
 
     if (sort === 'price-asc') list = [...list].sort((a, b) => a.price - b.price);
@@ -684,7 +775,7 @@ const RentMarketplace: React.FC = () => {
             </p>
             <button
               type="button"
-              onClick={handleResetFilters}
+              onClick={resetAll}
               className="px-4 py-2 bg-[#1C1A18] text-white text-xs rounded-lg font-medium hover:bg-stone-800 transition-colors cursor-pointer"
             >
               Xóa bộ lọc
