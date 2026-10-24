@@ -344,6 +344,10 @@ const App = () => {
               element={<CustomerKyc />}
             />
             <Route
+              path="/profile/kyc"
+              element={<CustomerKyc />}
+            />
+            <Route
               path="/chat"
               element={<ChatPage />}
             />

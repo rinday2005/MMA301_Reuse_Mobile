@@ -373,6 +373,17 @@ export const RentCheckout: React.FC = () => {
 
   // Handle Order Placement & Direct VNPay Sandbox Redirect
   const handleProcessCheckout = async () => {
+    if (kycStatus !== 'APPROVED') {
+      const msg =
+        kycStatus === 'PENDING'
+          ? 'Hồ sơ KYC của bạn đang được Giám định viên xét duyệt. Vui lòng chờ trạng thái APPROVED để có thể hoàn tất thanh toán đơn thuê này.'
+          : kycStatus === 'REJECTED'
+          ? `Hồ sơ KYC của bạn bị từ chối (${kycRejectionReason || 'Vui lòng kiểm tra lại ảnh CCCD'}). Bạn cần nộp lại hồ sơ trước khi thuê đồ.`
+          : 'Bạn cần hoàn tất xác thực CCCD (KYC) trước khi có thể thuê thiết bị.';
+      showToast(msg, 'shield_person', 'warning');
+      return;
+    }
+
     if (!agreedTerms) {
       showToast('Vui lòng đồng ý với Quy ước Lưu giữ Bền vững và Điều khoản Ký quỹ Escrow để tiếp tục.', 'info', 'warning');
       return;
@@ -1240,14 +1251,38 @@ export const RentCheckout: React.FC = () => {
               <div className="mt-6 space-y-2.5">
                 <button
                   type="button"
-                  disabled={isSubmitting || rentItems.length === 0}
+                  disabled={isSubmitting || rentItems.length === 0 || kycStatus !== 'APPROVED'}
                   onClick={handleProcessCheckout}
-                  className="w-full bg-[#1E1E1E] hover:bg-black text-white font-medium py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition duration-200 shadow-sm group cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  className={`w-full font-medium py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition duration-200 shadow-sm group ${
+                    kycStatus !== 'APPROVED'
+                      ? 'bg-stone-200 text-stone-600 cursor-not-allowed border border-stone-300'
+                      : 'bg-[#1E1E1E] hover:bg-black text-white cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed'
+                  }`}
                 >
                   {isSubmitting ? (
                     <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       <span>{submitStep || 'Đang xử lý thanh toán...'}</span>
+                    </span>
+                  ) : kycStatus === 'LOADING' ? (
+                    <span className="text-xs tracking-wider uppercase font-bold flex items-center gap-2">
+                      <span className="w-3.5 h-3.5 border-2 border-stone-500 border-t-transparent rounded-full animate-spin" />
+                      <span>Đang kiểm tra trạng thái KYC...</span>
+                    </span>
+                  ) : kycStatus === 'PENDING' ? (
+                    <span className="text-xs tracking-wider uppercase font-bold flex items-center gap-1.5 text-amber-900">
+                      <span className="material-symbols-outlined text-[18px]">hourglass_top</span>
+                      <span>Hồ Sơ KYC Đang Chờ Duyệt (Chưa Thể Thuê)</span>
+                    </span>
+                  ) : kycStatus === 'REJECTED' ? (
+                    <span className="text-xs tracking-wider uppercase font-bold flex items-center gap-1.5 text-red-800">
+                      <span className="material-symbols-outlined text-[18px]">cancel</span>
+                      <span>Hồ Sơ KYC Bị Từ Chối (Cần Nộp Lại)</span>
+                    </span>
+                  ) : kycStatus !== 'APPROVED' ? (
+                    <span className="text-xs tracking-wider uppercase font-bold flex items-center gap-1.5 text-stone-700">
+                      <span className="material-symbols-outlined text-[18px]">shield_person</span>
+                      <span>Chưa Xác Thực KYC (Cần Duyệt Để Thuê)</span>
                     </span>
                   ) : (
                     <>
@@ -1265,6 +1300,20 @@ export const RentCheckout: React.FC = () => {
                     </>
                   )}
                 </button>
+
+                {kycStatus !== 'APPROVED' && kycStatus !== 'LOADING' && (
+                  <Link
+                    to="/profile/kyc"
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold text-xs transition-colors border border-amber-300 shadow-xs"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">verified_user</span>
+                    <span>
+                      {kycStatus === 'PENDING'
+                        ? 'Xem Trạng Thái Xét Duyệt KYC (/profile/kyc)'
+                        : 'Xác Thực Danh Tính KYC Ngay (/profile/kyc)'}
+                    </span>
+                  </Link>
+                )}
 
                 <Link
                   to="/cart"

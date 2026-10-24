@@ -8,7 +8,7 @@ import {
   updateKycStatusApi,
   type UserKycDetails,
 } from '../../services/kyc.api';
-import { resolveCleanAddress, getUserProfileAddress } from '../../utils/address';
+import { resolveCleanAddress } from '../../utils/address';
 
 type KycState = 'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
 
@@ -38,7 +38,7 @@ export const CustomerKyc: React.FC = () => {
   };
 
   // KYC data state
-  const [kycState, setKycState] = useState<KycState>('VERIFIED');
+  const [kycState, setKycState] = useState<KycState>('NOT_SUBMITTED');
   const [kycData, setKycData] = useState<UserKycDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,15 +47,34 @@ export const CustomerKyc: React.FC = () => {
   // Modals state
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isCertModalOpen, setIsCertModalOpen] = useState(false);
-  const [, setZoomImage] = useState<{ title: string; url: string } | null>(null);
+  const [zoomImage, setZoomImage] = useState<{ title: string; url: string } | null>(null);
 
-  // Form inputs for KYC submission
-  const [formFullName, setFormFullName] = useState('');
-  const [formDob, setFormDob] = useState('15/05/1995');
-  const [formCitizenId, setFormCitizenId] = useState('079201008888');
-  const [formAddress, setFormAddress] = useState('');
-  const [formCardFront, setFormCardFront] = useState('');
-  const [formCardBack, setFormCardBack] = useState('');
+  // Storage key for draft persistence per user
+  const userStorageKey = user?._id || user?.email || 'current';
+
+  // Form inputs for KYC submission (persisted in localStorage across refreshes)
+  const [formFullName, setFormFullName] = useState(() => {
+    return localStorage.getItem(`kyc_draft_name_${user?._id || user?.email || 'current'}`) || user?.fullName || '';
+  });
+  const [formDob, setFormDob] = useState(() => {
+    return (
+      localStorage.getItem(`kyc_draft_dob_${user?._id || user?.email || 'current'}`) ||
+      (user as { dob?: string })?.dob ||
+      ''
+    );
+  });
+  const [formCitizenId, setFormCitizenId] = useState(() => {
+    return localStorage.getItem(`kyc_draft_cid_${user?._id || user?.email || 'current'}`) || '';
+  });
+  const [formAddress, setFormAddress] = useState(() => {
+    return localStorage.getItem(`kyc_draft_addr_${user?._id || user?.email || 'current'}`) || '';
+  });
+  const [formCardFront, setFormCardFront] = useState(() => {
+    return localStorage.getItem(`kyc_draft_front_${user?._id || user?.email || 'current'}`) || '';
+  });
+  const [formCardBack, setFormCardBack] = useState(() => {
+    return localStorage.getItem(`kyc_draft_back_${user?._id || user?.email || 'current'}`) || '';
+  });
   const [formLiveness, setFormLiveness] = useState('');
 
   // File input refs
@@ -70,58 +89,102 @@ export const CustomerKyc: React.FC = () => {
     return '123 Lê Lợi, Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh';
   }, [user]);
 
+  // Fetch KYC data
   useEffect(() => {
     let isMounted = true;
     const fetchKycData = async () => {
       try {
         const res = await getKycStatusApi();
         if (!isMounted) return;
-        if (res && res.kyc) {
-          setKycData(res.kyc);
-          const rawStatus = (res.kycStatus || 'APPROVED').toUpperCase();
-          if (rawStatus === 'APPROVED' || rawStatus === 'VERIFIED') {
-            setKycState('VERIFIED');
-          } else if (rawStatus === 'PENDING') {
-            setKycState('PENDING');
-          } else if (rawStatus === 'REJECTED') {
-            setKycState('REJECTED');
-          } else {
-            setKycState('NOT_SUBMITTED');
-          }
+        const uKey = user?._id || user?.email || 'current';
+        const draftDob = localStorage.getItem(`kyc_draft_dob_${uKey}`) || '';
+        const draftCid = localStorage.getItem(`kyc_draft_cid_${uKey}`) || '';
+        const draftAddr = localStorage.getItem(`kyc_draft_addr_${uKey}`) || '';
+        const draftName = localStorage.getItem(`kyc_draft_name_${uKey}`) || '';
+        const draftFront = localStorage.getItem(`kyc_draft_front_${uKey}`) || '';
+        const draftBack = localStorage.getItem(`kyc_draft_back_${uKey}`) || '';
 
-          // Prepopulate form fields
-          setFormFullName(res.kyc.fullName || user?.fullName || 'NGUYỄN VĂN AN (DEMO)');
-          setFormDob(res.kyc.dob || '15/05/1995');
-          setFormCitizenId(res.kyc.citizenId?.replace(/•/g, '') || '079201008888');
-          setFormAddress(res.kyc.residentAddress || defaultResolvedAddress);
-          setFormCardFront(res.kyc.cardFrontUrl || SAMPLE_FRONT_URL);
-          setFormCardBack(res.kyc.cardBackUrl || SAMPLE_BACK_URL);
-          setFormLiveness(res.kyc.livenessUrl || user?.avatarUrl || SAMPLE_SELFIE_URL);
+        if (res && res.kyc) {
+          const rawStatus = (res.kycStatus || res.kyc?.status || user?.kycStatus || 'NOT_SUBMITTED').toUpperCase();
+          const hasCccd = Boolean(res.kyc.citizenId || res.kyc.cardFrontUrl || res.kyc.cardBackUrl);
+
+          if (!hasCccd && rawStatus === 'NOT_SUBMITTED') {
+            setKycState('NOT_SUBMITTED');
+            setKycData(null);
+            setFormFullName(res.kyc.fullName || draftName || user?.fullName || '');
+            const finalDob = res.kyc.dob || (user as { dob?: string })?.dob || draftDob || '';
+            setFormDob(finalDob);
+            setFormCitizenId(res.kyc.citizenId?.replace(/•/g, '') || draftCid || '');
+            setFormAddress(res.kyc.residentAddress || draftAddr || defaultResolvedAddress);
+            setFormCardFront(res.kyc.cardFrontUrl || draftFront || '');
+            setFormCardBack(res.kyc.cardBackUrl || draftBack || '');
+            setFormLiveness(user?.avatarUrl || '');
+          } else {
+            setKycData(res.kyc);
+            if (rawStatus === 'APPROVED' || rawStatus === 'VERIFIED') {
+              setKycState('VERIFIED');
+            } else if (rawStatus === 'PENDING') {
+              setKycState('PENDING');
+            } else if (rawStatus === 'REJECTED') {
+              setKycState('REJECTED');
+            } else {
+              setKycState('NOT_SUBMITTED');
+            }
+
+            // Prepopulate form fields with real data
+            const finalName = res.kyc.fullName || draftName || user?.fullName || '';
+            setFormFullName(finalName);
+            if (finalName) localStorage.setItem(`kyc_draft_name_${uKey}`, finalName);
+
+            const finalDob = res.kyc.dob || (user as { dob?: string })?.dob || draftDob || '';
+            setFormDob(finalDob);
+            if (finalDob) localStorage.setItem(`kyc_draft_dob_${uKey}`, finalDob);
+
+            const finalCid = res.kyc.citizenId?.replace(/•/g, '') || draftCid || '';
+            setFormCitizenId(finalCid);
+            if (finalCid) localStorage.setItem(`kyc_draft_cid_${uKey}`, finalCid);
+
+            const finalAddr = res.kyc.residentAddress || draftAddr || defaultResolvedAddress;
+            setFormAddress(finalAddr);
+            if (finalAddr) localStorage.setItem(`kyc_draft_addr_${uKey}`, finalAddr);
+
+            const finalFront = res.kyc.cardFrontUrl || draftFront || '';
+            setFormCardFront(finalFront);
+
+            const finalBack = res.kyc.cardBackUrl || draftBack || '';
+            setFormCardBack(finalBack);
+
+            setFormLiveness(res.kyc.livenessUrl || user?.avatarUrl || '');
+          }
+        } else {
+          setKycState('NOT_SUBMITTED');
+          setKycData(null);
+          setFormFullName(draftName || user?.fullName || '');
+          const finalDob = (user as { dob?: string })?.dob || draftDob || '';
+          setFormDob(finalDob);
+          setFormCitizenId(draftCid || '');
+          setFormAddress(draftAddr || defaultResolvedAddress);
+          setFormCardFront(draftFront || '');
+          setFormCardBack(draftBack || '');
+          setFormLiveness(user?.avatarUrl || '');
         }
       } catch (err) {
         if (!isMounted) return;
-        console.warn('Lỗi khi tải dữ liệu KYC từ API, sử dụng dữ liệu định danh dự phòng:', err);
-        const profileAddr = getUserProfileAddress(user);
-        const fallbackKyc: UserKycDetails = {
-          citizenId: `07920100${user?._id ? String(user._id).slice(-4) : '8888'}`,
-          fullName: user?.fullName || 'NGUYỄN VĂN AN (DEMO)',
-          dob: '15/05/1995',
-          idType: 'Căn cước công dân gắn chip (CCCD)',
-          residentAddress: profileAddr.full || defaultResolvedAddress,
-          cardFrontUrl: SAMPLE_FRONT_URL,
-          cardBackUrl: SAMPLE_BACK_URL,
-          livenessUrl: user?.avatarUrl || SAMPLE_SELFIE_URL,
-          kycCode: `#KYC-VN-${user?._id ? String(user._id).slice(-5).toUpperCase() : '88888'}`,
-          tier: 'TIER_2',
-          creditLimit: 50000000,
-          rejectionReason: 'Ảnh mặt sau Căn cước công dân bị lóa ánh đèn flash tại cụm mã vạch MRZ.',
-          submittedAt: new Date().toISOString(),
-          verifiedAt: new Date().toISOString(),
-        };
-        setKycData(fallbackKyc);
-        setKycState('VERIFIED');
-        setFormFullName(fallbackKyc.fullName);
-        setFormAddress(fallbackKyc.residentAddress);
+        console.warn('Lỗi khi tải dữ liệu KYC từ API:', err);
+        const uKey = user?._id || user?.email || 'current';
+        const draftDob = localStorage.getItem(`kyc_draft_dob_${uKey}`) || '';
+        const draftCid = localStorage.getItem(`kyc_draft_cid_${uKey}`) || '';
+        const draftAddr = localStorage.getItem(`kyc_draft_addr_${uKey}`) || '';
+        const draftName = localStorage.getItem(`kyc_draft_name_${uKey}`) || '';
+        setKycState('NOT_SUBMITTED');
+        setKycData(null);
+        setFormFullName(draftName || user?.fullName || '');
+        setFormDob((user as { dob?: string })?.dob || draftDob || '');
+        setFormCitizenId(draftCid || '');
+        setFormAddress(draftAddr || defaultResolvedAddress);
+        setFormCardFront('');
+        setFormCardBack('');
+        setFormLiveness(user?.avatarUrl || '');
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -138,10 +201,16 @@ export const CustomerKyc: React.FC = () => {
 
   // Handle auto-fill demo data
   const handleFillDemoData = () => {
+    const uKey = user?._id || user?.email || 'current';
     setFormCitizenId('079201008888');
-    setFormFullName(user?.fullName ? `${user.fullName} (DEMO)` : 'NGUYỄN VĂN AN (DEMO)');
+    localStorage.setItem(`kyc_draft_cid_${uKey}`, '079201008888');
+    const demoName = user?.fullName ? `${user.fullName} (DEMO)` : 'NGUYỄN VĂN AN (DEMO)';
+    setFormFullName(demoName);
+    localStorage.setItem(`kyc_draft_name_${uKey}`, demoName);
     setFormDob('15/05/1995');
+    localStorage.setItem(`kyc_draft_dob_${uKey}`, '15/05/1995');
     setFormAddress('123 Lê Lợi, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh');
+    localStorage.setItem(`kyc_draft_addr_${uKey}`, '123 Lê Lợi, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh');
     setFormCardFront(SAMPLE_FRONT_URL);
     setFormCardBack(SAMPLE_BACK_URL);
     setFormLiveness(user?.avatarUrl || SAMPLE_SELFIE_URL);
@@ -166,11 +235,14 @@ export const CustomerKyc: React.FC = () => {
     const reader = new FileReader();
     reader.onload = (event) => {
       const result = event.target?.result as string;
+      const uKey = user?._id || user?.email || 'current';
       if (side === 'front') {
         setFormCardFront(result);
+        localStorage.setItem(`kyc_draft_front_${uKey}`, result);
         showToast('Đã tải ảnh mặt trước CCCD thành công!');
       } else {
         setFormCardBack(result);
+        localStorage.setItem(`kyc_draft_back_${uKey}`, result);
         showToast('Đã tải ảnh mặt sau CCCD thành công!');
       }
     };
@@ -190,6 +262,20 @@ export const CustomerKyc: React.FC = () => {
             ? 'Ảnh mặt sau Căn cước công dân bị lóa ánh đèn flash tại cụm mã vạch MRZ.'
             : undefined,
       });
+
+      // Sync local storage user
+      const savedUserStr = localStorage.getItem('user');
+      if (savedUserStr) {
+        try {
+          const u = JSON.parse(savedUserStr);
+          u.kycStatus = apiStatus;
+          localStorage.setItem('user', JSON.stringify(u));
+          window.dispatchEvent(new Event('user_profile_updated'));
+        } catch {
+          // ignore
+        }
+      }
+
       showToast(
         `Đã chuyển trạng thái kiểm thử: ${
           newState === 'NOT_SUBMITTED'
@@ -239,6 +325,31 @@ export const CustomerKyc: React.FC = () => {
         livenessUrl: formLiveness || kycData?.livenessUrl || SAMPLE_SELFIE_URL,
       });
       showToast('Nộp hồ sơ thành công! Hệ thống đã ghi nhận hồ sơ ở trạng thái PENDING.');
+      // Persist draft info across refreshes
+      const uKey = user?._id || user?.email || 'current';
+      localStorage.setItem(`kyc_draft_dob_${uKey}`, formDob.trim());
+      localStorage.setItem(`kyc_draft_cid_${uKey}`, formCitizenId.trim());
+      localStorage.setItem(`kyc_draft_name_${uKey}`, formFullName.trim());
+      localStorage.setItem(`kyc_draft_addr_${uKey}`, formAddress.trim());
+
+      // Sync local storage user
+      const savedUserStr = localStorage.getItem('user');
+      if (savedUserStr) {
+        try {
+          const u = JSON.parse(savedUserStr);
+          u.kycStatus = 'PENDING';
+          u.dob = formDob.trim();
+          if (!u.kyc) u.kyc = {};
+          u.kyc.citizenId = formCitizenId.trim();
+          u.kyc.dob = formDob.trim();
+          u.kyc.fullName = formFullName.trim();
+          u.kyc.residentAddress = formAddress.trim();
+          localStorage.setItem('user', JSON.stringify(u));
+          window.dispatchEvent(new Event('user_profile_updated'));
+        } catch {
+          // ignore
+        }
+      }
       setIsSubmitModalOpen(false);
       setKycState('PENDING');
       setReloadTrigger((prev) => prev + 1);
@@ -251,15 +362,15 @@ export const CustomerKyc: React.FC = () => {
   };
 
   // Dynamic user data variables
-  const displayName = user?.fullName || kycData?.fullName || 'NGUYỄN VĂN AN (DEMO)';
+  const displayName = kycData?.fullName || user?.fullName || 'Chưa cập nhật tên';
   const displayCitizenId = kycData?.citizenId
     ? kycData.citizenId.length > 8
       ? `${kycData.citizenId.slice(0, 8)}•••• [Đã bảo mật]`
       : kycData.citizenId
-    : '07920100•••• [Đã bảo mật]';
+    : 'Chưa có';
   const displayAddress = kycData?.residentAddress || defaultResolvedAddress;
   const displayKycCode =
-    kycData?.kycCode || `#KYC-VN-${user?._id ? String(user._id).slice(-5).toUpperCase() : '88888'}`;
+    kycData?.kycCode || (user?._id ? `#KYC-VN-${String(user._id).slice(-5).toUpperCase()}` : 'Chưa cấp mã');
 
   if (isLoading) {
     return (
@@ -320,14 +431,14 @@ export const CustomerKyc: React.FC = () => {
               <div className="space-y-1 text-xs leading-relaxed">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h4 className="font-bold text-sm text-amber-950">
-                    Cảnh báo Môi trường Thử nghiệm (Demo Sandbox)
+                    Cảnh báo Môi trường Thử nghiệm (Dữ liệu demo phục vụ đồ án, không dùng thông tin thật)
                   </h4>
                   <span className="text-[10px] bg-amber-200/90 text-amber-900 font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                     Demo Mode
                   </span>
                 </div>
                 <p className="text-amber-800">
-                  Hệ thống đang hoạt động trong môi trường demo kiểm thử. <strong>Vui lòng KHÔNG tải lên hình ảnh CCCD thật hoặc dữ liệu cá nhân nhạy cảm</strong>. Bạn có thể sử dụng nút <strong>"⚡ Nạp dữ liệu CCCD Demo"</strong> hoặc chọn ảnh mẫu có sẵn để trải nghiệm trọn vẹn luồng nộp hồ sơ, thẩm định và mở khóa quyền thuê RENT.
+                  <strong>Dữ liệu demo phục vụ đồ án, không dùng thông tin thật.</strong> Hệ thống đang hoạt động trong môi trường demo kiểm thử. Vui lòng KHÔNG tải lên hình ảnh CCCD thật hoặc dữ liệu cá nhân thực tế. Bạn có thể sử dụng nút <strong>"⚡ Nạp dữ liệu CCCD Demo"</strong> hoặc chọn ảnh mẫu có sẵn để trải nghiệm trọn vẹn luồng nộp hồ sơ, thẩm định và mở khóa quyền thuê RENT.
                 </p>
               </div>
             </div>
@@ -468,6 +579,17 @@ export const CustomerKyc: React.FC = () => {
                       </span>
                       <span className="text-[11px] text-brand-muted font-mono">{displayKycCode}</span>
                     </div>
+                    {kycState === 'REJECTED' && (
+                      <div id="kyc-rejection-reason-box" className="my-3 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2.5 text-red-900 animate-fadeIn">
+                        <span className="material-symbols-outlined text-red-600 text-[20px] shrink-0 mt-0.5">error</span>
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold uppercase tracking-wide text-red-800">Lý do từ chối hồ sơ:</p>
+                          <p className="text-xs font-semibold text-red-700">
+                            {kycData?.rejectionReason || 'Ảnh chụp CCCD không rõ nét hoặc thiếu thông tin đối soát. Vui lòng kiểm tra và cập nhật lại.'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     <p className="text-xs text-brand-charcoal font-medium mt-1">
                       {kycState === 'VERIFIED'
                         ? `Hồ sơ của ${displayName} đã được thẩm định APPROVED thành công. Tài khoản đủ điều kiện thuê mọi thiết bị RENT.`
@@ -575,7 +697,7 @@ export const CustomerKyc: React.FC = () => {
 
                     <div className="p-4 bg-brand-surface rounded-2xl border border-brand-border/40">
                       <p className="text-[10px] text-brand-muted uppercase font-bold tracking-wider">Loại giấy tờ</p>
-                      <p className="text-sm font-semibold text-brand-charcoal mt-1">Căn cước công dân gắn chip (CCCD)</p>
+                      <p className="text-sm font-semibold text-brand-charcoal mt-1">{kycData?.citizenId ? 'Căn cước công dân gắn chip (CCCD)' : 'Chưa có'}</p>
                     </div>
 
                     <div className="p-4 bg-brand-surface rounded-2xl border border-brand-border/40">
@@ -613,7 +735,11 @@ export const CustomerKyc: React.FC = () => {
                   <div className="mt-6 pt-6 border-t border-brand-border/40">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-brand-charcoal mb-4 flex items-center justify-between">
                       <span>Hình ảnh tài liệu đã lưu</span>
-                      <span className="text-[11px] text-brand-muted font-normal">Click ảnh để phóng to</span>
+                      {kycData?.cardFrontUrl || kycData?.cardBackUrl ? (
+                        <span className="text-[11px] text-brand-muted font-normal">Click ảnh để phóng to</span>
+                      ) : (
+                        <span className="text-[11px] text-stone-400 font-normal">Chưa có tài liệu lưu trữ</span>
+                      )}
                     </h4>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -621,52 +747,80 @@ export const CustomerKyc: React.FC = () => {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-semibold text-brand-charcoal">Mặt trước CCCD</span>
-                          <span className="text-[10px] text-brand-sage font-bold">Chip OCR Verified</span>
+                          {kycData?.cardFrontUrl ? (
+                            <span className="text-[10px] text-brand-sage font-bold">Chip OCR Verified</span>
+                          ) : (
+                            <span className="text-[10px] text-stone-500 font-semibold bg-stone-100 px-2 py-0.5 rounded">
+                              Chưa có
+                            </span>
+                          )}
                         </div>
-                        <div
-                          className="h-44 rounded-2xl overflow-hidden border border-brand-border bg-stone-100 relative group cursor-pointer"
-                          onClick={() =>
-                            setZoomImage({
-                              title: 'Mặt trước CCCD',
-                              url: kycData?.cardFrontUrl || SAMPLE_FRONT_URL,
-                            })
-                          }
-                        >
-                          <img
-                            src={kycData?.cardFrontUrl || SAMPLE_FRONT_URL}
-                            alt="Mặt trước CCCD"
-                            className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
-                          />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1">
-                            <span className="material-symbols-outlined text-sm">zoom_in</span> Phóng to
+                        {kycData?.cardFrontUrl ? (
+                          <div
+                            className="h-44 rounded-2xl overflow-hidden border border-brand-border bg-stone-100 relative group cursor-pointer"
+                            onClick={() =>
+                              setZoomImage({
+                                title: 'Mặt trước CCCD',
+                                url: kycData.cardFrontUrl,
+                              })
+                            }
+                          >
+                            <img
+                              src={kycData.cardFrontUrl}
+                              alt="Mặt trước CCCD"
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
+                            />
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1">
+                              <span className="material-symbols-outlined text-sm">zoom_in</span> Phóng to
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="h-44 rounded-2xl border border-dashed border-stone-300 bg-stone-50/80 flex flex-col items-center justify-center text-center p-4">
+                            <span className="material-symbols-outlined text-3xl text-stone-400 mb-1.5">image_not_supported</span>
+                            <p className="text-xs font-semibold text-stone-600">Chưa có ảnh</p>
+                            <p className="text-[11px] text-stone-400 mt-0.5">Chưa tải lên ảnh mặt trước CCCD</p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Back Card */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-semibold text-brand-charcoal">Mặt sau CCCD</span>
-                          <span className="text-[10px] text-brand-sage font-bold">MRZ Barcode Verified</span>
+                          {kycData?.cardBackUrl ? (
+                            <span className="text-[10px] text-brand-sage font-bold">MRZ Barcode Verified</span>
+                          ) : (
+                            <span className="text-[10px] text-stone-500 font-semibold bg-stone-100 px-2 py-0.5 rounded">
+                              Chưa có
+                            </span>
+                          )}
                         </div>
-                        <div
-                          className="h-44 rounded-2xl overflow-hidden border border-brand-border bg-stone-100 relative group cursor-pointer"
-                          onClick={() =>
-                            setZoomImage({
-                              title: 'Mặt sau CCCD',
-                              url: kycData?.cardBackUrl || SAMPLE_BACK_URL,
-                            })
-                          }
-                        >
-                          <img
-                            src={kycData?.cardBackUrl || SAMPLE_BACK_URL}
-                            alt="Mặt sau CCCD"
-                            className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
-                          />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1">
-                            <span className="material-symbols-outlined text-sm">zoom_in</span> Phóng to
+                        {kycData?.cardBackUrl ? (
+                          <div
+                            className="h-44 rounded-2xl overflow-hidden border border-brand-border bg-stone-100 relative group cursor-pointer"
+                            onClick={() =>
+                              setZoomImage({
+                                title: 'Mặt sau CCCD',
+                                url: kycData.cardBackUrl,
+                              })
+                            }
+                          >
+                            <img
+                              src={kycData.cardBackUrl}
+                              alt="Mặt sau CCCD"
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
+                            />
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1">
+                              <span className="material-symbols-outlined text-sm">zoom_in</span> Phóng to
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="h-44 rounded-2xl border border-dashed border-stone-300 bg-stone-50/80 flex flex-col items-center justify-center text-center p-4">
+                            <span className="material-symbols-outlined text-3xl text-stone-400 mb-1.5">image_not_supported</span>
+                            <p className="text-xs font-semibold text-stone-600">Chưa có ảnh</p>
+                            <p className="text-[11px] text-stone-400 mt-0.5">Chưa tải lên ảnh mặt sau CCCD</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -768,7 +922,7 @@ export const CustomerKyc: React.FC = () => {
             <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-amber-900 text-xs flex items-start gap-2.5">
               <span className="material-symbols-outlined text-amber-600 text-lg shrink-0">info</span>
               <div className="leading-relaxed">
-                <span className="font-bold">Môi trường kiểm thử:</span> Vui lòng không nộp CCCD thật. Hãy nhấn nút{' '}
+                <span className="font-bold">Ghi chú quan trọng:</span> Dữ liệu demo phục vụ đồ án, không dùng thông tin thật. Hãy nhấn nút{' '}
                 <strong>"⚡ Điền nhanh CCCD Demo"</strong> bên dưới để tự động điền số CCCD và ảnh mẫu.
               </div>
             </div>
@@ -798,7 +952,11 @@ export const CustomerKyc: React.FC = () => {
                   type="text"
                   required
                   value={formFullName}
-                  onChange={(e) => setFormFullName(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormFullName(val);
+                    localStorage.setItem(`kyc_draft_name_${userStorageKey}`, val);
+                  }}
                   className="w-full bg-brand-surface rounded-xl p-3 text-xs text-brand-charcoal border border-brand-border/60 focus:outline-none focus:bg-white"
                   placeholder="Ví dụ: NGUYỄN VĂN AN (DEMO)"
                 />
@@ -813,7 +971,11 @@ export const CustomerKyc: React.FC = () => {
                     type="text"
                     required
                     value={formCitizenId}
-                    onChange={(e) => setFormCitizenId(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormCitizenId(val);
+                      localStorage.setItem(`kyc_draft_cid_${userStorageKey}`, val);
+                    }}
                     className="w-full bg-brand-surface rounded-xl p-3 text-xs text-brand-charcoal border border-brand-border/60 focus:outline-none focus:bg-white font-mono"
                     placeholder="12 chữ số demo (vd: 079201008888)"
                   />
@@ -826,7 +988,11 @@ export const CustomerKyc: React.FC = () => {
                     type="text"
                     required
                     value={formDob}
-                    onChange={(e) => setFormDob(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormDob(val);
+                      localStorage.setItem(`kyc_draft_dob_${userStorageKey}`, val);
+                    }}
                     className="w-full bg-brand-surface rounded-xl p-3 text-xs text-brand-charcoal border border-brand-border/60 focus:outline-none focus:bg-white"
                     placeholder="DD/MM/YYYY"
                   />
@@ -841,7 +1007,11 @@ export const CustomerKyc: React.FC = () => {
                   type="text"
                   required
                   value={formAddress}
-                  onChange={(e) => setFormAddress(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormAddress(val);
+                    localStorage.setItem(`kyc_draft_addr_${userStorageKey}`, val);
+                  }}
                   className="w-full bg-brand-surface rounded-xl p-3 text-xs text-brand-charcoal border border-brand-border/60 focus:outline-none focus:bg-white"
                   placeholder="Địa chỉ thường trú"
                 />
@@ -850,7 +1020,7 @@ export const CustomerKyc: React.FC = () => {
               {/* UPLOAD ẢNH MẶT TRƯỚC / MẶT SAU (Yêu cầu đề bài) */}
               <div className="space-y-3 pt-1">
                 <label className="block font-semibold text-brand-charcoal">
-                  Tải lên tài liệu tùy thân (Mặt trước &amp; Mặt sau CCCD): <span className="text-red-500">*</span>
+                  Khung tải 2 ảnh mặt trước và mặt sau CCCD (Dữ liệu demo phục vụ đồ án, không dùng thông tin thật): <span className="text-red-500">*</span>
                 </label>
 
                 {/* Hidden file inputs */}
@@ -1058,6 +1228,33 @@ export const CustomerKyc: React.FC = () => {
             >
               Đóng chứng thư
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: PHÓNG TO HÌNH ẢNH CCCD ── */}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setZoomImage(null)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 animate-fadeIn border border-brand-border cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-brand-border/50">
+              <h3 className="font-serif text-base font-bold text-brand-charcoal">{zoomImage.title}</h3>
+              <button
+                type="button"
+                className="text-brand-muted hover:text-brand-charcoal cursor-pointer"
+                onClick={() => setZoomImage(null)}
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-hidden rounded-2xl flex items-center justify-center bg-stone-100">
+              <img src={zoomImage.url} alt={zoomImage.title} className="w-full h-auto max-h-[70vh] object-contain" />
+            </div>
           </div>
         </div>
       )}
