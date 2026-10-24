@@ -18,6 +18,7 @@ import {
 } from '../../data/rent/marketplaceData';
 import type { Product, SortKey } from '../../data/rent/marketplaceData';
 // ─── ProductCard ───────────────────────────────────────────────────────────────
+// ─── ProductCard ───────────────────────────────────────────────────────────────
 const ProductCard: React.FC<{
   product: Product;
   onRequireAuth: (action: string, targetHref: string) => void;
@@ -30,6 +31,7 @@ const ProductCard: React.FC<{
     conditionLabel, location, deposit, available, href, image,
   } = product;
   const isSaved = isWishlisted(id);
+
   const handleRentClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!user) {
@@ -50,6 +52,7 @@ const ProductCard: React.FC<{
     });
     navigate('/cart');
   };
+
   const handleCartClick = (e: React.MouseEvent) => {
     e.preventDefault();
     addToCart({
@@ -65,19 +68,40 @@ const ProductCard: React.FC<{
       quantity: 1,
     });
   };
+
+  // Condition pill format matching screenshot: "Như mới (99%)", "Grade Mint (98%)", "Đã qua sử dụng (90%)"
+  const formattedCondition = useMemo(() => {
+    const raw = (conditionLabel || '').toLowerCase();
+    if (raw.includes('99') || raw.includes('như mới') || raw.includes('like_new')) return 'Như mới (99%)';
+    if (raw.includes('98') || raw.includes('mint')) return 'Grade Mint (98%)';
+    if (raw.includes('100') || raw.includes('mới')) return 'Mới 100%';
+    if (raw.includes('90') || raw.includes('tốt')) return 'Đã qua sử dụng (90%)';
+    return conditionLabel || 'Đã qua sử dụng (90%)';
+  }, [conditionLabel]);
+
   return (
     <article
-      className={`group flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 ${!available ? 'opacity-90' : ''}`}
+      className={`group flex flex-col bg-white rounded-2xl overflow-hidden border border-[#EFECE6] hover:border-[#DDD7CD] shadow-xs hover:shadow-md transition-all duration-300 ${!available ? 'opacity-90' : ''}`}
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#F4F0EA]">
-        {/* Wishlist Button */}
+        {/* Dual Badges top-left */}
+        <div className="absolute top-3 left-3 flex flex-col items-start gap-1.5 z-10 pointer-events-none">
+          <span className="bg-black/75 backdrop-blur-xs text-white text-[11px] font-medium px-2.5 py-0.5 rounded-full shadow-xs">
+            {formattedCondition}
+          </span>
+          <span className="bg-[#FAF0D7] text-[#8C6D1F] text-[11px] font-semibold px-2 py-0.5 rounded-md shadow-2xs">
+            Cho thuê
+          </span>
+        </div>
+
+        {/* Wishlist Button top-right */}
         <button
           type="button"
           onClick={() => toggleWishlist(id)}
           className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center shadow-xs transition-transform active:scale-90 cursor-pointer ${
             isSaved
               ? 'bg-[#1C1A18] text-rose-400'
-              : 'bg-white/90 hover:bg-white text-[#1C1A18]'
+              : 'bg-white hover:bg-white text-[#1C1A18]'
           }`}
           title={isSaved ? 'Đã lưu yêu thích' : 'Lưu yêu thích'}
         >
@@ -95,6 +119,8 @@ const ProductCard: React.FC<{
             />
           </svg>
         </button>
+
+        {/* Product image link */}
         <Link to={href} className="block w-full h-full">
           <img
             src={image}
@@ -102,66 +128,59 @@ const ProductCard: React.FC<{
             className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${!available ? 'grayscale-[30%]' : ''}`}
           />
         </Link>
-        <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 pointer-events-none">
-          <span className="px-2.5 py-1 text-[10px] font-semibold tracking-wide rounded-full bg-white/90 backdrop-blur-md text-[#1C1A18] shadow-sm">
-            {conditionLabel}
-          </span>
-          <span
-            className={`px-2 py-0.5 text-[10px] font-medium tracking-wide rounded-full text-[#FBF9F5] ${available ? 'bg-[#1C1A18]' : 'bg-[#78736A]'}`}
-          >
-            {available ? 'Có thể thuê' : 'Không khả dụng'}
-          </span>
-        </div>
       </div>
-      <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+
+      {/* Content details */}
+      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
         <div className="space-y-1.5">
+          {/* Category & Location */}
           <div className="flex items-center justify-between text-[11px] text-[#78736A]">
-            <span className="uppercase tracking-wider font-semibold">{categoryLabel}</span>
-            <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[13px]">location_on</span>
+            <span className="font-medium text-[#78736A]">{categoryLabel}</span>
+            <span className="flex items-center gap-1 font-medium">
+              <span className="material-symbols-outlined text-[13px] text-[#78736A]">location_on</span>
               {location}
             </span>
           </div>
-          <h2 className="font-serif text-base font-bold text-[#1C1A18] group-hover:text-amber-800 transition-colors line-clamp-1">
-            <Link
-              to={href}
-              className="block"
-            >
+
+          {/* Product Title */}
+          <h2 className="font-semibold text-base text-[#1C1A18] group-hover:text-amber-900 transition-colors line-clamp-1">
+            <Link to={href} className="block">
               {title}
             </Link>
           </h2>
-          <div className="flex items-center gap-1.5 text-xs text-[#1C1A18] pt-0.5">
-            <span
-              className="material-symbols-outlined text-[15px] text-amber-600"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              star
-            </span>
-            <span className="font-bold">{rating.toFixed(1)}</span>
+
+          {/* Star rating */}
+          <div className="flex items-center gap-1 text-xs text-[#1C1A18] pt-0.5">
+            <span className="text-amber-500 font-bold">★ {rating.toFixed(1)}</span>
             <span className="text-[#78736A] text-[11px]">({reviewCount} đánh giá)</span>
           </div>
-        </div>
-        <div className="pt-2 bg-[#F4F0EA]/30 -mx-5 -mb-5 p-5 space-y-3">
-          <div className="flex items-baseline justify-between">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-[#78736A]">Giá thuê</span>
-              <p className="font-serif text-base font-bold text-[#1C1A18]">
-                {price.toLocaleString('vi-VN')}đ
-                <span className="text-xs font-sans font-normal text-[#5E5A53]"> / ngày</span>
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-[10px] uppercase font-semibold text-[#78736A]">Tiền cọc hoàn lại</span>
-              <p className="text-xs text-[#5E5A53] font-mono">{deposit}</p>
+
+          {/* ReUse Hub Inspection Chip */}
+          <div className="pt-1">
+            <div className="bg-[#EBF7EE] text-[#1E7E34] text-[11px] font-medium py-1 px-2.5 rounded-md inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#1E7E34]"></span>
+              <span>Được kiểm chứng bởi <strong className="font-semibold">ReUse Hub Kiểm định</strong></span>
             </div>
           </div>
+        </div>
+
+        {/* Price & Action row */}
+        <div className="pt-2 space-y-2 border-t border-[#F2EFE9]/80">
+          <div>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-[#8A857D]">Giá thuê</span>
+            <p className="text-base sm:text-lg font-bold text-[#1C1A18]">
+              {price.toLocaleString('vi-VN')}₫
+              <span className="text-xs font-normal text-[#78736A]"> / ngày</span>
+            </p>
+          </div>
+
           <div className="flex items-center gap-2 pt-1">
             {available ? (
               <>
                 <button
                   type="button"
                   onClick={handleRentClick}
-                  className="flex-1 py-2 rounded-xl bg-[#1C1A18] text-white text-xs font-medium text-center hover:bg-[#292724] transition-colors shadow-sm cursor-pointer"
+                  className="flex-1 py-2.5 rounded-full bg-[#1C1A18] hover:bg-black text-white text-xs font-semibold text-center transition-colors shadow-xs cursor-pointer"
                 >
                   Thuê ngay
                 </button>
@@ -169,9 +188,11 @@ const ProductCard: React.FC<{
                   type="button"
                   onClick={handleCartClick}
                   title="Thêm vào giỏ"
-                  className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors shadow-sm cursor-pointer"
+                  className="w-9 h-9 rounded-full border border-[#E6E2DC] bg-white hover:bg-[#F4F0EA] flex items-center justify-center text-[#1C1A18] transition-colors shadow-2xs cursor-pointer shrink-0"
                 >
-                  <span className="material-symbols-outlined text-[17px]">shopping_bag</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                    <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" strokeLinecap="round" strokeLinejoin="round"></path>
+                  </svg>
                 </button>
               </>
             ) : (
@@ -179,14 +200,14 @@ const ProductCard: React.FC<{
                 <button
                   type="button"
                   disabled
-                  className="flex-1 py-2 rounded-xl bg-[#F4F0EA] text-[#78736A] text-xs font-medium text-center cursor-not-allowed"
+                  className="flex-1 py-2.5 rounded-full bg-[#F4F0EA] text-[#78736A] text-xs font-medium text-center cursor-not-allowed"
                 >
                   Đang có người thuê
                 </button>
                 <Link
                   to="/login"
                   title="Nhận thông báo khi có hàng"
-                  className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors shadow-sm"
+                  className="w-9 h-9 rounded-full border border-[#E6E2DC] bg-white flex items-center justify-center text-[#1C1A18] hover:bg-[#F4F0EA] transition-colors shadow-2xs shrink-0"
                 >
                   <span className="material-symbols-outlined text-[17px]">notifications</span>
                 </Link>
@@ -485,7 +506,7 @@ const RentMarketplace: React.FC = () => {
     return list;
   }, [dbProducts, query, category, priceRange, condition, location, sort]);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 20;
   // Auto reset to page 1 whenever any filter changes
   const filterKey = `${query}|${category}|${priceRange}|${condition}|${location}|${sort}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
@@ -652,27 +673,27 @@ const RentMarketplace: React.FC = () => {
       </section>
       {/* ── SEARCH & FILTER ── */}
       <section className="w-full pb-8">
-        <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl p-5 shadow-xs border border-[#EFECE6] space-y-4">
           <div className="relative w-full">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#78736A] text-[22px]">search</span>
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Tìm camera, quần áo thiết kế, giày archive, đồ camping..."
+              placeholder="Tìm kiếm quần áo, giày, camera, đồ dùng..."
               className="w-full pl-12 pr-28 py-3.5 bg-[#F4F0EA]/50 rounded-xl text-sm text-[#1C1A18] placeholder:text-[#78736A] focus:outline-none focus:bg-[#F4F0EA] transition-all"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#F4F0EA] text-[#5E5A53] hover:text-[#1C1A18]"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#F4F0EA] text-[#5E5A53] hover:text-[#1C1A18] cursor-pointer"
               >
                 Xóa tìm kiếm
               </button>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-1 text-xs">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Danh mục</label>
               <div className="relative">
@@ -689,7 +710,7 @@ const RentMarketplace: React.FC = () => {
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Khoảng giá / ngày</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Khoảng giá</label>
               <div className="relative">
                 <select value={priceRange} onChange={(e) => setPriceRange(e.target.value)} className={sel}>
                   {RENT_PRICE_OPTIONS.map((opt) => (
@@ -722,17 +743,20 @@ const RentMarketplace: React.FC = () => {
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Ngày nhận</label>
-              <input type="date" className="w-full py-1.5 px-2 bg-[#F4F0EA]/50 rounded-lg text-[#1C1A18] text-xs focus:outline-none focus:bg-[#F4F0EA]" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Ngày trả</label>
-              <input type="date" className="w-full py-1.5 px-2 bg-[#F4F0EA]/50 rounded-lg text-[#1C1A18] text-xs focus:outline-none focus:bg-[#F4F0EA]" />
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[#78736A]">Nguồn gốc sản phẩm</label>
+              <div className="relative">
+                <select className={sel} defaultValue="all">
+                  <option value="all">Tất cả nguồn gốc</option>
+                  <option value="official">Kho ReUse Hub</option>
+                  <option value="partner">Shop đối tác</option>
+                </select>
+                <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-[#78736A]">expand_more</span>
+              </div>
             </div>
           </div>
           <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <span className="text-[11px] font-medium text-[#5E5A53]">
-              Đang hiển thị <strong className="text-[#1C1A18]">{visibleProducts.length}</strong> sản phẩm sẵn sàng thuê
+              Đang hiển thị <strong className="text-[#1C1A18]">{visibleProducts.length}</strong> sản phẩm tuyển chọn
             </span>
             <div className="flex items-center flex-wrap gap-1.5">
               <span className="text-[10px] uppercase font-bold text-[#78736A] tracking-wider mr-1">Sắp xếp:</span>
@@ -741,7 +765,7 @@ const RentMarketplace: React.FC = () => {
                   key={opt.key}
                   type="button"
                   onClick={() => setSort(opt.key)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${sort === opt.key
+                  className={`px-3.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${sort === opt.key
                     ? 'bg-[#1C1A18] text-white'
                     : 'bg-[#F4F0EA] text-[#5E5A53] hover:text-[#1C1A18]'
                     }`}

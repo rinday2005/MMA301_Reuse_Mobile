@@ -116,7 +116,30 @@ export const getMyThriftOrdersApi = async (params?: {
   search?: string;
 }): Promise<GetMyThriftOrdersResponse> => {
   const res = await api.get('/thrift/orders/my-orders', { params });
-  return res.data?.data || res.data;
+  const payload = res.data?.data || res.data;
+  if (Array.isArray(payload)) {
+    return {
+      orders: payload,
+      pagination: {
+        page: 1,
+        limit: payload.length,
+        total: payload.length,
+        totalPages: 1,
+      },
+    };
+  }
+  if (Array.isArray(payload?.orders)) {
+    return payload;
+  }
+  return {
+    orders: [],
+    pagination: {
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    },
+  };
 };
 
 /**

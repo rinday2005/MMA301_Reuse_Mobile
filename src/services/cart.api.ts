@@ -33,7 +33,11 @@ export const getCartApi = async (): Promise<CartResponseApi | null> => {
   try {
     const res = await api.get("/cart");
     return res.data?.data || res.data || null;
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as { response?: { status?: number } };
+    if (err?.response?.status === 403 || err?.response?.status === 401) {
+      return null;
+    }
     console.warn("Could not fetch cart from backend:", error);
     return null;
   }

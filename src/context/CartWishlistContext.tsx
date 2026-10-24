@@ -67,17 +67,19 @@ const CartWishlistContext = createContext<CartWishlistContextType | undefined>(u
 export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const auth = useContext(AuthContext);
   const currentUserId = auth?.user?._id || auth?.user?.id || 'guest';
+  const currentUserRole = auth?.user?.role;
 
   return (
-    <CartWishlistProviderInner key={currentUserId} currentUserId={currentUserId}>
+    <CartWishlistProviderInner key={currentUserId} currentUserId={currentUserId} currentUserRole={currentUserRole}>
       {children}
     </CartWishlistProviderInner>
   );
 };
 
-const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUserId: string }> = ({
+const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUserId: string; currentUserRole?: string }> = ({
   children,
   currentUserId,
+  currentUserRole,
 }) => {
   try {
     localStorage.removeItem('user_wishlist');
@@ -150,10 +152,10 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
     }
   }, [cart, CART_KEY]);
 
-  // ── Đồng bộ giỏ hàng từ MongoDB khi người dùng đã đăng nhập ──
+  // ── Đồng bộ giỏ hàng từ MongoDB khi người dùng đã đăng nhập (Chỉ dành cho Customer) ──
   useEffect(() => {
     const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-    if (!token) return;
+    if (!token || currentUserRole === 'ADMIN') return;
 
     let isMounted = true;
     // Đồng bộ Wishlist từ MongoDB
@@ -346,7 +348,7 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
     return () => {
       isMounted = false;
     };
-  }, [CART_KEY]);
+  }, [CART_KEY, currentUserRole]);
 
   // ── Wishlist Operations ──
   const isWishlisted = useCallback(

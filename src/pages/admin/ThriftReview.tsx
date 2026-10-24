@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { fetchAdminDashboardData } from "../../services/admin.api";
+import {
+  fetchAdminDashboardData,
+  approveThriftListingApi,
+  rejectThriftListingApi,
+} from "../../services/admin.api";
+import { getPublicThriftListingByIdApi } from "../../services/thrift.api";
 
 export type ThriftReviewStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -235,8 +240,54 @@ export const ThriftReview: React.FC = () => {
   // Sync with route id if matched
   useEffect(() => {
     let isMounted = true;
+    if (!id) return;
 
-    // Attempt to load from MongoDB backend if available
+    // 1. Direct fetch from MongoDB Thrift API
+    getPublicThriftListingByIdApi(id)
+      .then((item) => {
+        if (!isMounted || !item) return;
+        const catName =
+          typeof item.categoryId === "object" && item.categoryId?.name
+            ? item.categoryId.name
+            : typeof item.category === "object" && item.category?.name
+            ? item.category.name
+            : "Đồ thanh lý cao cấp";
+
+        const imgList = Array.isArray(item.images) && item.images.length > 0 ? item.images : [];
+        const mainImg = imgList[0] || DEFAULT_THRIFT_DOSSIER.mainImage;
+        const angles: InspectionAngle[] =
+          imgList.length > 0
+            ? imgList.map((url, idx) => ({
+                title: `Góc chụp kiểm định #${idx + 1}`,
+                note: `Ảnh chụp thực tế hiện vật từ xưởng kiểm định ReUse`,
+                url,
+                alt: `${item.name} góc ${idx + 1}`,
+                scoreTag: "Đạt chuẩn",
+              }))
+            : DEFAULT_THRIFT_DOSSIER.angles;
+
+        setDossier((prev) => ({
+          ...prev,
+          id: item._id,
+          sku: `#RH-THF-${item._id.slice(-6).toUpperCase()}`,
+          lotNumber: `#TH-${item._id.slice(-4).toUpperCase()}`,
+          title: item.name || prev.title,
+          categoryHierarchy: catName,
+          proposedPrice: Number(item.price) || prev.proposedPrice,
+          conditionGrade: item.condition || prev.conditionGrade,
+          conditionNote: item.description || prev.conditionNote,
+          editorialCopy: item.description || prev.editorialCopy,
+          mainImage: mainImg,
+          angles,
+        }));
+
+        if (item.status === "APPROVED") setCurrentStatus("APPROVED");
+        else if (item.status === "REJECTED") setCurrentStatus("REJECTED");
+        else setCurrentStatus("PENDING");
+      })
+      .catch(() => {});
+
+    // 2. Also check Admin Dashboard Data as fallback
     fetchAdminDashboardData()
       .then((data) => {
         if (!isMounted || !data || !Array.isArray(data.thriftCatalogList)) return;
@@ -247,7 +298,7 @@ export const ThriftReview: React.FC = () => {
           setDossier((prev) => ({
             ...prev,
             id: matched.id,
-            sku: `#HB-THF-${matched.id.slice(-4).toUpperCase()}`,
+            sku: `#RH-THF-${matched.id.slice(-6).toUpperCase()}`,
             title: matched.name || prev.title,
             proposedPrice: matched.price || prev.proposedPrice,
             conditionGrade: matched.condition || prev.conditionGrade,
@@ -286,25 +337,43 @@ export const ThriftReview: React.FC = () => {
 
   const currentAngle = dossier.angles[activeViewIndex] || dossier.angles[0];
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     const proceed = window.confirm(
       `Xác nhận PHÊ DUYỆT mục đăng THRIFT ${dossier.sku} (${dossier.title})?\n\nHệ thống sẽ cấp chứng thư số tuần hoàn và công khai mục đăng trên sàn giao dịch.`
     );
     if (proceed) {
-      setCurrentStatus("APPROVED");
-      showToast(`Đã phê duyệt niêm yết ${dossier.sku} thành công. Chứng thư tuần hoàn đã phát hành.`);
+      try {
+        if (dossier.id) {
+          await approveThriftListingApi(dossier.id);
+        }
+        setCurrentStatus("APPROVED");
+        showToast(`Đã phê duyệt niêm yết ${dossier.sku} thành công vào Database MongoDB.`);
+      } catch {
+        showToast("Lỗi khi phê duyệt niêm yết trên hệ thống.", true);
+      }
     }
   };
 
-  const handleConfirmRejection = () => {
+  const handleConfirmRejection = async () => {
     const reasonText = rejectionDetailedNote.trim();
+    if (!reasonText) {
+      alert("Vui lòng nhập lý do từ chối cụ thể để thông báo cho Chủ Xưởng.");
+      return;
+    }
     const reasonSummary = reasonText ? ` (${reasonText})` : "";
-    setIsRejectModalOpen(false);
-    setCurrentStatus("REJECTED");
-    showToast(
-      `Đã gửi văn bản từ chối niêm yết ${dossier.sku}${reasonSummary} và yêu cầu hiệu chỉnh tới Chủ Xưởng ${dossier.shopName}.`,
-      true
-    );
+    try {
+      if (dossier.id) {
+        await rejectThriftListingApi(dossier.id, reasonText);
+      }
+      setIsRejectModalOpen(false);
+      setCurrentStatus("REJECTED");
+      showToast(
+        `Đã gửi văn bản từ chối niêm yết ${dossier.sku}${reasonSummary} thành công vào Database MongoDB.`,
+        true
+      );
+    } catch {
+      showToast("Lỗi khi từ chối niêm yết trên hệ thống.", true);
+    }
   };
 
   const completedChecksCount = Object.values(checklist).filter(Boolean).length;

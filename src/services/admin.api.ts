@@ -194,11 +194,13 @@ interface RawPendingThriftItem {
   name: string;
   description?: string;
   ownerId?: { _id?: string; fullName?: string };
-  categoryId?: { _id?: string; name?: string };
+  categoryId?: { _id?: string; name?: string; slug?: string };
   price?: number;
   images?: string[];
   condition?: string;
   sourceType?: string;
+  status?: string;
+  rejectionReason?: string;
   createdAt?: string;
 }
 
@@ -329,6 +331,71 @@ export const rejectThriftListingApi = async (id: string, rejectionReason: string
 };
 
 /**
+ * Lấy danh sách toàn bộ mục đăng THRIFT từ MongoDB Admin API (/api/admin/listings)
+ */
+export const fetchAdminThriftListingsApi = async (): Promise<RawPendingThriftItem[]> => {
+  try {
+    const res = await api.get("/admin/listings");
+    const data = res.data?.data || res.data;
+    if (data?.thrift?.items && Array.isArray(data.thrift.items) && data.thrift.items.length > 0) {
+      return data.thrift.items;
+    }
+  } catch (err) {
+    console.warn("Lỗi khi tải toàn bộ danh sách THRIFT từ Admin API:", err);
+  }
+
+  // Fallback to /thrift/listings to always populate real MongoDB listings with latest images
+  try {
+    const res = await api.get("/thrift/listings");
+    const payload = res.data?.data || res.data;
+    const list = Array.isArray(payload) ? payload : (payload?.listings || payload?.items || []);
+    if (Array.isArray(list) && list.length > 0) {
+      return list.map((item: {
+        _id: string;
+        name?: string;
+        title?: string;
+        slug?: string;
+        categoryId?: unknown;
+        category?: unknown;
+        price?: number;
+        images?: string[];
+        condition?: string;
+        sourceType?: string;
+        status?: string;
+        rejectionReason?: string;
+        createdAt?: string;
+      }) => {
+        const rawCat = item.categoryId || item.category;
+        const categoryId: { _id?: string; name?: string; slug?: string } | undefined =
+          typeof rawCat === "object" && rawCat !== null
+            ? (rawCat as { _id?: string; name?: string; slug?: string })
+            : typeof rawCat === "string"
+            ? { name: rawCat }
+            : undefined;
+
+        return {
+          _id: item._id,
+          name: item.name || item.title || "Sản phẩm THRIFT",
+          slug: item.slug || item._id,
+          categoryId,
+          price: Number(item.price) || 0,
+          images: Array.isArray(item.images) ? item.images : [],
+          condition: item.condition || "LIKE_NEW",
+          sourceType: item.sourceType || "SHOP_INVENTORY",
+          status: item.status || "APPROVED",
+          rejectionReason: item.rejectionReason,
+          createdAt: item.createdAt,
+        };
+      });
+    }
+  } catch (err2) {
+    console.warn("Lỗi khi fallback tải thrift listings từ DB:", err2);
+  }
+
+  return [];
+};
+
+/**
  * Phê duyệt hồ sơ KYC
  */
 export const approveKycApi = async (id: string): Promise<void> => {
@@ -437,7 +504,7 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
 
   // 2. Fetch real products from MongoDB
   try {
-    const res = await api.get("/rent/products");
+    const res = await api.get("/rent/products", { params: { limit: 100 } });
     const payload = res.data?.data || res.data;
     if (Array.isArray(payload)) {
       backendProducts = payload;
@@ -489,6 +556,7 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
         slug: item.slug || `thrift-${item._id}`,
         name: item.name,
         description: item.description,
+        rejectionReason: item.rejectionReason,
         sellerName: item.ownerId?.fullName || "Chủ sở hữu ký gửi",
         sellerId: item.ownerId?._id,
         categoryName: item.categoryId?.name || "Đồ thanh lý cao cấp",
@@ -504,6 +572,18 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
     }
   } catch (err) {
     console.warn("Lỗi khi tải pending listings từ Admin API:", err);
+  }
+
+  // 4b. Fetch all listings from Admin API (/admin/listings) to populate full MongoDB Thrift catalog
+  let allAdminThriftItems: RawPendingThriftItem[] = [];
+  try {
+    const res = await api.get("/admin/listings");
+    const data = res.data?.data || res.data;
+    if (data?.thrift?.items && Array.isArray(data.thrift.items)) {
+      allAdminThriftItems = data.thrift.items;
+    }
+  } catch (err) {
+    console.warn("Lỗi khi tải toàn bộ listings từ Admin API:", err);
   }
 
   // 5. Fetch real pending KYC records from Admin API (/admin/kyc)
@@ -621,26 +701,71 @@ export const fetchAdminDashboardData = async (): Promise<AdminDashboardData> => 
     rentApprovalList = pendingFromCatalog; // Tuyệt đối không dùng mock tĩnh!
   }
 
-  // --- Real THRIFT Approval Queue (Chỉ lấy đơn PENDING thật từ DB, nếu chưa có thì để TRỐNG) ---
-  const thriftApprovalList: ThriftListingItem[] = backendPendingThrift;
+  // --- Real THRIFT Approval Queue (Chỉ lấy đơn PENDING thật từ DB, nếu chưa có thì lấy từ allAdminThriftItems) ---
+  let thriftApprovalList: ThriftListingItem[] = backendPendingThrift;
+  if (thriftApprovalList.length === 0 && allAdminThriftItems.length > 0) {
+    thriftApprovalList = allAdminThriftItems
+      .filter((item) => item.status === "PENDING" || item.status === "PENDING_APPROVAL")
+      .map((item) => ({
+        id: item._id,
+        slug: item.slug || `thrift-${item._id}`,
+        name: item.name,
+        description: item.description,
+        rejectionReason: item.rejectionReason,
+        sellerName: item.ownerId?.fullName || "Chủ sở hữu ký gửi",
+        sellerId: item.ownerId?._id,
+        categoryName: item.categoryId?.name || "Đồ thanh lý cao cấp",
+        price: Number(item.price) || 250000,
+        images: Array.isArray(item.images) && item.images.length > 0 ? item.images : [],
+        condition: item.condition || "LIKE_NEW",
+        source: item.sourceType === "RENTAL_PRODUCT" ? "Chuyển đổi từ RENT" : "Ký gửi cá nhân",
+        hasCertificate: true,
+        status: "PENDING" as const,
+        submittedAt: item.createdAt || new Date().toISOString(),
+        timeDisplay: "Vừa gửi duyệt",
+      }));
+  }
 
-  // --- Real THRIFT Catalog ---
-  const thriftCatalogList: ThriftListingItem[] = THRIFT_PRODUCTS.map((item) => ({
-    id: item.id,
-    slug: item.slug,
-    name: item.title,
-    sellerName:
-      item.verifiedBy === "Shop Owner" ? "ReUse Official Shop" : "Chủ sở hữu xác thực",
-    categoryName: item.categoryLabel,
-    price: item.price,
-    images: [item.image],
-    condition: item.condition,
-    source: item.sourceLabel,
-    hasCertificate: true,
-    status: "APPROVED",
-    submittedAt: new Date().toISOString(),
-    timeDisplay: "Đã duyệt",
-  }));
+  // --- Real THRIFT Catalog (Lấy trực tiếp từ MongoDB thrift listings) ---
+  const thriftCatalogList: ThriftListingItem[] = allAdminThriftItems.length > 0
+    ? allAdminThriftItems.map((item) => {
+        const rawStatus = item.status || "APPROVED";
+        const statusNormalized = rawStatus === "PENDING_APPROVAL" ? "PENDING" : (rawStatus as "PENDING" | "APPROVED" | "REJECTED");
+        return {
+          id: item._id,
+          slug: item.slug || `thrift-${item._id}`,
+          name: item.name,
+          description: item.description,
+          rejectionReason: item.rejectionReason,
+          sellerName: item.ownerId?.fullName || "ReUse Official Shop",
+          sellerId: item.ownerId?._id,
+          categoryName: item.categoryId?.name || "Đồ thanh lý cao cấp",
+          price: Number(item.price) || 0,
+          images: Array.isArray(item.images) && item.images.length > 0 ? item.images : ["https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=600&q=80"],
+          condition: item.condition || "LIKE_NEW",
+          source: item.sourceType === "RENTAL_PRODUCT" ? "Chuyển đổi từ RENT" : "Ký gửi cá nhân",
+          hasCertificate: true,
+          status: statusNormalized,
+          submittedAt: item.createdAt || new Date().toISOString(),
+          timeDisplay: statusNormalized === "APPROVED" ? "Đã duyệt" : statusNormalized === "REJECTED" ? "Từ chối" : "Chờ duyệt",
+        };
+      })
+    : THRIFT_PRODUCTS.map((item) => ({
+        id: item.id,
+        slug: item.slug,
+        name: item.title,
+        sellerName:
+          item.verifiedBy === "Shop Owner" ? "ReUse Official Shop" : "Chủ sở hữu xác thực",
+        categoryName: item.categoryLabel,
+        price: item.price,
+        images: [item.image],
+        condition: item.condition,
+        source: item.sourceLabel,
+        hasCertificate: true,
+        status: "APPROVED",
+        submittedAt: new Date().toISOString(),
+        timeDisplay: "Đã duyệt",
+      }));
 
   // --- Real KYC Applicants from MongoDB (Chỉ lấy hồ sơ thật từ MongoDB, tuyệt đối không dùng fake mock) ---
   const kycApplicants: KycApplicantItem[] = backendKycRecords;
@@ -826,6 +951,7 @@ export default {
   rejectRentListingApi,
   approveThriftListingApi,
   rejectThriftListingApi,
+  fetchAdminThriftListingsApi,
   approveKycApi,
   rejectKycApi,
   fetchAdminCategoriesApi,

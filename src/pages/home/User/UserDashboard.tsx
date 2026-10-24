@@ -25,21 +25,110 @@ export const UserDashboard: React.FC = () => {
   // ── Load Real Rental Orders & Thrift Orders ──
   const [activeRentals, setActiveRentals] = useState<RentalOrderApi[]>([]);
 
-  // 1. Real Thrift Orders from Backend API
+  // 1. Real Thrift Orders from Backend API & LocalStorage
   const [thriftOrders, setThriftOrders] = useState<ThriftOrderApi[]>([]);
 
   useEffect(() => {
     let isMounted = true;
-    getMyThriftOrdersApi()
-      .then((res) => {
-        if (!isMounted) return;
-        const list = res?.orders || [];
-        setThriftOrders(list);
-      })
-      .catch((err) => {
-        console.warn('Could not load thrift orders from API:', err);
+    const uId = user?._id || user?.id || '';
+
+    const loadUserThriftOrders = async () => {
+      // 1. Read local storage cache for this user
+      const localThrift: ThriftOrderApi[] = [];
+      const seenCodes = new Set<string>();
+
+      const keysToTry = [uId ? `user_thrift_orders_${uId}` : null, 'user_thrift_orders'].filter(Boolean) as string[];
+      for (const k of keysToTry) {
+        try {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) {
+              arr.forEach((o: ThriftOrderApi) => {
+                const c = (o.orderCode || o._id || '').replace('#', '').trim().toLowerCase();
+                if (c && !seenCodes.has(c)) {
+                  seenCodes.add(c);
+                  localThrift.push(o);
+                }
+              });
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // 2. Fetch from MongoDB API
+      let apiOrders: ThriftOrderApi[] = [];
+      try {
+        const res = await getMyThriftOrdersApi();
+        if (Array.isArray(res)) {
+          apiOrders = res;
+        } else if (Array.isArray(res?.orders)) {
+          apiOrders = res.orders;
+        } else if (Array.isArray((res as unknown as { data?: ThriftOrderApi[] })?.data)) {
+          apiOrders = (res as unknown as { data: ThriftOrderApi[] }).data;
+        }
+      } catch (err) {
+        console.warn('Could not load thrift orders from API in UserDashboard:', err);
+      }
+
+      // 3. Merge API & LocalStorage uniquely by orderCode / _id
+      const merged: ThriftOrderApi[] = [];
+      const processedCodes = new Set<string>();
+
+      // API orders take priority for status/tracking
+      apiOrders.forEach((apiO) => {
+        const aCode = (apiO.orderCode || apiO._id || '').replace('#', '').trim().toLowerCase();
+        const matchedLocal = localThrift.find((loc) => {
+          const lCode = (loc.orderCode || loc._id || '').replace('#', '').trim().toLowerCase();
+          return lCode === aCode || (lCode.length > 4 && aCode.includes(lCode)) || (aCode.length > 4 && lCode.includes(aCode));
+        });
+
+        const mergedOrder: ThriftOrderApi = {
+          ...apiO,
+          items: (apiO.items && apiO.items.length > 0) ? apiO.items : (matchedLocal?.items || []),
+          totalAmount: apiO.totalAmount || matchedLocal?.totalAmount || 0,
+        };
+
+        if (aCode) processedCodes.add(aCode);
+        merged.push(mergedOrder);
       });
-    return () => { isMounted = false; };
+
+      // Local orders not yet in API
+      localThrift.forEach((loc) => {
+        const lCode = (loc.orderCode || loc._id || '').replace('#', '').trim().toLowerCase();
+        if (lCode && !processedCodes.has(lCode)) {
+          processedCodes.add(lCode);
+          merged.push(loc);
+        }
+      });
+
+      // Sort by newest first
+      merged.sort((a, b) => {
+        const timeA = new Date(a.createdAt || 0).getTime();
+        const timeB = new Date(b.createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+
+      if (isMounted) {
+        setThriftOrders(merged);
+      }
+    };
+
+    loadUserThriftOrders();
+
+    const handleUpdate = () => {
+      loadUserThriftOrders();
+    };
+
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('rental_order_updated', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('rental_order_updated', handleUpdate);
+    };
   }, [user]);
 
   // 2. Real Rent Orders: Merge Backend API & LocalStorage for accurate user context
@@ -48,18 +137,7 @@ export const UserDashboard: React.FC = () => {
     const uId = user?._id || user?.id || '';
 
     const loadUserRentals = async () => {
-      try {
-        localStorage.removeItem('user_rental_orders');
-        localStorage.removeItem('user_thrift_orders');
-        for (let i = localStorage.length - 1; i >= 0; i--) {
-          const k = localStorage.key(i);
-          if (k && (k.startsWith('reuse_order_backup_') || k === 'user_rental_orders' || k === 'user_thrift_orders')) {
-            localStorage.removeItem(k);
-          }
-        }
-      } catch {
-        // ignore
-      }
+      // Do not clear user orders cache so past orders remain visible seamlessly
 
       if (!uId) {
         if (isMounted) setActiveRentals([]);
@@ -348,21 +426,31 @@ export const UserDashboard: React.FC = () => {
       const item = itemsList?.[0];
       const rawId = order.orderCode || order._id || `RH-THF-${idx + 1}`;
       const code = rawId.startsWith('#') ? rawId : `#${rawId}`;
-      const title = item?.productName || `Đơn hàng THRIFT ${code}`;
-      const image =
+      const title = item?.productName || (item as unknown as { title?: string })?.title || `Hiện vật THRIFT ${code}`;
+      const rawImg =
         item?.imageUrl ||
+        (item as unknown as { image?: string })?.image ||
+        '';
+      const image =
+        rawImg ||
         'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80';
       const price = order.totalAmount || item?.price || 0;
       const condition = item?.condition || 'Tình trạng: Kiểm định chuẩn ReUse Grade A';
-      const status =
-        order.status === 'COMPLETED'
-          ? 'ĐÃ GIAO HÀNG'
-          : order.status === 'PAID'
-          ? 'ĐÃ THANH TOÁN'
-          : order.status || 'ĐÃ XÁC NHẬN';
+
+      let status = 'ĐÃ XÁC NHẬN';
+      if (order.status === 'COMPLETED') status = 'ĐÃ GIAO HÀNG';
+      else if (order.status === 'PAID') status = 'ĐÃ THANH TOÁN';
+      else if (order.status === 'SHIPPED') status = 'ĐANG VẬN CHUYỂN';
+      else if (order.status === 'DELIVERED') status = 'ĐÃ GIAO HÀNG';
+      else if (order.status === 'PROCESSING') status = 'ĐANG XỬ LÝ';
+      else if (order.status === 'CANCELLED') status = 'ĐÃ HỦY';
+      else if (order.status === 'DISPUTED') status = 'TRANH CHẤP';
+      else if (order.status === 'PENDING_PAYMENT') status = 'CHỜ THANH TOÁN';
+
       const badge = 'THRIFT';
       const warrantyNote = item?.warranty || 'Chứng nhận Audit Bench';
-      const detailUrl = `/thrift/orders/${order._id.replace('#', '')}`;
+      const cleanOrderId = String(order._id || order.orderCode || '').replace('#', '').trim();
+      const detailUrl = `/thrift/orders/${cleanOrderId}`;
 
       return {
         id: code,
