@@ -26,7 +26,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   hideFloatingToggle = false,
 }) => {
   const { user } = useAuth();
-  const { wishlistCount } = useCartWishlist();
+  const { wishlistCount, cartCount } = useCartWishlist();
   const location = useLocation();
 
   // If the logged in user is an ADMIN, AdminLayout already provides AdminSidebar.
@@ -464,6 +464,36 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           </div>
           <span className="text-[10px] text-[#76726B] font-semibold">
             {thriftOrdersCount > 0 ? `${thriftOrdersCount} Đơn` : 'Chưa có'}
+          </span>
+        </Link>
+        {/* Cart / Giỏ hàng tuần hoàn */}
+        <Link
+          to="/cart"
+          onClick={handleLinkClick}
+          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-colors group ${
+            isCurrent('cart', '/cart')
+              ? 'bg-[#1C1A18] text-white'
+              : 'text-[#1C1A18] hover:bg-white border border-transparent hover:border-[#E8E4DC]/60'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <svg
+              className="w-4 h-4 text-[#76726B] group-hover:text-[#1C1A18]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.8"
+              />
+            </svg>
+            <span>Giỏ hàng</span>
+          </div>
+          <span className="text-[10px] text-[#76726B] font-semibold">
+            {cartCount > 0 ? `${cartCount} Món` : '0'}
           </span>
         </Link>
         {/* Wishlist */}
