@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
 import { getCategoryDetailConfig } from '../../data/categories/categoryDetailData';
 import type { CategoryDetailProduct } from '../../data/categories/categoryDetailData';
@@ -14,7 +13,6 @@ export const CategoryDetail: React.FC = () => {
   const { slug: routeSlug } = useParams<{ slug?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { isWishlisted, toggleWishlist, addToCart } = useCartWishlist();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -216,56 +214,16 @@ export const CategoryDetail: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleProtectedAction = (actionName: string, targetUrl: string, onSuccess: () => void) => {
-    if (!user) {
-      setAuthModal({
-        open: true,
-        actionName,
-        targetUrl,
-      });
-      return;
-    }
-    onSuccess();
-  };
-
   const handleToggleWishlist = (product: CategoryDetailProduct) => {
     toggleWishlist(product.id);
   };
 
   const handleRentNow = (product: CategoryDetailProduct) => {
-    handleProtectedAction(`thuê thiết bị "${product.title}"`, '/cart', () => {
-      addToCart({
-        id: product.id,
-        title: product.title,
-        price: product.price,
-        image: product.image,
-        mode: 'rent',
-        deposit: product.deposit,
-        location: product.locationBadge,
-        gradeBadge: product.gradeBadge,
-        categoryLabel: category.title,
-        quantity: 1,
-      });
-      navigate('/cart');
-    });
+    navigate(product.href || `/rent/products/${product.id}`);
   };
 
   const handleBuyNow = (product: CategoryDetailProduct) => {
-    handleProtectedAction(`mua sản phẩm "${product.title}"`, '/cart', () => {
-      addToCart({
-        id: product.id,
-        title: product.title,
-        price: product.price,
-        image: product.image,
-        mode: 'thrift',
-        deposit: product.deposit,
-        location: product.locationBadge,
-        gradeBadge: product.gradeBadge,
-        categoryLabel: category.title,
-        quantity: 1,
-      });
-      navigate('/cart');
-    });
+    navigate(product.href || `/thrift/${product.id}`);
   };
 
   const handleAddToCart = (product: CategoryDetailProduct) => {

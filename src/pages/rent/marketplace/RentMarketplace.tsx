@@ -21,9 +21,8 @@ import type { Product, SortKey } from '../../data/rent/marketplaceData';
 // ─── ProductCard ───────────────────────────────────────────────────────────────
 const ProductCard: React.FC<{
   product: Product;
-  onRequireAuth: (action: string, targetHref: string) => void;
-}> = ({ product, onRequireAuth }) => {
-  const { user } = useAuth();
+  onRequireAuth?: (action: string, targetHref: string) => void;
+}> = ({ product }) => {
   const navigate = useNavigate();
   const { isWishlisted, toggleWishlist, addToCart } = useCartWishlist();
   const {
@@ -34,23 +33,7 @@ const ProductCard: React.FC<{
 
   const handleRentClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!user) {
-      onRequireAuth(`thuê "${title}"`, '/cart');
-      return;
-    }
-    addToCart({
-      id,
-      title,
-      price,
-      image,
-      mode: 'rent',
-      location,
-      deposit,
-      categoryLabel,
-      gradeBadge: conditionLabel,
-      quantity: 1,
-    });
-    navigate('/cart');
+    navigate(href || `/rent/products/${id}`);
   };
 
   const handleCartClick = (e: React.MouseEvent) => {

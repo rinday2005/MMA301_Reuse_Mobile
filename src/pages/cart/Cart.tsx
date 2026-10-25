@@ -4,9 +4,22 @@ import { useCartWishlist, type CartItem } from '../../context/CartWishlistContex
 import { AuthContext } from '../../context/auth-context';
 import { DEFAULT_DEMO_CART_ITEMS } from '../data/cart/defaultCartData';
 import { RentalCalendarPicker } from '../../components/rent/RentalCalendarPicker';
-import { getProductBookedDates, hasDateRangeConflict } from '../data/rent/rentOrderDetailData';
+import {
+  getProductBookedDates,
+  hasDateRangeConflict,
+  findEarliestAvailableRentalRange,
+} from '../data/rent/rentOrderDetailData';
 import { resolveWishlistProduct } from '../../services/wishlistProductResolver';
 import { UserSidebar } from '../../components/layout/UserSidebar';
+
+const formatDisplayDateVN = (ymd?: string) => {
+  if (!ymd) return '--/--/----';
+  const parts = ymd.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return ymd;
+};
 
 export const Cart: React.FC = () => {
   const navigate = useNavigate();
@@ -67,11 +80,71 @@ export const Cart: React.FC = () => {
   // Countdown timer simulation for THRIFT hold (43m 20s)
   const [thriftSeconds, setThriftSeconds] = useState(43 * 60 + 20);
 
+  // Helper calculating valid rental date range (at least tomorrow, non-conflicting)
+  const getValidRentalDates = (item: CartItem): { startDate: string; endDate: string; days: number } => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const minDateStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+    const bookedDates = getProductBookedDates({ id: item.id, title: item.title });
+    const requestedDays = item.rentalDays && item.rentalDays > 0 ? item.rentalDays : 3;
+
+    const isInvalid =
+      !item.startDate ||
+      !item.endDate ||
+      item.startDate < minDateStr ||
+      item.endDate < item.startDate ||
+      hasDateRangeConflict(item.startDate, item.endDate, bookedDates);
+
+    if (isInvalid || !item.startDate || !item.endDate) {
+      return findEarliestAvailableRentalRange(bookedDates, requestedDays, minDateStr);
+    }
+
+    return {
+      startDate: item.startDate,
+      endDate: item.endDate,
+      days: requestedDays,
+    };
+  };
+
   // Modal to edit rental duration via Calendar
   const [editingRentItem, setEditingRentItem] = useState<CartItem | null>(null);
-  const [editStartDate, setEditStartDate] = useState<string>('2026-11-18');
-  const [editEndDate, setEditEndDate] = useState<string>('2026-11-21');
+  const [editStartDate, setEditStartDate] = useState<string>(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+  });
+  const [editEndDate, setEditEndDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 4);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  });
   const [editDays, setEditDays] = useState<number>(3);
+
+  // Auto-sanitize rental items in cart that have missing or past dates (e.g. from legacy 2024 dates)
+  useEffect(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const minDateStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+
+    cart.forEach((item) => {
+      if (item.mode === 'rent' || !item.mode) {
+        const isPastOrMissing = !item.startDate || !item.endDate || item.startDate < minDateStr;
+        if (isPastOrMissing) {
+          const bDates = getProductBookedDates({ id: item.id, title: item.title });
+          const earliest = findEarliestAvailableRentalRange(bDates, item.rentalDays || 3, minDateStr);
+          updateCartItem(item.id, {
+            startDate: earliest.startDate,
+            endDate: earliest.endDate,
+            rentalDays: earliest.days,
+          });
+        }
+      }
+    });
+  }, [cart, updateCartItem]);
 
   // Booked dates for the item being edited in cart
   const editingBookedDates = useMemo(() => {
@@ -605,16 +678,17 @@ export const Cart: React.FC = () => {
                                     calendar_today
                                   </span>
                                   <span className="font-medium text-[#1C1C18]">
-                                    {item.startDate || '18/11/2024'} → {item.endDate || '23/11/2024'}
+                                    {formatDisplayDateVN(item.startDate)} → {formatDisplayDateVN(item.endDate)}
                                   </span>
                                   <span className="text-[#576151] font-bold">({days} ngày)</span>
                                   <button
                                     type="button"
                                     onClick={() => {
+                                      const validDates = getValidRentalDates(item);
                                       setEditingRentItem(item);
-                                      setEditStartDate(item.startDate || '2026-11-18');
-                                      setEditEndDate(item.endDate || '2026-11-21');
-                                      setEditDays(days);
+                                      setEditStartDate(validDates.startDate);
+                                      setEditEndDate(validDates.endDate);
+                                      setEditDays(validDates.days);
                                     }}
                                     aria-label="Chỉnh sửa ngày thuê"
                                     className="ml-1 hover:text-[#141310] cursor-pointer text-[#576151] hover:underline flex items-center gap-0.5"
@@ -1164,39 +1238,47 @@ export const Cart: React.FC = () => {
       {/* Edit Rental Duration Modal directly with Calendar */}
       {editingRentItem && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
           onClick={() => setEditingRentItem(null)}
         >
           <div
-            className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-5 relative border border-[#EBE8E1] max-h-[92vh] overflow-y-auto"
+            className="bg-white rounded-3xl p-5 sm:p-6 max-w-xl w-full shadow-2xl space-y-4 relative border border-[#EBE8E1] max-h-[94vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-start justify-between pb-3 border-b border-[#F1EDE6]">
-              <div>
-                <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-[#4A6B53] bg-[#EEF2EC] px-2.5 py-0.5 rounded-full mb-1">
-                  Chọn lịch thuê trực tiếp
-                </span>
-                <h3 className="font-serif text-lg font-bold text-[#141310] line-clamp-1">
-                  {editingRentItem.title}
-                </h3>
-                <p className="text-xs text-[#7B766F] mt-0.5">
-                  Bấm trực tiếp trên lịch để chọn ngày nhận và ngày hoàn trả thiết bị.
-                </p>
+            <div className="flex items-start justify-between pb-3 border-b border-[#F1EDE6] shrink-0">
+              <div className="flex items-center gap-3">
+                <img
+                  src={getItemImage(editingRentItem)}
+                  alt={editingRentItem.title}
+                  className="w-12 h-12 rounded-xl object-cover border border-[#EBE8E1] shrink-0"
+                />
+                <div className="min-w-0">
+                  <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-[#4A6B53] bg-[#EEF2EC] px-2 py-0.5 rounded-full mb-0.5">
+                    CHỌN LỊCH THUÊ TRỰC TIẾP
+                  </span>
+                  <h3 className="font-serif text-base sm:text-lg font-bold text-[#141310] line-clamp-1">
+                    {editingRentItem.title}
+                  </h3>
+                  <p className="text-xs text-[#7B766F]">
+                    Bấm trực tiếp trên lịch để chọn ngày nhận và ngày hoàn trả
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setEditingRentItem(null)}
-                className="p-1.5 rounded-full text-[#7B766F] hover:bg-[#F7F3EC] transition-colors cursor-pointer"
+                className="p-1.5 rounded-full text-[#7B766F] hover:bg-[#F7F3EC] transition-colors cursor-pointer shrink-0"
                 title="Đóng"
               >
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
 
-            {/* Direct Rental Calendar */}
-            <div className="py-1">
+            {/* Direct Rental Calendar with inline mode */}
+            <div className="overflow-y-auto flex-1 pr-1 -mr-1">
               <RentalCalendarPicker
+                inline={true}
                 startDate={editStartDate}
                 endDate={editEndDate}
                 bookedRanges={editingBookedDates}
@@ -1209,9 +1291,9 @@ export const Cart: React.FC = () => {
             </div>
 
             {/* Selected Summary & Action CTAs */}
-            <div className="pt-3 border-t border-[#F1EDE6] flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="pt-3 border-t border-[#F1EDE6] flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
               <div className="text-xs text-[#7B766F] w-full sm:w-auto">
-                Kỳ thuê: <strong className="text-[#141310]">{editDays} ngày</strong> · Đơn giá:{' '}
+                Kỳ thuê: <strong className="text-[#141310]">{editDays} ngày</strong> ({formatDisplayDateVN(editStartDate)} → {formatDisplayDateVN(editEndDate)}) · Đơn giá:{' '}
                 <strong className="text-[#141310]">{formatCurrency(editingRentItem.price)}</strong> / ngày
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto">

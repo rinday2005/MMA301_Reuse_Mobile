@@ -8,6 +8,7 @@ interface RentalCalendarPickerProps {
   onChange: (startDate: string, endDate: string, days: number) => void;
   bookedRanges?: BookedDateRange[];
   className?: string;
+  inline?: boolean;
 }
 
 // Utility formatting helpers
@@ -45,6 +46,7 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
   onChange,
   bookedRanges = [],
   className = '',
+  inline = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectionStep, setSelectionStep] = useState<'start' | 'end'>('start');
@@ -61,6 +63,13 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const todayStr = useMemo(() => formatYMD(new Date()), []);
+
+  // Lịch thuê cần cách thời gian hiện tại ít nhất 1 ngày (từ ngày mai trở đi)
+  const minSelectableDateStr = useMemo(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return formatYMD(tomorrow);
+  }, []);
 
   // Map booked ranges into a quick lookup set & note map
   const bookedDatesMap = useMemo(() => {
@@ -117,13 +126,14 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
     let nextEnd = endDate;
     if (
       !nextStart ||
-      nextStart < todayStr ||
+      nextStart < minSelectableDateStr ||
       bookedDatesMap.has(nextStart) ||
       (nextEnd && hasBookedConflict(nextStart, nextEnd))
     ) {
       const earliest = findEarliestAvailableRentalRange(
         bookedRanges,
-        calculateDays(nextStart, nextEnd) || 3
+        calculateDays(nextStart, nextEnd) || 3,
+        minSelectableDateStr
       );
       nextStart = earliest.startDate;
       nextEnd = earliest.endDate;
@@ -178,7 +188,7 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
         dateStr: str,
         dayNumber: prevDate.getDate(),
         isCurrentMonth: false,
-        isPast: str < todayStr,
+        isPast: str < minSelectableDateStr,
         isBooked: bookedDatesMap.has(str),
         bookedNote: bookedDatesMap.get(str),
       });
@@ -192,7 +202,7 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
         dateStr: str,
         dayNumber: i,
         isCurrentMonth: true,
-        isPast: str < todayStr,
+        isPast: str < minSelectableDateStr,
         isBooked: bookedDatesMap.has(str),
         bookedNote: bookedDatesMap.get(str),
       });
@@ -207,17 +217,18 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
         dateStr: str,
         dayNumber: i,
         isCurrentMonth: false,
-        isPast: str < todayStr,
+        isPast: str < minSelectableDateStr,
         isBooked: bookedDatesMap.has(str),
         bookedNote: bookedDatesMap.get(str),
       });
     }
 
     return days;
-  }, [viewYear, viewMonth, todayStr, bookedDatesMap]);
+  }, [viewYear, viewMonth, minSelectableDateStr, bookedDatesMap]);
 
-  // Close popover when clicking outside
+  // Close popover when clicking outside (only in non-inline mode)
   useEffect(() => {
+    if (inline) return;
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -230,12 +241,12 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen]);
+  }, [isOpen, inline]);
 
   // Handle clicking a day cell
   const handleDayClick = (dateStr: string, isPast: boolean, isBooked: boolean) => {
-    if (isPast || dateStr < todayStr) {
-      setErrorMessage('Không được chọn thời gian trong quá khứ. Vui lòng chọn từ hôm nay trở đi!');
+    if (isPast || dateStr < minSelectableDateStr) {
+      setErrorMessage('Lịch thuê cần cách thời gian hiện tại ít nhất 1 ngày (từ ngày mai trở đi)!');
       return;
     }
     if (isBooked || bookedDatesMap.has(dateStr)) {
@@ -246,7 +257,7 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
     setErrorMessage(null);
 
     // If current tempStart is already invalid or booked, force new start
-    if (selectionStep === 'start' || !tempStart || (tempStart && tempEnd) || bookedDatesMap.has(tempStart)) {
+    if (selectionStep === 'start' || !tempStart || (tempStart && tempEnd) || bookedDatesMap.has(tempStart) || tempStart < minSelectableDateStr) {
       // Start a new selection
       setTempStart(dateStr);
       setTempEnd('');
@@ -268,15 +279,17 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
         const days = calculateDays(tempStart, dateStr);
         onChange(tempStart, dateStr, days);
         setSelectionStep('start');
-        setIsOpen(false);
+        if (!inline) {
+          setIsOpen(false);
+        }
       }
     }
   };
 
   const isStartBooked = Boolean(tempStart && bookedDatesMap.has(tempStart));
   const isEndBooked = Boolean(tempEnd && bookedDatesMap.has(tempEnd));
-  const isPastStart = Boolean(tempStart && tempStart < todayStr);
-  const isPastEnd = Boolean(tempEnd && tempEnd < todayStr);
+  const isPastStart = Boolean(tempStart && tempStart < minSelectableDateStr);
+  const isPastEnd = Boolean(tempEnd && tempEnd < minSelectableDateStr);
   const isConflict = Boolean(
     !tempStart ||
     isStartBooked ||
@@ -288,17 +301,17 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
 
   const handleApply = () => {
     if (!tempStart) return;
-    if (tempStart < todayStr) {
-      setErrorMessage('Không được chọn thời gian trong quá khứ. Vui lòng chọn từ hôm nay trở đi!');
+    if (tempStart < minSelectableDateStr) {
+      setErrorMessage('Lịch thuê cần cách thời gian hiện tại ít nhất 1 ngày (từ ngày mai trở đi)!');
       return;
     }
     if (bookedDatesMap.has(tempStart)) {
-      setErrorMessage(`Ngày nhận máy ${formatDisplayDateVN(tempStart).dayMonth} đã có người thuê! Vui lòng chọn ngày còn trống trên lịch.`);
+      setErrorMessage(`Ngày nhận ${formatDisplayDateVN(tempStart).dayMonth} đã có người thuê! Vui lòng chọn ngày còn trống trên lịch.`);
       return;
     }
     const finalEnd = tempEnd || tempStart;
-    if (finalEnd < todayStr) {
-      setErrorMessage('Ngày hoàn trả không thể ở trong quá khứ!');
+    if (finalEnd < minSelectableDateStr) {
+      setErrorMessage('Ngày hoàn trả phải từ ngày mai trở đi!');
       return;
     }
     if (bookedDatesMap.has(finalEnd)) {
@@ -311,7 +324,9 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
     }
     const days = calculateDays(tempStart, finalEnd);
     onChange(tempStart, finalEnd, days);
-    setIsOpen(false);
+    if (!inline) {
+      setIsOpen(false);
+    }
   };
 
   const startInfo = formatDisplayDateVN(tempStart || startDate);
@@ -321,21 +336,22 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
 
   // Month title format: "Tháng 11, 2026"
   const monthTitle = `Tháng ${viewMonth + 1}, ${viewYear}`;
+  const showCalendar = inline || isOpen;
 
   return (
     <div ref={containerRef} className={`relative w-full ${className}`}>
       {/* ── Trigger Bar: Two Interactive Cards ── */}
       <div className="grid grid-cols-2 gap-3">
-        {/* Card 1: Ngày nhận máy */}
+        {/* Card 1: Ngày nhận */}
         <div
           role="button"
           tabIndex={0}
           onClick={() => {
-            setIsOpen(true);
+            if (!inline) setIsOpen(true);
             setSelectionStep('start');
           }}
           className={`p-3 rounded-xl border transition-all text-left cursor-pointer group select-none ${
-            isOpen && selectionStep === 'start'
+            showCalendar && selectionStep === 'start'
               ? 'bg-white border-[#1C1A18] shadow-md ring-2 ring-[#1C1A18]/10'
               : isTriggerStartBooked
               ? 'bg-rose-50/80 border-rose-200'
@@ -343,7 +359,7 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
           }`}
         >
           <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#78736A] mb-1">
-            <span>Ngày nhận máy</span>
+            <span>Ngày nhận</span>
             <span className="material-symbols-outlined text-[15px] text-[#1C1A18] group-hover:scale-110 transition-transform">
               calendar_month
             </span>
@@ -366,11 +382,11 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
           role="button"
           tabIndex={0}
           onClick={() => {
-            setIsOpen(true);
+            if (!inline) setIsOpen(true);
             setSelectionStep('end');
           }}
           className={`p-3 rounded-xl border transition-all text-left cursor-pointer group select-none ${
-            isOpen && selectionStep === 'end'
+            showCalendar && selectionStep === 'end'
               ? 'bg-white border-[#1C1A18] shadow-md ring-2 ring-[#1C1A18]/10'
               : 'bg-[#F4F0EA]/70 hover:bg-[#F4F0EA] border-transparent hover:border-[#E7E2DA]'
           }`}
@@ -386,9 +402,15 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
         </div>
       </div>
 
-      {/* ── Custom Interactive Calendar Popover ── */}
-      {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-3 z-40 bg-white rounded-3xl p-5 shadow-2xl border border-[#E7E2DA] animate-fade-in space-y-4">
+      {/* ── Interactive Calendar: Inline Mode or Floating Popover ── */}
+      {showCalendar && (
+        <div
+          className={
+            inline
+              ? 'w-full mt-3 bg-white rounded-2xl p-4 sm:p-5 border border-[#E7E2DA] space-y-4 shadow-xs'
+              : 'absolute top-full left-0 right-0 mt-3 z-40 bg-white rounded-3xl p-5 shadow-2xl border border-[#E7E2DA] animate-fade-in space-y-4'
+          }
+        >
           {/* Header navigation */}
           <div className="flex items-center justify-between pb-2 border-b border-[#F4F0EA]">
             <div className="flex items-center gap-2">
@@ -428,10 +450,10 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
                 {isStartBooked ? 'event_busy' : 'info'}
               </span>
               {isStartBooked
-                ? 'Ngày nhận máy đã có khách thuê, vui lòng chọn ngày khác còn trống!'
+                ? 'Ngày nhận đã có khách thuê, vui lòng chọn ngày khác còn trống!'
                 : selectionStep === 'start' || !tempStart
-                ? 'Chọn ngày nhận máy'
-                : 'Chọn ngày hoàn trả thiết bị'}
+                ? 'Chọn ngày nhận (cách hiện tại ít nhất 1 ngày)'
+                : 'Chọn ngày hoàn trả'}
             </span>
             {tempStart && (
               <span className={`text-[11px] font-mono font-medium ${isStartBooked ? 'text-rose-700 line-through font-bold' : 'text-[#1C1A18]'}`}>
@@ -566,23 +588,25 @@ export const RentalCalendarPicker: React.FC<RentalCalendarPickerProps> = ({
               >
                 Xóa chọn
               </button>
-              <button
-                type="button"
-                onClick={handleApply}
-                disabled={!tempStart || isConflict}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-xs ${
-                  !tempStart || isConflict
-                    ? 'bg-stone-200 text-stone-400 cursor-not-allowed opacity-60'
-                    : 'bg-[#1C1A18] text-white hover:bg-[#292724] cursor-pointer'
-                }`}
-                title={
-                  isConflict
-                    ? 'Khoảng ngày bạn chọn có ngày bị trùng với lịch đã có người thuê'
-                    : 'Xác nhận khoảng thời gian thuê'
-                }
-              >
-                Xác nhận
-              </button>
+              {!inline && (
+                <button
+                  type="button"
+                  onClick={handleApply}
+                  disabled={!tempStart || isConflict}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-xs ${
+                    !tempStart || isConflict
+                      ? 'bg-stone-200 text-stone-400 cursor-not-allowed opacity-60'
+                      : 'bg-[#1C1A18] text-white hover:bg-[#292724] cursor-pointer'
+                  }`}
+                  title={
+                    isConflict
+                      ? 'Khoảng ngày bạn chọn có ngày bị trùng với lịch đã có người thuê'
+                      : 'Xác nhận khoảng thời gian thuê'
+                  }
+                >
+                  Xác nhận
+                </button>
+              )}
             </div>
           </div>
         </div>

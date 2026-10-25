@@ -14,6 +14,10 @@ import {
   removeFromWishlistApi,
   clearWishlistApi,
 } from '../services/wishlist.api';
+import {
+  findEarliestAvailableRentalRange,
+  getProductBookedDates,
+} from '../pages/data/rent/rentOrderDetailData';
 
 export interface CartItem {
   id: string;
@@ -408,10 +412,32 @@ const CartWishlistProviderInner: React.FC<{ children: React.ReactNode; currentUs
       }
     }
 
+    let finalStartDate = item.startDate;
+    let finalEndDate = item.endDate;
+    let finalRentalDays = item.rentalDays;
+
+    if (item.mode !== 'thrift') {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const minDateStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+
+      if (!finalStartDate || !finalEndDate || finalStartDate < minDateStr) {
+        const bDates = getProductBookedDates({ id: item.id, title: item.title });
+        const earliest = findEarliestAvailableRentalRange(bDates, finalRentalDays || 3, minDateStr);
+        finalStartDate = earliest.startDate;
+        finalEndDate = earliest.endDate;
+        finalRentalDays = earliest.days;
+      }
+    }
+
     const completeItem: CartItem = {
       ...item,
       image: finalImage,
       quantity: qty,
+      startDate: finalStartDate,
+      endDate: finalEndDate,
+      rentalDays: finalRentalDays || item.rentalDays || 3,
     };
 
     setCart((prev) => {

@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { recordBookedDates } from '../data/rent/rentOrderDetailData';
 
 export const PaymentSuccess: React.FC = () => {
   const location = useLocation();
@@ -25,6 +26,9 @@ interface StoredOrder {
   paymentStatus?: string;
   transactionNo?: string;
   bankCode?: string;
+  startDate?: string;
+  endDate?: string;
+  items?: Array<{ productId?: string | number; id?: string | number }>;
   [key: string]: unknown;
 }
 
@@ -99,6 +103,14 @@ interface StoredOrder {
 
                 if (isMatch) {
                   updated = true;
+                  if (o.startDate && o.endDate && Array.isArray(o.items)) {
+                    o.items.forEach((it: { productId?: string | number; id?: string | number }) => {
+                      const pid = String(it.productId || it.id || '');
+                      if (pid) {
+                        recordBookedDates(pid, o.startDate!, o.endDate!, `Đã có khách thuê đơn ${o.orderCode || cleanTarget}`);
+                      }
+                    });
+                  }
                   // Bỏ qua shop owner & shipper trong môi trường test -> Chuyển thẳng Bước 5: DELIVERED (Chờ ký nhận CLA)
                   return {
                     ...o,

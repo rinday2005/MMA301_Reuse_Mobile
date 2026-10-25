@@ -13,6 +13,7 @@ import {
   getProductBookedDates,
   hasDateRangeConflict,
   findEarliestAvailableRentalRange,
+  recordBookedDates,
 } from '../../data/rent/rentOrderDetailData';
 import { getUserProfileAddress } from '../../../utils/address';
 import { resolveWishlistProduct } from '../../../services/wishlistProductResolver';
@@ -467,6 +468,11 @@ export const RentCheckout: React.FC = () => {
         const userOrders = JSON.parse(localStorage.getItem(userKey) || '[]');
         localStorage.setItem(userKey, JSON.stringify([newOrder, ...userOrders]));
       }
+
+      // Record booked dates into shared storage so calendar immediately blocks these dates for other users
+      rentItems.forEach((ri) => {
+        recordBookedDates(ri.id, startDate, endDate, `Đã có khách đặt đơn ${contractId}`);
+      });
     } catch {
       // ignore
     }
