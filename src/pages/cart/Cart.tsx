@@ -8,9 +8,12 @@ import {
   getProductBookedDates,
   hasDateRangeConflict,
   findEarliestAvailableRentalRange,
+  recordBookedDates,
 } from '../data/rent/rentOrderDetailData';
 import { resolveWishlistProduct } from '../../services/wishlistProductResolver';
 import { UserSidebar } from '../../components/layout/UserSidebar';
+import { getUserProfileAddress } from '../../utils/address';
+import { createRentalOrderApi } from '../../services/order.api';
 
 const formatDisplayDateVN = (ymd?: string) => {
   if (!ymd) return '--/--/----';
@@ -122,6 +125,167 @@ export const Cart: React.FC = () => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   });
   const [editDays, setEditDays] = useState<number>(3);
+
+  interface PlacedRentOrderInfo {
+    orderCode: string;
+    items: CartItem[];
+    startDate: string;
+    endDate: string;
+    totalAmount: number;
+    depositAmount: number;
+    rentalFee: number;
+    shippingFee: number;
+    recipientName: string;
+  }
+  const [placedRentOrder, setPlacedRentOrder] = useState<PlacedRentOrderInfo | null>(null);
+  const [isPlacingRent, setIsPlacingRent] = useState<boolean>(false);
+
+  const handlePlaceRentOrder = async () => {
+    if (!user) {
+      navigate('/login', { state: { from: '/cart' } });
+      return;
+    }
+    const conflictItem = selectedRentItems.find((item) => {
+      const bDates = getProductBookedDates({ id: item.id, title: item.title });
+      return (
+        item.startDate &&
+        item.endDate &&
+        hasDateRangeConflict(item.startDate, item.endDate, bDates)
+      );
+    });
+    if (conflictItem) {
+      showToast(
+        `Thiết bị "${conflictItem.title}" bị trùng ngày đã có khách đặt! Hãy bấm "Sửa ngày" trước khi thuê.`,
+        'event_busy'
+      );
+      return;
+    }
+
+    setIsPlacingRent(true);
+
+    const firstItem = selectedRentItems[0];
+    const validDates = firstItem ? getValidRentalDates(firstItem) : { startDate: '', endDate: '', days: 3 };
+    const startDate = firstItem?.startDate || validDates.startDate;
+    const endDate = firstItem?.endDate || validDates.endDate;
+
+    const userProfileAddress = getUserProfileAddress(user);
+    const currentYear = new Date().getFullYear();
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const orderCode = `RH-RNT-${currentYear}-${randomSuffix}`;
+
+    const parseDeposit = (it: CartItem): number => {
+      if (typeof it.deposit === 'number') return it.deposit;
+      if (typeof it.deposit === 'string') {
+        const n = parseInt(it.deposit.replace(/\\D/g, ''), 10);
+        return isNaN(n) ? 800000 : n;
+      }
+      return it.price * 8;
+    };
+
+    const mappedItems = selectedRentItems.map((item) => {
+      const qty = item.quantity || 1;
+      const depositVal = parseDeposit(item) * qty;
+      return {
+        id: String(item.id),
+        productId: String(item.id),
+        productName: item.title,
+        title: item.title,
+        price: item.price,
+        dailyPrice: item.price,
+        pricePerDay: item.price,
+        quantity: qty,
+        depositAmount: depositVal,
+        imageUrl: item.image || '',
+        image: item.image || '',
+        grade: item.gradeBadge || 'Grade A+',
+        shopName: item.vaultOrigin || 'ReUse Vault',
+      };
+    });
+
+    const newOrder = {
+      orderCode,
+      id: orderCode,
+      _id: orderCode,
+      type: 'RENT',
+      createdAt: new Date().toISOString(),
+      status: 'PENDING',
+      paymentStatus: 'PENDING',
+      startDate,
+      endDate,
+      items: mappedItems,
+      totalRentFee: rentSubtotal,
+      depositAmount: rentEscrowTotal,
+      totalDeposit: rentEscrowTotal,
+      shippingFee: rentShipping,
+      totalPayment: rentGrandTotal,
+      totalAmount: rentGrandTotal,
+      recipientName: user.fullName || 'Khách hàng',
+      recipientPhone: user.phoneNumber || user.phone || '0708091060',
+      shippingAddress: {
+        recipientName: user.fullName || 'Khách hàng',
+        recipientPhone: user.phoneNumber || user.phone || '0708091060',
+        province: userProfileAddress.province || 'Thành phố Đà Nẵng',
+        district: userProfileAddress.district || 'Quận Hải Châu',
+        ward: userProfileAddress.ward || 'Phường Hải Châu 1',
+        detail: userProfileAddress.detail || userProfileAddress.full || '48 Bạch Đằng, Phường Hải Châu 1, Quận Hải Châu, Thành phố Đà Nẵng',
+      },
+    };
+
+    // Gọi API Backend tạo đơn thuê PENDING
+    try {
+      const apiRes = await createRentalOrderApi({
+        startDate,
+        endDate,
+        shippingAddress: newOrder.shippingAddress,
+        items: mappedItems,
+        totalAmount: rentGrandTotal,
+        depositAmount: rentEscrowTotal,
+        rentalFee: rentSubtotal,
+        shippingFee: rentShipping,
+      });
+      if (apiRes) {
+        if (apiRes.orderCode) newOrder.orderCode = apiRes.orderCode;
+        if (apiRes._id) newOrder._id = apiRes._id;
+        if (apiRes._id) (newOrder as any).id = apiRes._id;
+      }
+    } catch (apiErr) {
+      console.warn('Lỗi tạo đơn qua API, dùng fallback local storage:', apiErr);
+    }
+
+    // Lưu vào localStorage của User
+    try {
+      const uId = user?._id || user?.id || '';
+      if (uId) {
+        const userKey = `user_rental_orders_${uId}`;
+        const existing = JSON.parse(localStorage.getItem(userKey) || '[]');
+        localStorage.setItem(userKey, JSON.stringify([newOrder, ...existing]));
+      }
+      // Ghi nhận lịch đã đặt
+      selectedRentItems.forEach((ri) => {
+        recordBookedDates(ri.id, startDate, endDate, `Đã có khách đặt đơn ${newOrder.orderCode}`);
+      });
+      window.dispatchEvent(new Event('storage'));
+    } catch {}
+
+    // Xóa sản phẩm thuê đã đặt khỏi giỏ
+    selectedRentItems.forEach((ri) => {
+      removeFromCart(ri.id);
+    });
+
+    setIsPlacingRent(false);
+    setPlacedRentOrder({
+      orderCode: newOrder.orderCode,
+      items: selectedRentItems,
+      startDate,
+      endDate,
+      totalAmount: rentGrandTotal,
+      depositAmount: rentEscrowTotal,
+      rentalFee: rentSubtotal,
+      shippingFee: rentShipping,
+      recipientName: newOrder.shippingAddress.recipientName,
+    });
+  };
+
 
   // Auto-sanitize rental items in cart that have missing or past dates (e.g. from legacy 2024 dates)
   useEffect(() => {
@@ -1090,34 +1254,21 @@ export const Cart: React.FC = () => {
                     {/* CTA RENT */}
                     <button
                       type="button"
-                      onClick={() => {
-                        if (!user) {
-                          navigate('/login', { state: { from: '/rent/checkout' } });
-                          return;
-                        }
-                        const conflictItem = selectedRentItems.find((item) => {
-                          const bDates = getProductBookedDates({ id: item.id, title: item.title });
-                          return (
-                            item.startDate &&
-                            item.endDate &&
-                            hasDateRangeConflict(item.startDate, item.endDate, bDates)
-                          );
-                        });
-                        if (conflictItem) {
-                          showToast(
-                            `Thiết bị "${conflictItem.title}" bị trùng ngày đã có khách đặt! Hãy bấm "Sửa ngày" trước khi thuê.`,
-                            'event_busy'
-                          );
-                          return;
-                        }
-                        navigate('/rent/checkout', {
-                          state: { selectedItemIds: selectedRentItems.map((i) => i.id) },
-                        });
-                      }}
-                      className="w-full mt-1.5 py-3 px-4 rounded-xl bg-[#141310] text-white hover:bg-[#292724] text-xs font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer"
+                      disabled={isPlacingRent || selectedRentItems.length === 0}
+                      onClick={handlePlaceRentOrder}
+                      className="w-full mt-1.5 py-3 px-4 rounded-xl bg-[#141310] text-white hover:bg-[#292724] text-xs font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <span>Tiến hành thuê RENT</span>
-                      <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                      {isPlacingRent ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Đang gửi đơn thuê...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Tiến hành thuê RENT</span>
+                          <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 )}
@@ -1312,6 +1463,87 @@ export const Cart: React.FC = () => {
                   Xác nhận kỳ thuê
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── MODAL: ĐẶT ĐƠN THUÊ THÀNH CÔNG · CHỜ SHOP DUYỆT ── */}
+      {placedRentOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-[#E5E0D8] space-y-6 animate-scale-up">
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 mx-auto rounded-full bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200 shadow-xs">
+                <span className="material-symbols-outlined text-[32px] animate-pulse">hourglass_top</span>
+              </div>
+              <div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                  <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping"></span>
+                  Chờ shop duyệt để thanh toán đơn thuê
+                </span>
+              </div>
+              <h3 className="font-serif text-2xl font-bold text-[#141310] pt-1">
+                Đặt Đơn Thuê Thành Công!
+              </h3>
+              <p className="text-xs text-[#7B766F] font-mono">
+                Mã đơn thuê lưu ký: <span className="font-bold text-[#141310]">#{placedRentOrder.orderCode.replace('#', '')}</span>
+              </p>
+            </div>
+
+            {/* Thông tin tóm tắt */}
+            <div className="p-4 rounded-2xl bg-[#F7F3EC] border border-[#EBE8E1] space-y-2 text-xs">
+              <div className="flex justify-between items-center text-[#7B766F]">
+                <span>Người thuê lưu ký:</span>
+                <span className="font-bold text-[#141310]">{placedRentOrder.recipientName}</span>
+              </div>
+              <div className="flex justify-between items-center text-[#7B766F]">
+                <span>Thời gian thuê dự kiến:</span>
+                <span className="font-semibold text-[#141310]">
+                  {formatDisplayDateVN(placedRentOrder.startDate)} → {formatDisplayDateVN(placedRentOrder.endDate)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-[#7B766F]">
+                <span>Số lượng sản phẩm:</span>
+                <span className="font-semibold text-[#141310]">{placedRentOrder.items.length} món</span>
+              </div>
+              <div className="pt-2 border-t border-[#E5E0D8] flex justify-between items-baseline">
+                <span className="font-bold text-[#141310]">Tổng thanh toán khi duyệt:</span>
+                <span className="font-serif text-base font-bold text-[#141310]">
+                  {formatCurrency(placedRentOrder.totalAmount)}
+                </span>
+              </div>
+            </div>
+
+            {/* Thông báo hướng dẫn nghiệp vụ */}
+            <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 space-y-1">
+              <p className="font-bold flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px]">info</span>
+                <span>Quy trình phê duyệt &amp; thanh toán</span>
+              </p>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Đơn thuê đang chờ Chủ Shop kiểm tra tình trạng trang phục &amp; phụ kiện rồi bấm <strong>[Duyệt đơn]</strong>. Ngay khi Shop duyệt xong, trang Đơn thuê của bạn sẽ hiển thị nút <strong>[Thanh toán ngay]</strong> để dẫn tới trang thanh toán VNPay Smart Escrow.
+              </p>
+            </div>
+
+            {/* 2 Nút hành động */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPlacedRentOrder(null);
+                  navigate('/rent/orders');
+                }}
+                className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-[#141310] hover:bg-black text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+              >
+                <span>Đến trang Đơn thuê (/rent/orders)</span>
+                <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlacedRentOrder(null)}
+                className="w-full sm:w-auto py-3 px-4 rounded-xl bg-white hover:bg-stone-100 text-[#7B766F] hover:text-[#141310] border border-[#E5E0D8] text-xs font-semibold transition-all cursor-pointer"
+              >
+                Tiếp tục xem sàn
+              </button>
             </div>
           </div>
         </div>

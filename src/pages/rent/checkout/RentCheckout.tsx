@@ -8,6 +8,7 @@ import {
   NANUK_SHIPPING_FEE,
 } from '../../data/rent/rentCheckoutData';
 import { redirectToVnPayGateway } from '../../../services/payment.api';
+import { getRentalOrderByIdApi, type RentalOrderApi } from '../../../services/order.api';
 import { getKycStatusApi } from '../../../services/kyc.api';
 import {
   getProductBookedDates,
@@ -89,8 +90,27 @@ export const RentCheckout: React.FC = () => {
     };
   }, [auth?.token, user]);
 
-  // ── 2. RENT ITEMS SELECTION (Only RENT items from Cart or Route ID) ──
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const queryOrderId = searchParams.get('orderId') || id;
+  const [existingOrder, setExistingOrder] = useState<RentalOrderApi | null>(null);
+
+  // ── 2. RENT ITEMS SELECTION (Only RENT items from Cart or Route ID or Loaded Order) ──
   const rentItems = useMemo(() => {
+    // 0. If order was loaded from queryOrderId
+    if (existingOrder?.items && existingOrder.items.length > 0) {
+      return existingOrder.items.map((it, idx) => ({
+        id: String(it.productId || `item-${idx}`),
+        title: it.productName || 'Sản phẩm thuê',
+        price: it.pricePerDay || 0,
+        deposit: it.depositAmount || 0,
+        itemDeposit: it.depositAmount || 0,
+        image: (it as { imageUrl?: string; image?: string }).imageUrl || (it as { image?: string }).image || '/images/partydress4.jpg',
+        qty: it.quantity || 1,
+        quantity: it.quantity || 1,
+        mode: 'rent' as const,
+      }));
+    }
+
     // 1. Filter all RENT items currently in cart
     const cartRent = cart.filter((item) => item.mode === 'rent' || !item.mode);
 
@@ -114,7 +134,7 @@ export const RentCheckout: React.FC = () => {
 
     // 5. Cart was empty, return empty list (no fake mock items)
     return [];
-  }, [cart, id, location.state]);
+  }, [cart, id, location.state, existingOrder]);
 
   // ── 3. COMMON RENTAL DATES ("ngày thuê chung" cho toàn bộ thiết bị) ──
   const [startDate, setStartDate] = useState(() => {
@@ -257,6 +277,54 @@ export const RentCheckout: React.FC = () => {
     };
   }, [user]);
 
+  // Load existing order if orderId was passed
+  useEffect(() => {
+    if (!queryOrderId) return;
+    let isMounted = true;
+    const fetchExisting = async () => {
+      try {
+        const order = await getRentalOrderByIdApi(queryOrderId);
+        if (order && isMounted) {
+          setExistingOrder(order);
+          if (order.startDate) {
+            setStartDate(order.startDate.slice(0, 10));
+          }
+          if (order.endDate) {
+            setEndDate(order.endDate.slice(0, 10));
+          }
+          if (order.shippingAddress) {
+            if (order.shippingAddress.recipientName) {
+              setCustodyHolder(order.shippingAddress.recipientName);
+              setTempHolder(order.shippingAddress.recipientName);
+            }
+            if (order.shippingAddress.recipientPhone) {
+              setPhone(order.shippingAddress.recipientPhone);
+              setTempPhone(order.shippingAddress.recipientPhone);
+            }
+            const fullAddr = [
+              order.shippingAddress.detail,
+              order.shippingAddress.ward,
+              order.shippingAddress.district,
+              order.shippingAddress.province,
+            ]
+              .filter(Boolean)
+              .join(', ');
+            if (fullAddr) {
+              setShippingAddress(fullAddr);
+              setTempAddress(fullAddr);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load order for checkout:', err);
+      }
+    };
+    fetchExisting();
+    return () => {
+      isMounted = false;
+    };
+  }, [queryOrderId]);
+
   const handleSaveAddress = () => {
     setShippingAddress(tempAddress);
     setCustodyHolder(tempHolder);
@@ -336,11 +404,20 @@ export const RentCheckout: React.FC = () => {
   }, [totalDeposit, totalDueToday]);
 
   // Dynamic Unique Contract ID
-  const [contractId] = useState(() => {
+  const defaultContractId = useMemo(() => {
     const rnd = Math.floor(1000 + Math.random() * 9000);
     const year = new Date().getFullYear();
     return `#RH-RNT-${year}-${rnd}`;
-  });
+  }, []);
+
+  const contractId = useMemo(() => {
+    if (existingOrder?.orderCode) {
+      return existingOrder.orderCode.startsWith('#')
+        ? existingOrder.orderCode
+        : `#${existingOrder.orderCode}`;
+    }
+    return defaultContractId;
+  }, [existingOrder?.orderCode, defaultContractId]);
 
   // ── 6. PAYMENT STATE & SUBMISSION SIMULATION ──
   const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'bank_transfer'>('vnpay');
@@ -479,11 +556,17 @@ export const RentCheckout: React.FC = () => {
 
     // Direct redirect to VNPay Sandbox via Backend API
     try {
-      const targetOrderId = id || (location.state as { orderId?: string })?.orderId || '';
+      const targetOrderId =
+        existingOrder?._id ||
+        (location.state as { orderId?: string })?.orderId ||
+        queryOrderId ||
+        id ||
+        '';
+      const finalOrderCode = existingOrder?.orderCode || contractId;
 
       await redirectToVnPayGateway({
         orderId: targetOrderId,
-        orderCode: contractId.replace('#', ''),
+        orderCode: finalOrderCode.replace('#', ''),
         amount: totalDueToday,
         type: 'RENT',
         productId: rentItems[0]?.id,

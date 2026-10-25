@@ -191,8 +191,12 @@ export const MyRentOrders: React.FC = () => {
       statusVal = 'COMPLETED';
     } else if (isReturnRequested) {
       statusVal = 'RETURN_REQUESTED';
-    } else if (['PAID', 'READY_FOR_HANDOVER', 'HANDED_OVER', 'SHIPPING', 'DELIVERED', 'RENTING'].includes(rawStatus)) {
-      statusVal = hasClaSigned ? 'RENTING' : 'DELIVERED';
+    } else if (['PAID', 'PREPARING', 'READY_FOR_HANDOVER'].includes(rawStatus)) {
+      statusVal = 'PAID';
+    } else if (['HANDED_OVER', 'SHIPPING'].includes(rawStatus)) {
+      statusVal = hasClaSigned ? 'RENTING' : 'SHIPPING';
+    } else if (rawStatus === 'DELIVERED' || rawStatus === 'RENTING') {
+      statusVal = hasClaSigned ? 'RENTING' : 'SHIPPING';
     }
 
     if (statusVal === 'PENDING') {
@@ -206,20 +210,20 @@ export const MyRentOrders: React.FC = () => {
       dotBg = 'bg-[#C87A1E] animate-ping';
       daysLeft = 'Chờ hoàn tất thanh toán VNPay';
     } else if (statusVal === 'PAID') {
-      statusText = 'ĐÃ THANH TOÁN · CHUẨN BỊ GỬI';
-      statusBg = 'bg-[#EEF2EC] text-[#37533E] border-[#D5E0D4]';
-      dotBg = 'bg-[#4A6B53]';
-      daysLeft = 'Đã thanh toán thành công · Khóa bảo chứng Smart Escrow';
+      statusText = 'ĐÃ THANH TOÁN · CHỜ SHOP GỬI HÀNG (BƯỚC 4)';
+      statusBg = 'bg-[#FFFBEB] text-[#92400E] border-[#FDE68A]';
+      dotBg = 'bg-[#D97706] animate-pulse';
+      daysLeft = 'Đã thanh toán Smart Escrow · Chờ Shop đóng gói & gửi hàng cho shipper';
     } else if (statusVal === 'READY_FOR_HANDOVER') {
       statusText = 'SẴN SÀNG BÀN GIAO';
       statusBg = 'bg-[#EAF3FA] text-[#245778] border-[#CFE4F3]';
       dotBg = 'bg-[#3B6E8C]';
       daysLeft = 'Shop đã đóng gói Nanuk, chờ shipper lấy hàng';
     } else if (statusVal === 'HANDED_OVER' || statusVal === 'SHIPPING') {
-      statusText = 'ĐANG VẬN CHUYỂN';
+      statusText = 'ĐANG GIAO ĐỒ (CHỜ KÝ CLA)';
       statusBg = 'bg-[#EAF3FA] text-[#245778] border-[#CFE4F3]';
       dotBg = 'bg-[#3B6E8C] animate-pulse';
-      daysLeft = 'Bưu tá Nanuk đang chuyển phát bảo chứng 2 chiều';
+      daysLeft = 'Bưu tá đang chuyển phát · Vui lòng mở kiện đối kiểm & ký CLA khi nhận';
     } else if (statusVal === 'DELIVERED') {
       statusText = 'KÝ ĐƠN HÀNG ĐỂ BẮT ĐẦU THUÊ';
       statusBg = 'bg-[#FFF4E5] text-[#C85A00] border-[#FFD8A8] ring-1 ring-[#FFD8A8]/60 shadow-xs';
@@ -526,9 +530,9 @@ export const MyRentOrders: React.FC = () => {
                   changed = true;
                   return {
                     ...o,
-                    status: 'DELIVERED',
+                    status: 'PAID',
                     paymentStatus: 'PAID',
-                    deliveredAt: new Date().toISOString(),
+                    paidAt: new Date().toISOString(),
                   };
                 }
                 return o;
@@ -610,9 +614,12 @@ export const MyRentOrders: React.FC = () => {
         }
       }
 
-      // D. Filter orders: prioritize paid/active/returning/completed lifecycle orders
+      // D. Filter orders: prioritize lifecycle orders including pending approval and waiting payment
       const validPaidOrders = combined.filter((o) =>
         [
+          'PENDING',
+          'WAITING_PAYMENT',
+          'PENDING_PAYMENT',
           'PAID',
           'RENTING',
           'READY_FOR_HANDOVER',
@@ -797,6 +804,9 @@ export const MyRentOrders: React.FC = () => {
 
   // Dynamic status tabs grouped into clear lifecycle buckets to prevent confusion between active and returned orders
   const statusTabs = useMemo(() => {
+    const pendingWaitingCount = orders.filter((o) =>
+      ['PENDING', 'WAITING_PAYMENT', 'PENDING_PAYMENT'].includes(o.status)
+    ).length;
     const deliveredCount = orders.filter((o) => (o.status === 'DELIVERED' || o.needsClaSign) && !o.claSigned).length;
     const rentingCount = orders.filter((o) => o.status === 'RENTING' && o.claSigned && !['RETURN_REQUESTED', 'RETURNING', 'RETURNED', 'COMPLETED', 'CANCELLED'].includes(o.status)).length;
     const returningCount = orders.filter((o) =>
@@ -807,6 +817,15 @@ export const MyRentOrders: React.FC = () => {
 
     return [
       { key: 'ALL', label: `Tất cả (${String(orders.length).padStart(2, '0')})` },
+      ...(pendingWaitingCount > 0
+        ? [
+            {
+              key: 'PENDING_WAITING',
+              label: `Chờ duyệt & Thanh toán (${String(pendingWaitingCount).padStart(2, '0')})`,
+              dot: 'bg-amber-500 animate-pulse',
+            },
+          ]
+        : []),
       { key: 'DELIVERED', label: `Chờ ký đơn CLA (Bước 5) (${String(deliveredCount).padStart(2, '0')})`, dot: deliveredCount > 0 ? 'bg-[#EA580C] animate-ping' : undefined },
       { key: 'RENTING', label: `Đang thuê & Lưu ký (Bước 6) (${String(rentingCount).padStart(2, '0')})`, dot: 'bg-[#4A6B53]' },
       { key: 'RETURNING', label: `Hoàn trả & Bench Lab (Bước 7-8) (${String(returningCount).padStart(2, '0')})`, dot: returningCount > 0 ? 'bg-[#7A4FA0]' : undefined },
@@ -818,13 +837,15 @@ export const MyRentOrders: React.FC = () => {
   // Filter and search
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
-      if (activeTab === 'DELIVERED') {
+      if (activeTab === 'PENDING_WAITING') {
+        if (!['PENDING', 'WAITING_PAYMENT', 'PENDING_PAYMENT'].includes(order.status)) return false;
+      } else if (activeTab === 'DELIVERED') {
         if (order.claSigned || (order.status !== 'DELIVERED' && !order.needsClaSign)) return false;
       } else if (activeTab === 'RENTING') {
         if (!order.claSigned || order.status !== 'RENTING') return false;
         if (['RETURN_REQUESTED', 'RETURNING', 'RETURNED', 'COMPLETED', 'CANCELLED'].includes(order.status)) return false;
       } else if (activeTab === 'ACTIVE') {
-        const isActive = ['DELIVERED', 'RENTING', 'PAID', 'SHIPPING', 'HANDED_OVER', 'READY_FOR_HANDOVER', 'PREPARING'].includes(order.status);
+        const isActive = ['PENDING', 'WAITING_PAYMENT', 'PENDING_PAYMENT', 'DELIVERED', 'RENTING', 'PAID', 'SHIPPING', 'HANDED_OVER', 'READY_FOR_HANDOVER', 'PREPARING'].includes(order.status);
         if (!isActive) return false;
       } else if (activeTab === 'RETURNING') {
         const isReturning = ['RETURN_REQUESTED', 'RETURNING', 'RETURNED'].includes(order.status);
@@ -1082,7 +1103,8 @@ export const MyRentOrders: React.FC = () => {
                 filteredOrders.map((order) => {
                   const isBenchLab = order.status === 'RETURNED';
                   const isReturning = ['RETURN_REQUESTED', 'RETURNING'].includes(order.status);
-                  const isDeliveredWaitingSign = order.needsClaSign || (order.status === 'DELIVERED' && !order.claSigned) || (!order.claSigned && ['PAID', 'SHIPPING', 'DELIVERED', 'RENTING'].includes(order.status));
+                  const isShopWaitingShip = ['PENDING', 'WAITING_PAYMENT', 'PENDING_PAYMENT', 'PAID', 'PREPARING', 'READY_FOR_HANDOVER'].includes(order.status);
+                  const isDeliveredWaitingSign = !order.claSigned && (order.status === 'DELIVERED' || order.status === 'SHIPPING') && !isShopWaitingShip;
 
                   return (
                   <article
@@ -1114,11 +1136,11 @@ export const MyRentOrders: React.FC = () => {
                             ? 'Bước 1/9'
                             : ['WAITING_PAYMENT', 'PENDING_PAYMENT'].includes(order.status)
                             ? 'Bước 2/9'
-                            : order.status === 'PAID'
-                            ? 'Bước 3/9'
-                            : ['READY_FOR_HANDOVER', 'HANDED_OVER', 'SHIPPING'].includes(order.status)
+                            : ['PAID', 'PREPARING', 'READY_FOR_HANDOVER'].includes(order.status)
                             ? 'Bước 4/9'
-                            : isDeliveredWaitingSign || order.status === 'DELIVERED' || !order.claSigned
+                            : order.status === 'SHIPPING' || order.status === 'HANDED_OVER'
+                            ? 'Bước 4/9'
+                            : isDeliveredWaitingSign || order.status === 'DELIVERED'
                             ? 'Bước 5/9'
                             : order.status === 'RENTING' && order.claSigned
                             ? 'Bước 6/9'
@@ -1169,6 +1191,78 @@ export const MyRentOrders: React.FC = () => {
                             Địa chỉ: <span className="text-[#22201D]">{order.shippingAddressText}</span>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Step 1 Banner: Đơn thuê đang chờ Shop duyệt */}
+                    {order.status === 'PENDING' && (
+                      <div className="mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-[#FFFDF7] via-[#FFF8E6] to-[#FFFDF7] border-2 border-[#F6D884] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#805B00] shadow-xs">
+                        <div className="flex items-center gap-3">
+                          <span className="w-9 h-9 rounded-xl bg-[#D97706] text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <span className="material-symbols-outlined text-[20px] animate-spin">hourglass_top</span>
+                          </span>
+                          <div>
+                            <p className="font-bold text-[#664600] uppercase tracking-wider text-[11px]">
+                              BƯỚC 1: ĐƠN THUÊ ĐANG CHỜ SHOP DUYỆT ĐỂ THANH TOÁN
+                            </p>
+                            <p className="text-[#805B00] text-xs mt-0.5 leading-relaxed">
+                              Đơn thuê của bạn đã được gửi tới chủ shop. Shop sẽ thẩm định hiện vật và phê duyệt. Ngay sau khi shop duyệt, nút <strong>[Thanh toán ngay]</strong> sẽ hiển thị để bạn tiến hành thanh toán VNPay.
+                            </p>
+                          </div>
+                        </div>
+                        <span className="self-start sm:self-center px-3.5 py-1.5 rounded-xl bg-white/90 text-[#B45309] font-bold text-xs border border-[#F6D884] shadow-2xs shrink-0 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-[#D97706] animate-pulse"></span>
+                          <span>Chờ Shop duyệt</span>
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Step 2 Banner: Shop đã duyệt · Vui lòng thanh toán */}
+                    {['WAITING_PAYMENT', 'PENDING_PAYMENT'].includes(order.status) && (
+                      <div className="mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-[#F0F7FD] via-[#E2F0FD] to-[#F0F7FD] border-2 border-[#93C5FD] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#1E40AF] shadow-xs">
+                        <div className="flex items-center gap-3">
+                          <span className="w-9 h-9 rounded-xl bg-[#2563EB] text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <span className="material-symbols-outlined text-[20px]">credit_card</span>
+                          </span>
+                          <div>
+                            <p className="font-bold text-[#1E3A8A] uppercase tracking-wider text-[11px]">
+                              BƯỚC 2: SHOP ĐÃ DUYỆT ĐƠN THUÊ · VUI LÒNG TIẾN HÀNH THANH TOÁN
+                            </p>
+                            <p className="text-[#1E40AF] text-xs mt-0.5 leading-relaxed">
+                              Chủ shop đã phê duyệt yêu cầu thuê của bạn. Vui lòng bấm <strong>[Thanh toán ngay]</strong> để hoàn tất thanh toán cọc &amp; phí thuê qua Cổng VNPay.
+                            </p>
+                          </div>
+                        </div>
+                        <Link
+                          to={`/rent/checkout?orderId=${order.id}`}
+                          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-xs transition-colors shrink-0 self-start sm:self-center cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">payments</span>
+                          <span>Thanh toán ngay</span>
+                        </Link>
+                      </div>
+                    )}
+
+                    {/* Step 4 Banner: Đã thanh toán · Chờ Shop gửi hàng (Chưa thể ký CLA) */}
+                    {['PAID', 'PREPARING', 'READY_FOR_HANDOVER'].includes(order.status) && (
+                      <div className="mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-[#FFFDF7] via-[#FFF8E6] to-[#FFFDF7] border-2 border-[#F6D884] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#805B00] shadow-xs">
+                        <div className="flex items-center gap-3">
+                          <span className="w-9 h-9 rounded-xl bg-[#D97706] text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <span className="material-symbols-outlined text-[20px]">local_shipping</span>
+                          </span>
+                          <div>
+                            <p className="font-bold text-[#664600] uppercase tracking-wider text-[11px]">
+                              BƯỚC 4: ĐÃ THANH TOÁN KHÓA TIỀN CỌC ESCROW · CHỜ SHOP GỬI HÀNG
+                            </p>
+                            <p className="text-[#805B00] text-xs mt-0.5 leading-relaxed">
+                              Đơn thuê của bạn đã thanh toán thành công và tiền cọc được lưu ký an toàn tại <strong>Smart Escrow</strong>. Chủ shop đang chuẩn bị hàng và giao cho shipper. Bạn sẽ mở hộp kiểm tra 3 góc và <strong>ký biên bản CLA</strong> khi nhận hàng ở Bước 5.
+                            </p>
+                          </div>
+                        </div>
+                        <span className="self-start sm:self-center px-3.5 py-1.5 rounded-xl bg-white/90 text-[#B45309] font-bold text-xs border border-[#F6D884] shadow-2xs shrink-0 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-[#D97706] animate-pulse"></span>
+                          <span>Chờ Shop gửi hàng</span>
+                        </span>
                       </div>
                     )}
 
@@ -1244,20 +1338,27 @@ export const MyRentOrders: React.FC = () => {
 
                     {/* Step 9 Banner: Đã hoàn tất & Giải tỏa cọc */}
                     {order.isCompleted && (
-                      <div className="mt-3 p-3.5 rounded-2xl bg-[#EEF2EC] border border-[#D5E0D4] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-[#37533E]">
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-8 h-8 rounded-xl bg-[#4A6B53] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                            <span className="material-symbols-outlined text-[18px]">verified</span>
+                      <div className="mt-3.5 p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100/70 border border-emerald-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-950 shadow-xs">
+                        <div className="flex items-center gap-3">
+                          <span className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <span className="material-symbols-outlined text-[22px]">verified</span>
                           </span>
                           <div>
-                            <p className="font-bold text-[#243D2A] uppercase tracking-wider text-[11px]">
-                              BƯỚC 9: ĐÃ HOÀN TẤT THUÊ · ĐÃ GIẢI TỎA 100% TIỀN CỌC SMART ESCROW
+                            <p className="font-bold text-emerald-950 uppercase tracking-wider text-[11px]">
+                              BƯỚC 9/9: SHOP ĐÃ KÝ DUYỆT NGHIỆM THU · ĐÃ HOÀN CỌC 100% VÀO VÍ SMART ESCROW
                             </p>
-                            <p className="text-[#37533E]/90 text-xs mt-0.5">
-                              Đơn thuê đã thanh lý thành công. Toàn bộ tiền cọc {order.deposit} đã được giải tỏa hoàn lại người thuê.
+                            <p className="text-emerald-900/90 text-xs mt-0.5 leading-relaxed">
+                              Đơn thuê đã nghiệm thu hoàn hảo. Tiền cọc <strong>{order.deposit}</strong> đã được chuyển thẳng về <strong>Số dư khả dụng ở Ví lưu ký Smart Escrow</strong>.
                             </p>
                           </div>
                         </div>
+                        <Link
+                          to="/wallet"
+                          className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 transition-colors shadow-xs"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">account_balance_wallet</span>
+                          <span>Xem Ví Smart Escrow</span>
+                        </Link>
                       </div>
                     )}
 
@@ -1304,19 +1405,31 @@ export const MyRentOrders: React.FC = () => {
                               <span className="text-xs font-bold text-[#22201D] mt-0.5 block">Tiền thuê: {it.itemTotal}</span>
                             </div>
                             {it.id && (
-                              <Link
-                                to={`/rent/orders/${order.id}?productId=${it.id}#${isDeliveredWaitingSign ? 'cla-sign' : 'cla-section'}`}
-                                className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors shadow-2xs border ${
-                                  isDeliveredWaitingSign
-                                    ? 'bg-[#FFF8F0] hover:bg-[#FEEFD8] border-[#FFD8A8] text-[#C85A00]'
-                                    : 'border-none bg-white hover:bg-stone-50 text-stone-800'
-                                }`}
-                              >
-                                <span className={`material-symbols-outlined text-[13px] ${isDeliveredWaitingSign ? 'text-[#C85A00]' : 'text-emerald-700'}`}>
-                                  {isDeliveredWaitingSign ? 'draw' : 'assignment'}
+                              ['PAID', 'PREPARING', 'READY_FOR_HANDOVER'].includes(order.status) ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
+                                  <span className="material-symbols-outlined text-[13px] text-amber-600">schedule</span>
+                                  <span>Chờ Shop gửi hàng</span>
                                 </span>
-                                <span>{isDeliveredWaitingSign ? 'Ký biên bản CLA' : 'Biên bản CLA'}</span>
-                              </Link>
+                              ) : order.status === 'PENDING' || ['WAITING_PAYMENT', 'PENDING_PAYMENT'].includes(order.status) ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-stone-100 text-stone-600 border border-stone-200">
+                                  <span className="material-symbols-outlined text-[13px] text-stone-500">lock</span>
+                                  <span>Chưa mở ký CLA</span>
+                                </span>
+                              ) : (
+                                <Link
+                                  to={`/rent/orders/${order.id}?productId=${it.id}#${isDeliveredWaitingSign ? 'cla-sign' : 'cla-section'}`}
+                                  className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors shadow-2xs border ${
+                                    isDeliveredWaitingSign
+                                      ? 'bg-[#FFF8F0] hover:bg-[#FEEFD8] border-[#FFD8A8] text-[#C85A00]'
+                                      : 'border-none bg-white hover:bg-stone-50 text-stone-800'
+                                  }`}
+                                >
+                                  <span className={`material-symbols-outlined text-[13px] ${isDeliveredWaitingSign ? 'text-[#C85A00]' : 'text-emerald-700'}`}>
+                                    {isDeliveredWaitingSign ? 'draw' : 'assignment'}
+                                  </span>
+                                  <span>{isDeliveredWaitingSign ? 'Ký biên bản CLA' : 'Biên bản CLA'}</span>
+                                </Link>
+                              )
                             )}
                           </div>
                         </div>
@@ -1349,7 +1462,85 @@ export const MyRentOrders: React.FC = () => {
 
                       {/* Phân định nút hành động theo từng bước trạng thái nghiệp vụ rõ ràng */}
                       <div className="md:col-span-5 flex flex-col gap-2.5">
-                        {isDeliveredWaitingSign ? (
+                        {order.status === 'PENDING' ? (
+                          /* BƯỚC 1: ĐƠN THUÊ ĐANG CHỜ SHOP DUYỆT */
+                          <>
+                            <div className="w-full text-center px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 font-semibold text-xs flex items-center justify-center gap-2 shadow-xs">
+                              <span className="material-symbols-outlined text-[16px] text-amber-600 animate-spin">hourglass_top</span>
+                              <span>Đang chờ Shop duyệt đơn</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <Link
+                                to={`/rent/orders/${order.id}`}
+                                className="flex-1 text-center px-4 py-2.5 rounded-xl bg-[#22201D] hover:bg-black text-white font-semibold text-xs tracking-wide shadow-2xs transition-colors flex items-center justify-center gap-1.5"
+                              >
+                                <span className="material-symbols-outlined text-[15px]">visibility</span>
+                                <span>Chi tiết đơn thuê</span>
+                              </Link>
+                              <Link
+                                to={`/chat?orderId=${order.id}`}
+                                className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#F6F3EE] border border-[#E8E4DC] text-[#22201D] font-semibold text-xs transition-colors flex items-center justify-center gap-1"
+                                title="Nhắn tin với đơn vị cho thuê"
+                              >
+                                <span className="material-symbols-outlined text-[15px]">chat</span>
+                                <span className="hidden sm:inline">Nhắn Shop</span>
+                              </Link>
+                            </div>
+                          </>
+                        ) : ['WAITING_PAYMENT', 'PENDING_PAYMENT'].includes(order.status) ? (
+                          /* BƯỚC 2: SHOP ĐÃ DUYỆT · HIỂN THỊ NÚT THANH TOÁN NGAY */
+                          <>
+                            <Link
+                              to={`/rent/checkout?orderId=${order.id}`}
+                              className="w-full text-center px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs tracking-wide shadow-xs transition-all flex items-center justify-center gap-2 group cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined text-[16px] group-hover:scale-110 transition-transform">credit_card</span>
+                              <span>Thanh toán ngay (VNPay)</span>
+                            </Link>
+                            <div className="flex gap-2">
+                              <Link
+                                to={`/rent/orders/${order.id}`}
+                                className="flex-1 text-center px-4 py-2.5 rounded-xl bg-[#22201D] hover:bg-black text-white font-semibold text-xs tracking-wide shadow-2xs transition-colors flex items-center justify-center gap-1.5"
+                              >
+                                <span className="material-symbols-outlined text-[15px]">visibility</span>
+                                <span>Chi tiết đơn</span>
+                              </Link>
+                              <Link
+                                to={`/chat?orderId=${order.id}`}
+                                className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#F6F3EE] border border-[#E8E4DC] text-[#22201D] font-semibold text-xs transition-colors flex items-center justify-center gap-1"
+                                title="Nhắn tin với đơn vị cho thuê"
+                              >
+                                <span className="material-symbols-outlined text-[15px]">chat</span>
+                                <span className="hidden sm:inline">Nhắn Shop</span>
+                              </Link>
+                            </div>
+                          </>
+                        ) : ['PAID', 'PREPARING', 'READY_FOR_HANDOVER'].includes(order.status) ? (
+                          /* BƯỚC 4: ĐÃ THANH TOÁN · CHỜ SHOP GỬI HÀNG (CHƯA THỂ KÝ CLA) */
+                          <>
+                            <div className="w-full text-center px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 font-semibold text-xs flex items-center justify-center gap-2 shadow-xs">
+                              <span className="material-symbols-outlined text-[16px] text-amber-600 animate-pulse">local_shipping</span>
+                              <span>Bước 4: Chờ Shop gửi hàng (Chưa thể ký CLA)</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <Link
+                                to={`/rent/orders/${order.id}`}
+                                className="flex-1 text-center px-4 py-2.5 rounded-xl bg-[#22201D] hover:bg-black text-white font-semibold text-xs tracking-wide shadow-2xs transition-colors flex items-center justify-center gap-1.5"
+                              >
+                                <span className="material-symbols-outlined text-[15px]">visibility</span>
+                                <span>Chi tiết đơn thuê</span>
+                              </Link>
+                              <Link
+                                to={`/chat?orderId=${order.id}`}
+                                className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#F6F3EE] border border-[#E8E4DC] text-[#22201D] font-semibold text-xs transition-colors flex items-center justify-center gap-1"
+                                title="Nhắn tin với chủ shop"
+                              >
+                                <span className="material-symbols-outlined text-[15px]">chat</span>
+                                <span className="hidden sm:inline">Nhắn Shop</span>
+                              </Link>
+                            </div>
+                          </>
+                        ) : isDeliveredWaitingSign ? (
                           /* BƯỚC 5: ĐƠN THUÊ VỪA TỚI · CHỜ KÝ ĐƠN HÀNG ĐỂ BẮT ĐẦU THUÊ (CHƯA CÓ NÚT YÊU CẦU TRẢ ĐỒ) */
                           <>
                             <Link
@@ -1437,7 +1628,7 @@ export const MyRentOrders: React.FC = () => {
                           /* BƯỚC 9: ĐÃ HOÀN TẤT THUÊ & TRẢ CỌC */
                           <>
                             <Link
-                              to={`/rent/orders/${order.id}`}
+                              to={`/rent/orders/${order.id}?status=COMPLETED`}
                               className="w-full text-center px-4 py-2.5 rounded-xl bg-[#22201D] hover:bg-black text-white font-semibold text-xs tracking-wide shadow-2xs transition-colors flex items-center justify-center gap-1.5"
                             >
                               <span className="material-symbols-outlined text-[16px]">receipt_long</span>
@@ -1473,6 +1664,16 @@ export const MyRentOrders: React.FC = () => {
                               {order.canReturn && (
                                 <Link
                                   to={`/rent/orders/${order.id}/return`}
+                                  onClick={() => {
+                                    try {
+                                      const c = (order.id || '').replace('#', '').trim().toLowerCase();
+                                      if (c) localStorage.setItem(`user_initiated_return_${c}`, 'true');
+                                      const rawId = (order as any)._id;
+                                      if (rawId) localStorage.setItem(`user_initiated_return_${String(rawId).toLowerCase()}`, 'true');
+                                      window.dispatchEvent(new Event('storage'));
+                                      window.dispatchEvent(new Event('rental_order_updated'));
+                                    } catch {}
+                                  }}
                                   className="flex-1 text-center px-3 py-2.5 rounded-xl bg-[#EEF2EC] hover:bg-[#E3EAE0] text-[#37533E] border border-[#D5E0D4] font-semibold text-xs transition-colors flex items-center justify-center gap-1"
                                 >
                                   <span className="material-symbols-outlined text-[15px]">assignment_return</span>

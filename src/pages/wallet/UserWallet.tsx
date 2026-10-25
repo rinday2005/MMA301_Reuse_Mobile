@@ -118,8 +118,19 @@ export const UserWallet: React.FC = () => {
       }
     };
     fetchOrders();
+
+    const handleWalletRefresh = () => {
+      fetchOrders();
+    };
+    window.addEventListener('storage', handleWalletRefresh);
+    window.addEventListener('rental_order_completed', handleWalletRefresh);
+    window.addEventListener('wallet_balance_updated', handleWalletRefresh);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('storage', handleWalletRefresh);
+      window.removeEventListener('rental_order_completed', handleWalletRefresh);
+      window.removeEventListener('wallet_balance_updated', handleWalletRefresh);
     };
   }, [uId]);
 
@@ -154,14 +165,13 @@ export const UserWallet: React.FC = () => {
       }
     });
 
-    // Số dư khả dụng (Đã hoàn cọc)
+    // Số dư khả dụng (Đã hoàn cọc tự động về ví)
     let availableBalance = completedRefund;
     try {
-      const savedBal = localStorage.getItem(`user_wallet_available_${uId}`);
+      const savedBal = localStorage.getItem(`user_wallet_available_${uId}`) || localStorage.getItem('user_wallet_available_default');
       if (savedBal !== null && savedBal !== undefined && savedBal !== '') {
-        availableBalance = Number(savedBal);
+        availableBalance = Math.max(completedRefund, Number(savedBal) || 0);
       } else {
-        // Tự động cộng dồn số dư khả dụng từ tất cả các đơn đã gửi yêu cầu hoàn trả & hoàn cọc
         availableBalance = completedRefund + pendingInspectionEscrow;
       }
     } catch {
