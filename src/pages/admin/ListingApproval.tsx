@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { fetchAdminDashboardData } from "../../services/admin.api";
+import { fetchAdminDashboardData, approveRentListingApi, rejectRentListingApi } from "../../services/admin.api";
 
 export type ListingStatus = "PENDING" | "APPROVED" | "REJECTED" | "HIDDEN";
 export type StatusFilter = "ALL" | "PENDING" | "APPROVED" | "REJECTED" | "HIDDEN";
@@ -366,6 +366,7 @@ export const ListingApproval: React.FC = () => {
 
   // Handle Approve Listing
   const handleApprove = (id: string, title: string) => {
+    approveRentListingApi(id).catch((err) => console.warn("Lỗi duyệt RENT API:", err));
     setListings((prev) =>
       prev.map((item) =>
         item.id === id
@@ -389,6 +390,7 @@ export const ListingApproval: React.FC = () => {
     const reason =
       rejectionInput.trim() ||
       "Ảnh macro buồng cảm biến chưa rõ hoặc số serial không trùng khớp";
+    rejectRentListingApi(id, reason).catch((err) => console.warn("Lỗi từ chối RENT API:", err));
     setListings((prev) =>
       prev.map((item) =>
         item.id === id

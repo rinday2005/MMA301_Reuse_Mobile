@@ -6,6 +6,7 @@ import { getMyThriftOrdersApi } from '../../services/thriftOrder.api';
 import { UserSidebar } from '../../components/layout/UserSidebar';
 import AddressSelector, { type AddressValue } from '../../components/form/AddressSelector';
 import { uploadAvatarApi, updateProfileApi } from '../../services/user.api';
+import { getKycStatusApi, type UserKycDetails } from '../../services/kyc.api';
 
 interface SavedProfileData {
   fullName?: string;
@@ -101,6 +102,51 @@ const ProfileContent: React.FC = () => {
     return () => window.removeEventListener('reuse_user_sidebar_toggle', handleSync);
   }, []);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [kycStatus, setKycStatus] = useState<string>(() => auth?.user?.kycStatus || 'NOT_SUBMITTED');
+  const [kycData, setKycData] = useState<UserKycDetails | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (currentUserId && currentUserId !== 'guest') {
+      getKycStatusApi()
+        .then((res) => {
+          if (!isMounted) return;
+          const status = res?.kycStatus || res?.kyc?.status || auth?.user?.kycStatus || 'NOT_SUBMITTED';
+          const hasCccd = Boolean(res?.kyc?.citizenId || res?.kyc?.cardFrontUrl || res?.kyc?.cardBackUrl);
+          if (!hasCccd && status === 'NOT_SUBMITTED') {
+            setKycStatus('NOT_SUBMITTED');
+            setKycData(null);
+          } else {
+            setKycStatus(status);
+            setKycData(res?.kyc || null);
+          }
+        })
+        .catch(() => {
+          if (!isMounted) return;
+          setKycStatus(auth?.user?.kycStatus || 'NOT_SUBMITTED');
+          setKycData(null);
+        });
+    }
+
+    const handleProfileSync = () => {
+      try {
+        const saved = localStorage.getItem('user');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.kycStatus) {
+            setKycStatus(parsed.kycStatus);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('user_profile_updated', handleProfileSync);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('user_profile_updated', handleProfileSync);
+    };
+  }, [currentUserId, auth?.user?.kycStatus]);
 
   // UI Toast & Modal States
   const [showSaveToast, setShowSaveToast] = useState(false);
@@ -855,9 +901,35 @@ const ProfileContent: React.FC = () => {
                   <span className="font-mono text-[10px] text-[#3A6843] uppercase tracking-wider font-semibold">
                     HỒ SƠ BẢO CHỨNG TUẦN HOÀN
                   </span>
-                  <span className="px-2.5 py-1 bg-[#3A6843]/15 text-[#3A6843] font-mono text-[10px] uppercase rounded-md font-bold">
-                    APPROVED · TIER 2
-                  </span>
+                  {(() => {
+                    const s = String(kycStatus || '').toUpperCase();
+                    if (s === 'APPROVED' || s === 'VERIFIED') {
+                      return (
+                        <span className="px-2.5 py-1 bg-[#3A6843]/15 text-[#3A6843] font-mono text-[10px] uppercase rounded-md font-bold">
+                          APPROVED · TIER 2
+                        </span>
+                      );
+                    }
+                    if (s === 'PENDING') {
+                      return (
+                        <span className="px-2.5 py-1 bg-amber-500/15 text-amber-700 font-mono text-[10px] uppercase rounded-md font-bold">
+                          CHỜ DUYỆT HỒ SƠ
+                        </span>
+                      );
+                    }
+                    if (s === 'REJECTED') {
+                      return (
+                        <span className="px-2.5 py-1 bg-red-500/15 text-red-700 font-mono text-[10px] uppercase rounded-md font-bold">
+                          BỊ TỪ CHỐI
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="px-2.5 py-1 bg-stone-200 text-stone-600 font-mono text-[10px] uppercase rounded-md font-bold">
+                        CHƯA XÁC THỰC
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 <h3 className="font-serif text-xl text-[#141310] font-bold mb-2">
@@ -872,73 +944,182 @@ const ProfileContent: React.FC = () => {
                   <p className="font-mono text-[10px] uppercase text-[#7B766F] tracking-wide mb-2.5 font-semibold">
                     Tiến trình xác thực cá nhân
                   </p>
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="p-2 rounded-xl bg-white border border-[#E4E2DF]">
-                      <span className="material-symbols-outlined text-[17px] text-[#7B766F]">
-                        hourglass_top
-                      </span>
-                      <p className="font-mono text-[10px] text-[#7B766F] mt-0.5">Chờ duyệt</p>
-                    </div>
-                    <div className="p-2 rounded-xl bg-[#3A6843] text-white shadow-xs">
-                      <span className="material-symbols-outlined text-[17px]">verified</span>
-                      <p className="font-mono text-[10px] text-white mt-0.5 font-bold">Đã duyệt (ACTIVE)</p>
-                    </div>
-                    <div className="p-2 rounded-xl bg-white/40 opacity-40 border border-[#E4E2DF]">
-                      <span className="material-symbols-outlined text-[17px] text-[#7B766F]">
-                        block
-                      </span>
-                      <p className="font-mono text-[10px] text-[#7B766F] mt-0.5">Từ chối</p>
-                    </div>
-                  </div>
+                  {(() => {
+                    const s = String(kycStatus || '').toUpperCase();
+                    const isApproved = s === 'APPROVED' || s === 'VERIFIED';
+                    const isPending = s === 'PENDING';
+                    const isRejected = s === 'REJECTED';
+                    const isNotSubmitted = !isApproved && !isPending && !isRejected;
+
+                    return (
+                      <>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          {/* Chờ duyệt */}
+                          <div
+                            className={`p-2 rounded-xl transition-all ${
+                              isPending
+                                ? 'bg-amber-600 text-white shadow-xs font-bold'
+                                : isNotSubmitted
+                                ? 'bg-white/60 opacity-60 border border-dashed border-[#E4E2DF] text-[#7B766F]'
+                                : 'bg-white border border-[#E4E2DF] text-[#7B766F]'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-[17px]">
+                              hourglass_top
+                            </span>
+                            <p className="font-mono text-[10px] mt-0.5">
+                              {isPending ? 'Đang duyệt' : 'Chờ duyệt'}
+                            </p>
+                          </div>
+
+                          {/* Đã duyệt */}
+                          <div
+                            className={`p-2 rounded-xl transition-all ${
+                              isApproved
+                                ? 'bg-[#3A6843] text-white shadow-xs font-bold'
+                                : 'bg-white/40 opacity-40 border border-[#E4E2DF] text-[#7B766F]'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-[17px]">
+                              verified
+                            </span>
+                            <p className="font-mono text-[10px] mt-0.5">
+                              {isApproved ? 'Đã duyệt (ACTIVE)' : 'Đã duyệt'}
+                            </p>
+                          </div>
+
+                          {/* Từ chối */}
+                          <div
+                            className={`p-2 rounded-xl transition-all ${
+                              isRejected
+                                ? 'bg-red-600 text-white shadow-xs font-bold'
+                                : 'bg-white/40 opacity-40 border border-[#E4E2DF] text-[#7B766F]'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-[17px]">
+                              block
+                            </span>
+                            <p className="font-mono text-[10px] mt-0.5">
+                              {isRejected ? 'Bị từ chối' : 'Từ chối'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {isNotSubmitted && (
+                          <p className="text-[11px] text-stone-600 bg-stone-100 p-2 rounded-lg mt-2.5 border border-stone-200 leading-tight">
+                            ℹ️ Tài khoản chưa thêm CCCD xác thực. Vui lòng gửi hồ sơ để kích hoạt đặc quyền miễn cọc.
+                          </p>
+                        )}
+                        {isPending && (
+                          <p className="text-[11px] text-amber-800 bg-amber-50/80 p-2 rounded-lg mt-2.5 border border-amber-200/60 leading-tight">
+                            ⏳ Hồ sơ đã nộp thành công và đang chờ chuyên viên đối soát xét duyệt (4-12h).
+                          </p>
+                        )}
+                        {isRejected && (
+                          <p className="text-[11px] text-red-800 bg-red-50/80 p-2 rounded-lg mt-2.5 border border-red-200/60 leading-tight">
+                            ❌ Hồ sơ bị từ chối: {kycData?.rejectionReason || 'Thông tin CCCD chưa hợp lệ. Vui lòng nộp lại.'}
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Breakdown Details */}
                 <div className="space-y-3 mb-6">
+                  {/* Loại giấy tờ */}
                   <div className="flex items-start justify-between gap-4 py-2 bg-[#F5F3F0]/60 px-3.5 rounded-xl border border-[#E4E2DF]/60">
                     <div>
                       <p className="font-mono text-[10px] uppercase text-[#7B766F]">Loại giấy tờ đã nộp</p>
                       <p className="text-xs text-[#141310] font-semibold mt-0.5">
-                        Căn cước công dân gắn chip (CCCD)
+                        {kycData?.citizenId ? (
+                          <>Căn cước công dân gắn chip (CCCD) <span className="font-mono text-[11px] text-[#7B766F]">({kycData.citizenId.slice(0, 8)}••••)</span></>
+                        ) : (
+                          <span className="text-[#7B766F] font-normal italic">Chưa có (Chưa thêm CCCD)</span>
+                        )}
                       </p>
                     </div>
-                    <span className="material-symbols-outlined text-[#3A6843] text-[20px]">badge</span>
+                    <span className={`material-symbols-outlined text-[20px] ${kycData?.citizenId ? 'text-[#3A6843]' : 'text-stone-400'}`}>
+                      badge
+                    </span>
                   </div>
 
+                  {/* Hạn mức miễn cọc */}
                   <div className="flex items-start justify-between gap-4 py-2 bg-[#F5F3F0]/60 px-3.5 rounded-xl border border-[#E4E2DF]/60">
                     <div>
                       <p className="font-mono text-[10px] uppercase text-[#7B766F]">
                         Hạn mức miễn cọc Escrow
                       </p>
                       <p className="text-xs text-[#141310] font-semibold mt-0.5">
-                        Lên đến 50.000.000₫ không thế chấp
+                        {String(kycStatus || '').toUpperCase() === 'APPROVED' || String(kycStatus || '').toUpperCase() === 'VERIFIED' ? (
+                          'Lên đến 50.000.000₫ không thế chấp'
+                        ) : (
+                          <span className="text-[#7B766F] font-normal italic">Chưa áp dụng (Cần xác thực CCCD)</span>
+                        )}
                       </p>
                     </div>
-                    <span className="material-symbols-outlined text-[#3A6843] text-[20px]">
+                    <span className={`material-symbols-outlined text-[20px] ${String(kycStatus || '').toUpperCase() === 'APPROVED' || String(kycStatus || '').toUpperCase() === 'VERIFIED' ? 'text-[#3A6843]' : 'text-stone-400'}`}>
                       account_balance_wallet
                     </span>
                   </div>
 
+                  {/* Mã định danh & Ngày xác thực */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-[#F5F3F0]/60 p-3 rounded-xl border border-[#E4E2DF]/60">
                       <p className="font-mono text-[10px] uppercase text-[#7B766F]">Mã định danh</p>
                       <p className="font-mono text-xs font-bold text-[#141310] mt-0.5">
-                        {userIdDisplay}
+                        {kycData?.kycCode || (auth?.user?._id ? `#KYC-VN-${String(auth.user._id).slice(0, 6).toUpperCase()}` : userIdDisplay)}
                       </p>
                     </div>
                     <div className="bg-[#F5F3F0]/60 p-3 rounded-xl border border-[#E4E2DF]/60">
                       <p className="font-mono text-[10px] uppercase text-[#7B766F]">Ngày xác thực</p>
-                      <p className="text-xs font-bold text-[#141310] mt-0.5">14/10/2024</p>
+                      <p className="text-xs font-bold text-[#141310] mt-0.5">
+                        {String(kycStatus || '').toUpperCase() === 'APPROVED' || String(kycStatus || '').toUpperCase() === 'VERIFIED'
+                          ? (kycData?.verifiedAt ? new Date(kycData.verifiedAt).toLocaleDateString('vi-VN') : '14/10/2024')
+                          : 'Chưa có'}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* CTA Nâng hạng */}
+                {/* CTA Nâng hạng / Xác thực CCCD */}
                 <Link
-                  to="/user/dashboard"
+                  to="/profile/kyc"
                   className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-[#141310] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#292724] transition-colors shadow-xs"
                 >
-                  <span>Xem chi tiết hồ sơ KYC &amp; Nâng hạng</span>
-                  <span className="material-symbols-outlined text-[17px]">arrow_forward</span>
+                  {(() => {
+                    const s = String(kycStatus || '').toUpperCase();
+                    if (s === 'APPROVED' || s === 'VERIFIED') {
+                      return (
+                        <>
+                          <span>Xem chi tiết hồ sơ KYC &amp; Nâng hạng</span>
+                          <span className="material-symbols-outlined text-[17px]">arrow_forward</span>
+                        </>
+                      );
+                    }
+                    if (s === 'PENDING') {
+                      return (
+                        <>
+                          <span>Kiểm tra tiến trình xét duyệt KYC</span>
+                          <span className="material-symbols-outlined text-[17px]">hourglass_top</span>
+                        </>
+                      );
+                    }
+                    if (s === 'REJECTED') {
+                      return (
+                        <>
+                          <span>Bổ sung lại hồ sơ CCCD ngay</span>
+                          <span className="material-symbols-outlined text-[17px]">refresh</span>
+                        </>
+                      );
+                    }
+                    return (
+                      <>
+                        <span>Xác thực danh tính bằng CCCD ngay</span>
+                        <span className="material-symbols-outlined text-[17px]">arrow_forward</span>
+                      </>
+                    );
+                  })()}
                 </Link>
               </div>
 

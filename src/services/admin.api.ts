@@ -1,6 +1,28 @@
 import api from "./api";
 import { THRIFT_PRODUCTS } from "../pages/data/thrift/thriftMarketplaceData";
 
+
+export interface PlatformFeeConfig {
+  rentFeePercent: number;
+  thriftFeePercent: number;
+  description?: string;
+  updatedAt?: string;
+  updatedBy?: {
+    _id?: string;
+    fullName?: string;
+    email?: string;
+  } | null;
+}
+
+export interface ResolveDisputePayload {
+  resolution?: string;
+  refundToRenter?: number;
+  payoutToShop?: number;
+  refundPercent?: number;
+  payoutPercent?: number;
+  adminNotes?: string;
+}
+
 export interface AdminDashboardMetrics {
   totalUsers: number;
   weeklyNewUsers: number;
@@ -69,6 +91,8 @@ export interface KycApplicantItem {
   isUrgent: boolean;
   bankInfo?: string;
   avatarUrl?: string;
+  dob?: string;
+  residentAddress?: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
   rejectionReason?: string;
   submittedAt: string;
@@ -180,11 +204,15 @@ interface RawPendingThriftItem {
 
 interface RawKycRecord {
   _id: string;
-  userId?: { _id?: string; fullName?: string; email?: string; phoneNumber?: string; role?: string } | string;
+  userId?: { _id?: string; fullName?: string; email?: string; phoneNumber?: string; role?: string; avatarUrl?: string; dob?: string; kyc?: { dob?: string; residentAddress?: string; citizenId?: string } } | string;
+  fullName?: string;
+  dob?: string;
+  residentAddress?: string;
   idCardNumber?: string;
   frontImageUrl?: string;
   backImageUrl?: string;
   status?: string;
+  rejectionReason?: string;
   createdAt?: string;
 }
 
@@ -200,6 +228,51 @@ export interface AdminDashboardData {
   users: MongoUserItem[];
   categories: AdminCategoryItem[];
 }
+
+
+/**
+ * Lấy cấu hình tỷ lệ % phí sàn cho RENT và THRIFT
+ */
+export const getPlatformFeeApi = async (): Promise<PlatformFeeConfig> => {
+  const res = await api.get('/admin/platform-fee');
+  return res.data?.data || res.data;
+};
+
+/**
+ * Cập nhật cấu hình tỷ lệ % phí sàn cho RENT và THRIFT
+ */
+export const updatePlatformFeeApi = async (data: {
+  rentFeePercent?: number;
+  thriftFeePercent?: number;
+  description?: string;
+}): Promise<PlatformFeeConfig> => {
+  const res = await api.patch('/admin/platform-fee', data);
+  return res.data?.data || res.data;
+};
+
+/**
+ * Lấy danh sách tranh chấp từ MongoDB (/api/admin/disputes)
+ */
+export const getDisputesApi = async (params?: { status?: string; page?: number; limit?: number }) => {
+  const res = await api.get('/admin/disputes', { params });
+  return res.data?.data || res.data;
+};
+
+/**
+ * Lấy chi tiết tranh chấp của 1 đơn hàng (/api/admin/disputes/:id)
+ */
+export const getDisputeByIdApi = async (id: string) => {
+  const res = await api.get(`/admin/disputes/${id}`);
+  return res.data?.data || res.data;
+};
+
+/**
+ * Admin giải quyết tranh chấp (phân xử cọc và kích hoạt cập nhật trạng thái đơn + ví nội bộ)
+ */
+export const resolveDisputeApi = async (id: string, payload: ResolveDisputePayload) => {
+  const res = await api.post(`/admin/disputes/${id}/resolve`, payload);
+  return res.data?.data || res.data;
+};
 
 // ============================================================================
 // API DUYỆT & TỪ CHỐI (APPROVE / REJECT)
@@ -278,6 +351,64 @@ export const rejectKycApi = async (id: string, rejectionReason: string): Promise
   } catch (err) {
     console.warn(`[API] Từ chối KYC ${id} fallback local:`, err);
   }
+};
+
+/**
+ * Lấy danh sách hồ sơ KYC thực tế từ MongoDB (/api/admin/kyc)
+ */
+export const fetchAdminKycListApi = async (): Promise<KycApplicantItem[]> => {
+  try {
+    const res = await api.get("/admin/kyc?limit=100");
+    const raw = res.data?.data || res.data;
+    const records: RawKycRecord[] = raw?.records || (Array.isArray(raw) ? raw : []);
+
+    return records.map((r) => {
+      const userObj = typeof r.userId === "object" ? r.userId : null;
+      const fullName = userObj?.fullName || "Người dùng ReUse";
+      const getInitials = (name: string) => {
+        const parts = name.trim().split(" ");
+        if (parts.length >= 2) {
+          return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+        return name.slice(0, 2).toUpperCase();
+      };
+
+      const status = ((r.status || "PENDING").toUpperCase()) as "PENDING" | "APPROVED" | "REJECTED";
+
+      return {
+        id: r._id,
+        userId: userObj?._id || (typeof r.userId === "string" ? r.userId : undefined),
+        fullName,
+        initials: getInitials(fullName),
+        email: userObj?.email || "user@reuse.vn",
+        phoneNumber: userObj?.phoneNumber || "Chưa cập nhật",
+        idCardNumber: r.idCardNumber || "",
+        frontImageUrl: r.frontImageUrl || "",
+        backImageUrl: r.backImageUrl || "",
+        avatarUrl: userObj?.avatarUrl || "",
+        dob: r.dob || userObj?.kyc?.dob || userObj?.dob || "",
+        residentAddress: r.residentAddress || userObj?.kyc?.residentAddress || "",
+        docType: "Căn cước công dân gắn chip (CCCD)",
+        tier: (userObj?.role === "SHOP_OWNER" ? "Shop Partner Tier" : "Customer Tier") as "Shop Partner Tier" | "Customer Tier",
+        isUrgent: status === "PENDING",
+        bankInfo: "Vietcombank Escrow Clearing",
+        status,
+        rejectionReason: r.rejectionReason,
+        submittedAt: r.createdAt || new Date().toISOString(),
+      };
+    });
+  } catch (err) {
+    console.warn("Lỗi khi tải hồ sơ KYC từ Admin API:", err);
+    return [];
+  }
+};
+
+/**
+ * Lấy chi tiết hồ sơ KYC của 1 ứng viên từ MongoDB (/api/admin/kyc/:id)
+ */
+export const fetchAdminKycDetailApi = async (id: string) => {
+  const res = await api.get(`/admin/kyc/${id}`);
+  return res.data?.data || res.data;
 };
 
 // ============================================================================
