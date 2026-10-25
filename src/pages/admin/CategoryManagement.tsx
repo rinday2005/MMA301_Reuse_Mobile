@@ -1,5 +1,11 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
+import {
+  fetchAdminCategoriesApi,
+  createAdminCategoryApi,
+  updateAdminCategoryApi,
+  toggleCategoryStatusApi,
+} from "../../services/admin.api";
 
 export type MarketType = "ALL" | "RENT" | "THRIFT" | "COMMON";
 export type CategoryStatus = "ACTIVE" | "INACTIVE";
@@ -19,323 +25,9 @@ export interface CategoryItem {
   updatedAt?: string;
 }
 
-const INITIAL_CATEGORIES: CategoryItem[] = [
-  {
-    id: "cat-01",
-    name: "Cameras & Optics",
-    slug: "/categories/cameras-optics",
-    description: "Máy ảnh Leica, Hasselblad, ống kính chuyên dụng và quang học di sản.",
-    market: "COMMON",
-    icon: "photo_camera",
-    totalItems: 142,
-    rentItems: 86,
-    thriftItems: 56,
-    status: "ACTIVE",
-    updatedAt: "2025-02-24",
-  },
-  {
-    id: "cat-02",
-    name: "Audio & Studio Hi-Fi",
-    slug: "/categories/audio-studio-hifi",
-    description: "Mâm đĩa than hi-end, amplifier đèn và hệ thống kiểm âm phòng thu.",
-    market: "RENT",
-    icon: "speaker",
-    totalItems: 94,
-    rentItems: 94,
-    thriftItems: 0,
-    status: "ACTIVE",
-    updatedAt: "2025-02-23",
-  },
-  {
-    id: "cat-03",
-    name: "Archival Eyewear",
-    slug: "/categories/archival-eyewear",
-    description: "Gọng kính cổ điển, kính mát sưu tầm thập niên 1960-1990 nguyên bản.",
-    market: "THRIFT",
-    icon: "visibility",
-    totalItems: 118,
-    rentItems: 0,
-    thriftItems: 118,
-    status: "ACTIVE",
-    updatedAt: "2025-02-22",
-  },
-  {
-    id: "cat-04",
-    name: "Timepieces & Horology",
-    slug: "/categories/timepieces-horology",
-    description: "Đồng hồ cơ khí Thụy Sĩ, vintage chronographs và phiên bản di sản.",
-    market: "COMMON",
-    icon: "watch",
-    totalItems: 215,
-    rentItems: 120,
-    thriftItems: 95,
-    status: "ACTIVE",
-    updatedAt: "2025-02-21",
-  },
-  {
-    id: "cat-05",
-    name: "Drone & Aerial Tech",
-    slug: "/categories/drone-aerial-tech",
-    description: "Thiết bị quay chụp trên không, flycam điện ảnh và gimbal chuyên nghiệp.",
-    market: "RENT",
-    icon: "flight_takeoff",
-    totalItems: 38,
-    rentItems: 38,
-    thriftItems: 0,
-    status: "INACTIVE",
-    updatedAt: "2025-02-20",
-  },
-  {
-    id: "cat-06",
-    name: "Rare Leather & Trunks",
-    slug: "/categories/rare-leather-trunks",
-    description: "Rương hành lý thủ công, túi da thảo mộc patina và vali lưu trữ di sản.",
-    market: "THRIFT",
-    icon: "luggage",
-    totalItems: 64,
-    rentItems: 0,
-    thriftItems: 64,
-    status: "ACTIVE",
-    updatedAt: "2025-02-19",
-  },
-  {
-    id: "cat-07",
-    name: "Cinema Lighting & Rigging",
-    slug: "/categories/cinema-lighting-rigging",
-    description: "Hệ thống đèn Arri, Aputure, chân c-stand và phụ kiện trường quay chuyên nghiệp.",
-    market: "RENT",
-    icon: "lightbulb",
-    totalItems: 180,
-    rentItems: 180,
-    thriftItems: 0,
-    status: "ACTIVE",
-    updatedAt: "2025-02-18",
-  },
-  {
-    id: "cat-08",
-    name: "Vintage Couture & Archive",
-    slug: "/categories/vintage-couture-archive",
-    description: "Trang phục sàn diễn thập niên 80-90, đầm dạ hội lưu trữ và áo khoác di sản.",
-    market: "THRIFT",
-    icon: "checkroom",
-    totalItems: 156,
-    rentItems: 0,
-    thriftItems: 156,
-    status: "ACTIVE",
-    updatedAt: "2025-02-17",
-  },
-  {
-    id: "cat-09",
-    name: "Mid-Century Furniture",
-    slug: "/categories/mid-century-furniture",
-    description: "Ghế bành Eames, bàn trà Noguchi, nội thất thiết kế Scandinavia nguyên bản.",
-    market: "COMMON",
-    icon: "chair",
-    totalItems: 88,
-    rentItems: 42,
-    thriftItems: 46,
-    status: "ACTIVE",
-    updatedAt: "2025-02-16",
-  },
-  {
-    id: "cat-10",
-    name: "Modular Synthesizers & Sound",
-    slug: "/categories/modular-synthesizers",
-    description: "Nhạc cụ điện tử Eurorack, synthesizer analog Moog và đàn phím vintage.",
-    market: "COMMON",
-    icon: "piano",
-    totalItems: 72,
-    rentItems: 36,
-    thriftItems: 36,
-    status: "ACTIVE",
-    updatedAt: "2025-02-15",
-  },
-  {
-    id: "cat-11",
-    name: "Fine Art & Gallery Prints",
-    slug: "/categories/fine-art-prints",
-    description: "Tranh in thạch bản, ấn bản nhiếp ảnh có chữ ký và tác phẩm bảo tàng.",
-    market: "THRIFT",
-    icon: "palette",
-    totalItems: 92,
-    rentItems: 0,
-    thriftItems: 92,
-    status: "ACTIVE",
-    updatedAt: "2025-02-14",
-  },
-  {
-    id: "cat-12",
-    name: "Outdoor & Expedition Gear",
-    slug: "/categories/outdoor-expedition",
-    description: "Lều Snow Peak, bếp dã ngoại titan và thiết bị thám hiểm cao cấp.",
-    market: "RENT",
-    icon: "camping",
-    totalItems: 110,
-    rentItems: 110,
-    thriftItems: 0,
-    status: "ACTIVE",
-    updatedAt: "2025-02-13",
-  },
-  {
-    id: "cat-13",
-    name: "Ceramics & Studio Pottery",
-    slug: "/categories/ceramics-studio-pottery",
-    description: "Gốm nung củi Bizen, bình trà Raku và đồ gốm thủ công nghệ nhân Nhật Bản.",
-    market: "COMMON",
-    icon: "local_cafe",
-    totalItems: 65,
-    rentItems: 20,
-    thriftItems: 45,
-    status: "ACTIVE",
-    updatedAt: "2025-02-12",
-  },
-  {
-    id: "cat-14",
-    name: "Rare Books & Manuscripts",
-    slug: "/categories/rare-books",
-    description: "Sách bìa da thủ công, ấn bản đầu thế kỷ 20 và tài liệu lưu trữ quý hiếm.",
-    market: "THRIFT",
-    icon: "menu_book",
-    totalItems: 135,
-    rentItems: 0,
-    thriftItems: 135,
-    status: "ACTIVE",
-    updatedAt: "2025-02-11",
-  },
-  {
-    id: "cat-15",
-    name: "Professional Video Camcorders",
-    slug: "/categories/pro-video-camcorders",
-    description: "Máy quay Sony FX, Blackmagic Cinema và hệ thống quay phim truyền hình.",
-    market: "RENT",
-    icon: "videocam",
-    totalItems: 145,
-    rentItems: 145,
-    thriftItems: 0,
-    status: "ACTIVE",
-    updatedAt: "2025-02-10",
-  },
-  {
-    id: "cat-16",
-    name: "Mechanical Keyboards & Typewriters",
-    slug: "/categories/keyboards-typewriters",
-    description: "Máy đánh chữ cơ cổ điển Hermes 3000, bàn phím cơ custom thủ công.",
-    market: "COMMON",
-    icon: "keyboard",
-    totalItems: 58,
-    rentItems: 18,
-    thriftItems: 40,
-    status: "ACTIVE",
-    updatedAt: "2025-02-09",
-  },
-  {
-    id: "cat-17",
-    name: "Heritage Bicycles & Vehicles",
-    slug: "/categories/heritage-bicycles",
-    description: "Xe đạp khung thép Ý Columbus, phụ tùng Campagnolo cổ điển nguyên bản.",
-    market: "COMMON",
-    icon: "pedal_bike",
-    totalItems: 44,
-    rentItems: 22,
-    thriftItems: 22,
-    status: "ACTIVE",
-    updatedAt: "2025-02-08",
-  },
-  {
-    id: "cat-18",
-    name: "Vintage Writing Instruments",
-    slug: "/categories/writing-instruments",
-    description: "Bút máy Montblanc Meisterstück, ngòi vàng 18K và bình mực lưu trữ.",
-    market: "THRIFT",
-    icon: "edit",
-    totalItems: 77,
-    rentItems: 0,
-    thriftItems: 77,
-    status: "ACTIVE",
-    updatedAt: "2025-02-07",
-  },
-  {
-    id: "cat-19",
-    name: "Audio Field Recorders & Microphones",
-    slug: "/categories/field-recorders",
-    description: "Micro thu âm Sennheiser, Sound Devices recorder và micro màng rung lớn.",
-    market: "RENT",
-    icon: "mic",
-    totalItems: 88,
-    rentItems: 88,
-    thriftItems: 0,
-    status: "ACTIVE",
-    updatedAt: "2025-02-06",
-  },
-  {
-    id: "cat-20",
-    name: "Architectural Models & Objects",
-    slug: "/categories/architectural-models",
-    description: "Mô hình kiến trúc Bauhaus, điêu khắc kim loại nguyên khối tối giản.",
-    market: "COMMON",
-    icon: "apartment",
-    totalItems: 51,
-    rentItems: 25,
-    thriftItems: 26,
-    status: "ACTIVE",
-    updatedAt: "2025-02-05",
-  },
-  {
-    id: "cat-21",
-    name: "Specialty Projectors & Displays",
-    slug: "/categories/projectors-displays",
-    description: "Máy chiếu phim 16mm/35mm Bell & Howell, màn chiếu di động triển lãm.",
-    market: "RENT",
-    icon: "slideshow",
-    totalItems: 62,
-    rentItems: 62,
-    thriftItems: 0,
-    status: "ACTIVE",
-    updatedAt: "2025-02-04",
-  },
-  {
-    id: "cat-22",
-    name: "Vintage Jewelry & Silverware",
-    slug: "/categories/vintage-jewelry",
-    description: "Trang sức bạc chạm khắc thủ công, đồ dùng bàn tiệc quý tộc đầu thế kỷ 20.",
-    market: "COMMON",
-    icon: "diamond",
-    totalItems: 83,
-    rentItems: 30,
-    thriftItems: 53,
-    status: "ACTIVE",
-    updatedAt: "2025-02-03",
-  },
-  {
-    id: "cat-23",
-    name: "Analog Games & Chess Sets",
-    slug: "/categories/analog-games-chess",
-    description: "Bàn cờ vua gỗ cẩm lai Staunton, bộ cờ vây đá tự nhiên truyền thống.",
-    market: "COMMON",
-    icon: "sports_esports",
-    totalItems: 39,
-    rentItems: 15,
-    thriftItems: 24,
-    status: "ACTIVE",
-    updatedAt: "2025-02-02",
-  },
-  {
-    id: "cat-24",
-    name: "Artisanal Tableware & Glass",
-    slug: "/categories/artisanal-tableware",
-    description: "Ly pha lê thổi tay Murano, dao dĩa đúc đồng thủ công Châu Âu cổ.",
-    market: "COMMON",
-    icon: "wine_bar",
-    totalItems: 71,
-    rentItems: 28,
-    thriftItems: 43,
-    status: "ACTIVE",
-    updatedAt: "2025-02-01",
-  },
-];
-
 export const CategoryManagement: React.FC = () => {
-  const [categories, setCategories] = useState<CategoryItem[]>(INITIAL_CATEGORIES);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<MarketType>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | CategoryStatus>("ALL");
@@ -350,7 +42,6 @@ export const CategoryManagement: React.FC = () => {
   const [formSlug, setFormSlug] = useState("");
   const [formMarket, setFormMarket] = useState<"RENT" | "THRIFT" | "COMMON">("COMMON");
   const [formDesc, setFormDesc] = useState("");
-  const [formIcon, setFormIcon] = useState("folder");
   const [formStatus, setFormStatus] = useState<CategoryStatus>("ACTIVE");
 
   // Confirm Status Modal
@@ -363,6 +54,69 @@ export const CategoryManagement: React.FC = () => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  // Nạp danh mục thật từ MongoDB qua API
+  const loadCategories = async () => {
+    try {
+      const list = await fetchAdminCategoriesApi();
+      const mapped: CategoryItem[] = list.map((c) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug.startsWith("/categories/") ? c.slug : `/categories/${c.slug.replace(/^\/+/, "")}`,
+        description: c.description,
+        market: c.market,
+        icon: c.icon,
+        totalItems: c.totalItems,
+        rentItems: c.rentItems,
+        thriftItems: c.thriftItems,
+        status: c.status,
+        updatedAt: c.updatedAt,
+      }));
+      setCategories(mapped);
+    } catch (err) {
+      console.warn("Lỗi tải danh mục:", err);
+      showToast("Không thể tải danh mục từ cơ sở dữ liệu MongoDB");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let ignore = false;
+    const initLoad = async () => {
+      try {
+        const list = await fetchAdminCategoriesApi();
+        if (!ignore) {
+          const mapped: CategoryItem[] = list.map((c) => ({
+            id: c.id,
+            name: c.name,
+            slug: c.slug.startsWith("/categories/") ? c.slug : `/categories/${c.slug.replace(/^\/+/, "")}`,
+            description: c.description,
+            market: c.market,
+            icon: c.icon,
+            totalItems: c.totalItems,
+            rentItems: c.rentItems,
+            thriftItems: c.thriftItems,
+            status: c.status,
+            updatedAt: c.updatedAt,
+          }));
+          setCategories(mapped);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!ignore) {
+          console.warn("Lỗi tải danh mục:", err);
+          setLoading(false);
+        }
+      }
+    };
+
+    void initLoad();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   // KPI Calculations
   const metrics = useMemo(() => {
@@ -418,7 +172,6 @@ export const CategoryManagement: React.FC = () => {
     setFormSlug("your-category");
     setFormMarket("COMMON");
     setFormDesc("");
-    setFormIcon("folder");
     setFormStatus("ACTIVE");
     setIsModalOpen(true);
   };
@@ -430,86 +183,77 @@ export const CategoryManagement: React.FC = () => {
     setFormSlug(cat.slug.replace("/categories/", ""));
     setFormMarket(cat.market);
     setFormDesc(cat.description);
-    setFormIcon(cat.icon);
     setFormStatus(cat.status);
     setIsModalOpen(true);
   };
 
-  // Submit Modal (Add / Edit)
-  const handleSubmitForm = (e: React.FormEvent) => {
+  // Submit Modal (Add / Edit qua MongoDB API)
+  const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim() || !formSlug.trim()) {
       alert("Vui lòng nhập tên danh mục và slug hợp lệ.");
       return;
     }
 
-    const cleanSlug = formSlug.startsWith("/categories/")
-      ? formSlug
-      : `/categories/${formSlug.replace(/^\/+/, "")}`;
+    const rawSlug = formSlug.replace(/^\/categories\//, "").replace(/^\/+/, "").trim();
 
-    if (editingCategory) {
-      setCategories((prev) =>
-        prev.map((item) =>
-          item.id === editingCategory.id
-            ? {
-                ...item,
-                name: formName.trim(),
-                slug: cleanSlug,
-                description: formDesc.trim(),
-                market: formMarket,
-                icon: formIcon,
-                status: formStatus,
-                updatedAt: new Date().toISOString().slice(0, 10),
-              }
-            : item
-        )
-      );
-      showToast(`Đã cập nhật thông tin danh mục "${formName}" thành công.`);
-    } else {
-      const newCat: CategoryItem = {
-        id: `cat-${Date.now().toString().slice(-4)}`,
-        name: formName.trim(),
-        slug: cleanSlug,
-        description: formDesc.trim() || "Chưa có mô tả chi tiết.",
-        market: formMarket,
-        icon: formIcon || "folder",
-        totalItems: 0,
-        rentItems: 0,
-        thriftItems: 0,
-        status: formStatus,
-        updatedAt: new Date().toISOString().slice(0, 10),
-      };
-      setCategories((prev) => [newCat, ...prev]);
-      showToast(`Đã thêm danh mục mới "${formName}" vào sổ bộ.`);
+    try {
+      if (editingCategory) {
+        await updateAdminCategoryApi(editingCategory.id, {
+          name: formName.trim(),
+          slug: rawSlug,
+          description: formDesc.trim(),
+          type: formMarket === "COMMON" ? "BOTH" : formMarket,
+          isActive: formStatus === "ACTIVE",
+        });
+        showToast(`Đã cập nhật danh mục "${formName}" vào MongoDB thành công.`);
+      } else {
+        await createAdminCategoryApi({
+          name: formName.trim(),
+          slug: rawSlug,
+          description: formDesc.trim() || "Chưa có mô tả chi tiết.",
+          type: formMarket === "COMMON" ? "BOTH" : formMarket,
+          isActive: formStatus === "ACTIVE",
+        });
+        showToast(`Đã tạo mới danh mục "${formName}" lưu vào MongoDB thành công.`);
+      }
+      setIsModalOpen(false);
+      await loadCategories();
+      window.dispatchEvent(new Event("category_updated"));
+    } catch (err: unknown) {
+      console.error(err);
+      const errMsg =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      showToast(errMsg || "Lỗi lưu danh mục vào cơ sở dữ liệu");
     }
-
-    setIsModalOpen(false);
   };
 
-  // Handle Toggle Status Confirmation
-  const handleConfirmToggleStatus = () => {
+  // Handle Toggle Status Confirmation qua MongoDB API
+  const handleConfirmToggleStatus = async () => {
     if (!confirmModalItem) return;
     const newStatus: CategoryStatus =
       confirmModalItem.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
 
-    setCategories((prev) =>
-      prev.map((item) =>
-        item.id === confirmModalItem.id
-          ? {
-              ...item,
-              status: newStatus,
-              updatedAt: new Date().toISOString().slice(0, 10),
-            }
-          : item
-      )
-    );
-
-    showToast(
-      newStatus === "ACTIVE"
-        ? `Đã kích hoạt lại danh mục "${confirmModalItem.name}".`
-        : `Đã tạm dừng niêm yết danh mục "${confirmModalItem.name}".`
-    );
-    setConfirmModalItem(null);
+    try {
+      await toggleCategoryStatusApi(confirmModalItem.id, newStatus === "ACTIVE");
+      showToast(
+        newStatus === "ACTIVE"
+          ? `Đã kích hoạt lại danh mục "${confirmModalItem.name}" trên MongoDB.`
+          : `Đã tạm dừng niêm yết danh mục "${confirmModalItem.name}" trên MongoDB.`
+      );
+      setConfirmModalItem(null);
+      await loadCategories();
+      window.dispatchEvent(new Event("category_updated"));
+    } catch (err: unknown) {
+      console.error(err);
+      const errMsg =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      showToast(errMsg || "Lỗi cập nhật trạng thái danh mục");
+    }
   };
 
   // Export JSON or CSV
@@ -852,7 +596,20 @@ export const CategoryManagement: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#ece7e4] text-xs">
-                  {filteredCategories.length === 0 ? (
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-[#7e766a]">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <span className="material-symbols-outlined text-3xl animate-spin text-[#6c5937]">
+                            sync
+                          </span>
+                          <p className="text-sm font-medium text-[#1c1b19]">
+                            Đang tải danh mục từ cơ sở dữ liệu MongoDB...
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredCategories.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-[#7e766a]">
                         <div className="flex flex-col items-center justify-center gap-2">

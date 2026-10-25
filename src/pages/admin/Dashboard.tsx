@@ -122,6 +122,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialTab }) => {
       });
     }
     setSelectedRentItem(null);
+    window.dispatchEvent(new Event("listing_reviewed"));
     showToast(`Đã phê duyệt niêm yết RENT: "${item.name}" thành công!`);
   };
 
@@ -143,6 +144,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialTab }) => {
       });
     }
     setSelectedThriftItem(null);
+    window.dispatchEvent(new Event("listing_reviewed"));
     showToast(`Đã bảo chứng và duyệt mục đăng THRIFT: "${item.name}"!`);
   };
 
@@ -165,6 +167,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialTab }) => {
       });
     }
     setSelectedKycItem(null);
+    window.dispatchEvent(new Event("kyc_reviewed"));
     showToast(`Đã xác thực định danh (KYC) thành công cho đối tác: "${item.fullName}"!`);
   };
 
@@ -222,6 +225,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialTab }) => {
         });
       }
       setSelectedRentItem(null);
+      window.dispatchEvent(new Event("listing_reviewed"));
       showToast(`Đã từ chối niêm yết RENT: "${targetName}". Lý do: ${trimmedReason}`);
     } else if (type === "THRIFT") {
       try {
@@ -240,6 +244,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialTab }) => {
         });
       }
       setSelectedThriftItem(null);
+      window.dispatchEvent(new Event("listing_reviewed"));
       showToast(`Đã từ chối mục đăng THRIFT: "${targetName}". Lý do: ${trimmedReason}`);
     } else if (type === "KYC") {
       try {
@@ -259,6 +264,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialTab }) => {
         });
       }
       setSelectedKycItem(null);
+      window.dispatchEvent(new Event("kyc_reviewed"));
       showToast(`Đã từ chối hồ sơ KYC của "${targetName}". Lý do: ${trimmedReason}`);
     }
 
@@ -292,17 +298,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialTab }) => {
   }, [rejectModal.type]);
 
   const metrics = data?.metrics || {
-    totalUsers: 11,
-    weeklyNewUsers: 11,
-    pendingKycCount: 1,
-    urgentKycCount: 1,
+    totalUsers: data?.users?.length || 0,
+    weeklyNewUsers: data?.users?.length || 0,
+    pendingKycCount: 0,
+    urgentKycCount: 0,
     pendingRentListingsCount: 0,
     rentAverageSlaHours: 0,
     pendingThriftListingsCount: 0,
     openDisputesCount: 0,
     lockedEscrowAmount: 0,
-    totalPlatformRevenue: 2950000,
-    monthlyVolume: 2950000,
+    totalPlatformRevenue: 0,
+    monthlyVolume: 0,
   };
 
   const rentApprovalList = data?.rentApprovalList || [];

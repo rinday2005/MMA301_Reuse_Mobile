@@ -231,8 +231,29 @@ export const KycReview: React.FC = () => {
               ? "48 Bạch Đằng, Phường Hải Châu 1, Quận Hải Châu, Thành phố Đà Nẵng"
               : "Chưa cập nhật địa chỉ thường trú");
 
+          // Lấy avatar thực tế từ hồ sơ profile của user
+          let profileAvatar = matched.avatarUrl;
+          if (matched.userId) {
+            try {
+              const localProfile = localStorage.getItem(`user_profile_${matched.userId}`);
+              if (localProfile) {
+                const parsed = JSON.parse(localProfile);
+                if (parsed.avatarUrl) {
+                  profileAvatar = parsed.avatarUrl;
+                }
+              }
+            } catch {
+              // ignore
+            }
+          }
+
+          // Tránh trường hợp avatar bị nhầm sang ảnh CCCD
+          if (profileAvatar && profileAvatar.includes("/kyc/")) {
+            profileAvatar = "";
+          }
+
           const finalAvatarUrl =
-            matched.avatarUrl ||
+            profileAvatar ||
             (matched.email === "hon@gmail.com"
               ? "https://res.cloudinary.com/qs6kyqau/image/upload/v1792854543/reuse_hub/avatars/zsk3hx9obqvp0b5opilb.png"
               : "");
@@ -321,6 +342,7 @@ export const KycReview: React.FC = () => {
     try {
       await approveKycApi(applicant.id);
       setCurrentStatus("approved");
+      window.dispatchEvent(new Event("kyc_reviewed"));
       showToast(
         `Đã Phê Duyệt Hồ Sơ ${applicant.code}`,
         `KYC Status đã chuyển sang APPROVED trên MongoDB. Phân vai ${applicant.roleName} được bảo lưu an toàn.`,
@@ -353,6 +375,7 @@ export const KycReview: React.FC = () => {
       await rejectKycApi(applicant.id, rejectReason.trim());
       setCurrentStatus("rejected");
       setIsRejectModalOpen(false);
+      window.dispatchEvent(new Event("kyc_reviewed"));
       showToast(
         `Đã Từ Chối Hồ Sơ ${applicant.code}`,
         `Hệ thống đã lưu lý do từ chối vào MongoDB và gửi thông báo đến ${applicant.fullName}.`,

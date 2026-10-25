@@ -35,196 +35,8 @@ export interface ThriftListing {
   bCorpCertified?: boolean;
 }
 
-const INITIAL_THRIFT_LISTINGS: ThriftListing[] = [
-  {
-    id: "9021",
-    sku: "#HB-THF-9021",
-    title: "Leica M6 Classic 0.72x Black Chrome",
-    category: "Máy ảnh & Quang học",
-    conditionGrade: "Pristine 9.2/10",
-    conditionNote: "Minor brassing, CLA serviced 2024",
-    price: 68500000,
-    priceNote: "Đã bao gồm VAT & Phí thẩm định",
-    originType: "SECOND_LIFE",
-    originNote: "Từ RENT fleet #RNT-4920 (14 chu kỳ)",
-    shopName: "Kyoto Archival Optics",
-    ownerName: "Vũ Thanh Tùng",
-    ownerKycVerified: true,
-    submittedAtDisplay: "Hôm nay, 08:30",
-    submittedAtSub: "Múi giờ ICT",
-    status: "PENDING",
-    isAvailable: true,
-    serialNumber: "SN-LC-M6-218402",
-    imageUrl:
-      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80",
-    publicUrl: "/thrift/products/9021",
-  },
-  {
-    id: "9022",
-    sku: "#HB-THF-9022",
-    title: "Hasselblad 503CW + Planar 80mm f/2.8",
-    category: "Máy ảnh & Quang học",
-    conditionGrade: "Mint 9.7/10",
-    conditionNote: "Full Box & Giấy chứng sinh gốc",
-    price: 112000000,
-    priceNote: "Đã bao gồm VAT & Phí thẩm định",
-    originType: "SHOP_INVENTORY",
-    originNote: "Ký gửi trực tiếp từ kho xưởng",
-    shopName: "Saigon Cinema Vault",
-    ownerName: "Hồ Trọng Đạt",
-    ownerKycVerified: true,
-    submittedAtDisplay: "Hôm nay, 10:15",
-    submittedAtSub: "Múi giờ ICT",
-    status: "PENDING",
-    isAvailable: true,
-    serialNumber: "SN-HB-503CW-99120",
-    imageUrl:
-      "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=600&q=80",
-    publicUrl: "/thrift/products/9022",
-  },
-  {
-    id: "8840",
-    sku: "#HB-THF-8840",
-    title: "Contax T2 Titanium Black",
-    category: "Máy ảnh & Quang học",
-    conditionGrade: "Excellent 8.8/10",
-    conditionNote: "Clean optics, không giật màng trập",
-    price: 32500000,
-    priceNote: "Đã bao gồm VAT & Phí thẩm định",
-    originType: "SECOND_LIFE",
-    originNote: "Từ kho thuê #RNT-3108 (9 chu kỳ)",
-    shopName: "Da Nang Camera Hub",
-    ownerName: "Lê Minh Châu",
-    ownerKycVerified: true,
-    submittedAtDisplay: "Hôm qua",
-    submittedAtSub: "15:40 ICT",
-    status: "APPROVED",
-    isAvailable: true,
-    serialNumber: "SN-CTX-T2-08819",
-    imageUrl:
-      "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80",
-    publicUrl: "/thrift/products/8840",
-  },
-  {
-    id: "8701",
-    sku: "#HB-THF-8701",
-    title: "Omega Speedmaster Professional Moonwatch",
-    category: "Đồng hồ & Horology",
-    conditionGrade: "Pristine 9.5/10",
-    conditionNote: "Chưa qua đánh bóng, sai số +2s/ngày",
-    price: 145000000,
-    priceNote: "Giao dịch đã quyết toán",
-    originType: "SHOP_INVENTORY",
-    originNote: "Ủy thác bảo chứng tư nhân",
-    shopName: "Atelier Silvergrain",
-    ownerName: "Trần Khang Ninh",
-    ownerKycVerified: true,
-    submittedAtDisplay: "22 Th02, 2025",
-    submittedAtSub: "Đã chuyển giao",
-    status: "SOLD",
-    isAvailable: false,
-    serialNumber: "SN-OMG-3113042",
-    imageUrl:
-      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80",
-    publicUrl: "/thrift/products/8701",
-  },
-  {
-    id: "8650",
-    sku: "#HB-THF-8650",
-    title: "Bang & Olufsen Beosound 9000",
-    category: "Âm thanh Hi-Fi",
-    conditionGrade: "Good Vintage 8.2/10",
-    conditionNote: "Cơ trượt ổn định, thấu kính CD 4 cần kiểm định",
-    price: 48000000,
-    priceNote: "Tạm ngưng thanh toán",
-    originType: "SECOND_LIFE",
-    originNote: "Hoàn tất kiểm toán vận hành RENT",
-    shopName: "Heritage Audio Works",
-    ownerName: "Nguyễn Đăng Khoa",
-    ownerKycVerified: true,
-    submittedAtDisplay: "20 Th02, 2025",
-    submittedAtSub: "Đã phản hồi Shop",
-    status: "REJECTED",
-    isAvailable: false,
-    rejectionReason: "Thiếu video kiểm tra mắt laser và cơ chế trượt CD #4",
-    serialNumber: "SN-BO-9000-48210",
-    imageUrl:
-      "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=600&q=80",
-    publicUrl: "/thrift/products/8650",
-  },
-  {
-    id: "8590",
-    sku: "#HB-THF-8590",
-    title: "Fujifilm X100V Silver Edition",
-    category: "Máy ảnh & Quang học",
-    conditionGrade: "Mint 9.9/10",
-    conditionNote: "Shutter count < 800, dán skin từ ngày 1",
-    price: 38000000,
-    priceNote: "Đã bao gồm VAT & Phí thẩm định",
-    originType: "SHOP_INVENTORY",
-    originNote: "Ký gửi showroom Hà Nội",
-    shopName: "Hanoi Classic Shutter",
-    ownerName: "Phạm Việt Anh",
-    ownerKycVerified: true,
-    submittedAtDisplay: "18 Th02, 2025",
-    submittedAtSub: "Đã hoàn tất kiểm định",
-    status: "APPROVED",
-    isAvailable: true,
-    serialNumber: "SN-FJ-X100V-7712",
-    imageUrl:
-      "https://images.unsplash.com/photo-1512790182412-b19e6d62bc39?auto=format&fit=crop&w=600&q=80",
-    publicUrl: "/thrift/products/8590",
-  },
-  {
-    id: "8510",
-    sku: "#HB-THF-8510",
-    title: "Rolex Submariner Date 16610 Tritium Dial",
-    category: "Đồng hồ & Horology",
-    conditionGrade: "Pristine 9.4/10",
-    conditionNote: "Lug vát nguyên bản, cọc số ngả vàng tự nhiên",
-    price: 215000000,
-    priceNote: "Ủy thác ký quỹ bảo chứng",
-    originType: "SHOP_INVENTORY",
-    originNote: "Bộ sưu tập tư nhân Thụy Sĩ",
-    shopName: "Atelier Silvergrain",
-    ownerName: "Trần Khang Ninh",
-    ownerKycVerified: true,
-    submittedAtDisplay: "15 Th02, 2025",
-    submittedAtSub: "Múi giờ ICT",
-    status: "PENDING",
-    isAvailable: true,
-    serialNumber: "SN-RLX-16610-E4912",
-    imageUrl:
-      "https://images.unsplash.com/photo-1547996160-71dfa4708ddf?auto=format&fit=crop&w=600&q=80",
-    publicUrl: "/thrift/products/8510",
-  },
-  {
-    id: "8480",
-    sku: "#HB-THF-8480",
-    title: "Eames Lounge Chair & Ottoman (Rosewood)",
-    category: "Nội thất thiết kế",
-    conditionGrade: "Excellent 8.9/10",
-    conditionNote: "Da bọc tự nhiên nguyên bản Herman Miller",
-    price: 95000000,
-    priceNote: "Đã bao gồm VAT & Phí thẩm định",
-    originType: "SECOND_LIFE",
-    originNote: "Từ không gian triển lãm RENT Gallery",
-    shopName: "Bauhaus Living Lab",
-    ownerName: "Lê Quang Huy",
-    ownerKycVerified: true,
-    submittedAtDisplay: "12 Th02, 2025",
-    submittedAtSub: "Múi giờ ICT",
-    status: "APPROVED",
-    isAvailable: true,
-    serialNumber: "SN-HM-EAMES-2018",
-    imageUrl:
-      "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=600&q=80",
-    publicUrl: "/thrift/products/8480",
-  },
-];
-
 export const ThriftListingApproval: React.FC = () => {
-  const [listings, setListings] = useState<ThriftListing[]>(INITIAL_THRIFT_LISTINGS);
+  const [listings, setListings] = useState<ThriftListing[]>([]);
   const [activeTab, setActiveTab] = useState<ThriftStatusFilter>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -273,9 +85,9 @@ export const ThriftListingApproval: React.FC = () => {
     }, 4000);
   };
 
-  // KPI Calculations
+  // KPI Calculations strictly from real MongoDB listings
   const metrics = useMemo(() => {
-    const total = 415; // Or listings.length base
+    const total = listings.length;
     const pending = listings.filter((l) => l.status === "PENDING").length;
     const approved = listings.filter((l) => l.status === "APPROVED").length;
     const rejected = listings.filter((l) => l.status === "REJECTED").length;
@@ -285,12 +97,12 @@ export const ThriftListingApproval: React.FC = () => {
 
     return {
       total,
-      pending: pending > 0 ? pending : 24,
-      approved: approved > 0 ? approved : 342,
-      rejected: rejected > 0 ? rejected : 12,
-      sold: sold > 0 ? sold : 53,
-      secondLife: secondLife > 0 ? secondLife : 18,
-      available: available > 0 ? available : 289,
+      pending,
+      approved,
+      rejected,
+      sold,
+      secondLife,
+      available,
     };
   }, [listings]);
 
@@ -900,18 +712,24 @@ export const ThriftListingApproval: React.FC = () => {
                           inventory_2
                         </span>
                         <p className="text-sm font-semibold text-[#1c1c18]">
-                          Không tìm thấy mục đăng THRIFT nào
+                          {listings.length === 0
+                            ? "Hiện không có đơn THRIFT nào chờ duyệt từ Chủ Xưởng"
+                            : "Không tìm thấy mục đăng THRIFT nào"}
                         </p>
                         <p className="text-xs text-[#7b766f]">
-                          Hãy thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm.
+                          {listings.length === 0
+                            ? "Khi Chủ Xưởng gửi yêu cầu đăng bán sản phẩm thanh lý mới, đơn sẽ xuất hiện tại đây."
+                            : "Hãy thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm."}
                         </p>
-                        <button
-                          type="button"
-                          onClick={handleResetFilters}
-                          className="mt-2 px-3 py-1.5 rounded-lg bg-[#141310] text-white text-xs font-semibold"
-                        >
-                          Đặt Lại Bộ Lọc
-                        </button>
+                        {listings.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleResetFilters}
+                            className="mt-2 px-3 py-1.5 rounded-lg bg-[#141310] text-white text-xs font-semibold"
+                          >
+                            Đặt Lại Bộ Lọc
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1220,9 +1038,38 @@ export const ThriftListingApproval: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setListings(INITIAL_THRIFT_LISTINGS);
-                  showToast("Đã làm mới dữ liệu hàng đợi THRIFT.");
+                onClick={async () => {
+                  try {
+                    const dashData = await fetchAdminDashboardData();
+                    if (dashData?.thriftApprovalList) {
+                      const items: ThriftListing[] = dashData.thriftApprovalList.map(
+                        (item) => ({
+                          id: item.id,
+                          sku: `#TH-${item.id.slice(-6).toUpperCase()}`,
+                          title: item.name,
+                          category: item.categoryName,
+                          conditionGrade: item.condition,
+                          conditionNote: "Giám định trực tiếp từ xưởng ReUse Hub",
+                          price: item.price,
+                          originType: "SECOND_LIFE" as OriginType,
+                          originNote: item.source,
+                          shopName: "ReUse Official Shop",
+                          ownerName: item.sellerName,
+                          ownerKycVerified: true,
+                          submittedAtDisplay: item.timeDisplay,
+                          submittedAtSub: item.submittedAt,
+                          status: item.status,
+                          isAvailable: item.status === "APPROVED",
+                          imageUrl: item.images[0] || "",
+                          publicUrl: `/thrift/${item.slug}`,
+                        })
+                      );
+                      setListings(items);
+                    }
+                    showToast("Đã làm mới dữ liệu hàng đợi THRIFT từ MongoDB.");
+                  } catch {
+                    showToast("Lỗi làm mới dữ liệu từ MongoDB.");
+                  }
                 }}
                 className="px-4 py-2 rounded-lg bg-[#141310] text-[#fdf9f2] text-xs font-semibold transition-colors shadow-sm"
               >
