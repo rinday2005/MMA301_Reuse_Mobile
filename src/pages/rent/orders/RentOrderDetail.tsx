@@ -12,7 +12,7 @@ import { getRentProductDetail } from '../../data/rent/rentOrderDetailData';
 import { type StoredRentalOrderRecord, type StoredRentalOrderItem } from '../../data/rent/myRentOrdersData';
 import { resolveCleanAddress } from '../../../utils/address';
 import { normalizeImageUrl } from '../../../utils/imageUrl';
-import { isUnusableItemTitle, resolveRentProductsByIds } from '../../../utils/rentOrderItemResolver';
+import { isObjectIdLike, isUnusableItemTitle, resolveRentProductsByIds } from '../../../utils/rentOrderItemResolver';
 
 interface OrderItemDetail {
   id: string;
