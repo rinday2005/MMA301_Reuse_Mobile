@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../../hooks/useAuth';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
 import { getPublicThriftListingsApi } from '../../../services/thrift.api';
 import { getCategoriesApi } from '../../../services/category.api';
@@ -31,7 +30,6 @@ function getPageNumbers(current: number, total: number): (number | string)[] {
 }
 
 export const ThriftMarketplace: React.FC = () => {
-    const { user } = useAuth();
     const navigate = useNavigate();
     const { isWishlisted, toggleWishlist, addToCart } = useCartWishlist();
     const [dbProducts, setDbProducts] = useState<ThriftProduct[]>([]);
@@ -175,39 +173,9 @@ export const ThriftMarketplace: React.FC = () => {
         targetUrl: '',
     });
 
-    // Protected action helper
-    const handleProtectedAction = (actionTitle: string, targetUrl: string, onSuccess: () => void) => {
-        if (!user) {
-            setAuthModal({
-                open: true,
-                actionName: actionTitle,
-                targetUrl,
-            });
-            return;
-        }
-        onSuccess();
-    };
-
     // User interactions
     const handleBuyNow = (product: ThriftProduct) => {
-        handleProtectedAction(
-            `mua ngay "${product.title}"`,
-            '/cart',
-            () => {
-                addToCart({
-                    id: product.id,
-                    title: product.title,
-                    price: product.price,
-                    image: product.image,
-                    mode: 'thrift',
-                    location: product.location,
-                    categoryLabel: product.category,
-                    gradeBadge: product.condition,
-                    quantity: 1,
-                });
-                navigate('/cart');
-            }
-        );
+        navigate(product.href || `/thrift/${product.id}`);
     };
 
     const handleAddToCart = (product: ThriftProduct) => {

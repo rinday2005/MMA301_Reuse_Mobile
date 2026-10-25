@@ -384,10 +384,6 @@ export const MyThriftOrders: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FBF9F5] text-[#1C1C18] flex flex-col font-sans selection:bg-[#D8E3CE] selection:text-[#5B6655]">
-      {/* ── TOP ANNOUNCEMENT BAR ── */}
-      <aside className="bg-[#141310] text-[#E7E1DD] text-[11px] tracking-wider font-semibold uppercase py-2 text-center px-4">
-        RENT WHAT YOU NEED. REUSE WHAT ALREADY EXISTS. SỞ HỮU DI SẢN TUẦN HOÀN QUA HỆ THỐNG PROVENANCE VAULT™.
-      </aside>
 
       {/* ── TOAST NOTIFICATION ── */}
       {toastMessage && (
