@@ -57,6 +57,7 @@ interface OrderFullData {
   paymentMethod: string;
   paymentStatus: string;
   carrierName: string;
+  shippingMethod?: string;
   trackingCode: string;
   outboundDate: string;
   returnTimeWindow: string;
@@ -284,6 +285,10 @@ export const RentOrderDetail: React.FC = () => {
 
   const handleSignCla = async () => {
     if (!orderData) return;
+    if (['PENDING', 'WAITING_PAYMENT', 'PENDING_PAYMENT', 'PAID', 'PREPARING', 'READY_FOR_HANDOVER'].includes(orderData.status)) {
+      showToast('Shop chưa bấm xác nhận gửi hàng, chưa thể ký CLA!', 'info', 'error');
+      return;
+    }
     setIsSigningCla(true);
     try {
       const payload = {
@@ -619,24 +624,41 @@ export const RentOrderDetail: React.FC = () => {
       const urlStatus = (urlParams.get('status') || '').toUpperCase();
       const hasPickupScheduled = urlParams.get('pickupScheduled') === 'true' || Boolean((source as Record<string, unknown>)?.pickupScheduled);
 
-      // Check if return was requested locally or on backend
-      let effectiveStatus = rawStatus;
+      // Thứ tự ưu tiên vòng đời: COMPLETED -> RETURNED/INSPECTING -> RETURN_REQUESTED -> PAID/SHIPPING/RENTING
+      const isInspectionApproved = Boolean(
+        rawStatus === 'COMPLETED' ||
+        urlStatus === 'COMPLETED' ||
+        candidateKeys.some((ck) => localStorage.getItem(`inspection_approved_${ck.toLowerCase()}`)) ||
+        Boolean((source as any)?.inspectionResult?.isApproved)
+      );
+
+      const isInspectionEntered = Boolean(
+        rawStatus === 'RETURNED' ||
+        rawStatus === 'INSPECTING' ||
+        urlStatus === 'RETURNED' ||
+        urlStatus === 'INSPECTING' ||
+        candidateKeys.some((ck) => localStorage.getItem(`inspection_entered_${ck.toLowerCase()}`))
+      );
+
       const isReturnRequested = Boolean(
         urlStatus === 'RETURN_REQUESTED' ||
         rawStatus === 'RETURN_REQUESTED' ||
         hasPickupScheduled ||
-        localStorage.getItem(`return_request_${cleanCode.toLowerCase()}`) ||
-        localStorage.getItem(`return_request_${cleanParamId.toLowerCase()}`)
+        candidateKeys.some((ck) => localStorage.getItem(`return_request_${ck.toLowerCase()}`)) ||
+        candidateKeys.some((ck) => localStorage.getItem(`user_initiated_return_${ck.toLowerCase()}`))
       );
 
-      if (isReturnRequested) {
-        effectiveStatus = 'RETURN_REQUESTED';
-      } else if (urlStatus === 'RETURNED' || rawStatus === 'RETURNED') {
-        effectiveStatus = 'RETURNED';
-      } else if (urlStatus === 'COMPLETED' || rawStatus === 'COMPLETED') {
+      let effectiveStatus = rawStatus;
+      if (isInspectionApproved) {
         effectiveStatus = 'COMPLETED';
-      } else if (['PAID', 'PREPARING', 'READY_FOR_HANDOVER', 'HANDED_OVER', 'SHIPPING', 'DELIVERED', 'RENTING'].includes(rawStatus)) {
-        effectiveStatus = isClaSigned ? 'RENTING' : 'DELIVERED';
+      } else if (isInspectionEntered) {
+        effectiveStatus = 'RETURNED';
+      } else if (isReturnRequested) {
+        effectiveStatus = 'RETURN_REQUESTED';
+      } else if (['PAID', 'PREPARING', 'READY_FOR_HANDOVER'].includes(rawStatus)) {
+        effectiveStatus = 'PAID';
+      } else if (['HANDED_OVER', 'SHIPPING', 'DELIVERED', 'RENTING'].includes(rawStatus)) {
+        effectiveStatus = isClaSigned ? 'RENTING' : 'SHIPPING';
       }
 
       // Dates
@@ -673,8 +695,8 @@ export const RentOrderDetail: React.FC = () => {
       } else if (effectiveStatus === 'PENDING_PAYMENT' || effectiveStatus === 'WAITING_PAYMENT') {
         statusLabel = 'CHỜ THANH TOÁN (PENDING PAYMENT)';
         dayProgress = '15%';
-      } else if (effectiveStatus === 'DELIVERED') {
-        statusLabel = 'KÝ ĐƠN HÀNG ĐỂ BẮT ĐẦU THUÊ';
+      } else if (effectiveStatus === 'SHIPPING' || effectiveStatus === 'DELIVERED') {
+        statusLabel = 'BÀN GIAO (CHỜ KÝ CLA ĐỂ BẮT ĐẦU THUÊ)';
         dayProgress = '50%';
       } else if (effectiveStatus === 'RENTING') {
         const pct = Math.min(100, Math.max(10, Math.round((elapsedDays / rentalDays) * 100)));
@@ -1045,20 +1067,22 @@ export const RentOrderDetail: React.FC = () => {
   // Hàm xác định bước hiện tại trên Stepper theo đúng AC và cơ chế test pass qua Shop duyệt & Vận chuyển
   const getActiveStep = (status: string, isSigned?: boolean): number => {
     switch (status) {
-      case 'PENDING': return 0; // 1. Đã đặt
+      case 'PENDING': return 0; // 1. Đã đặt (Chờ Shop duyệt)
       case 'WAITING_PAYMENT':
-      case 'PENDING_PAYMENT': return 1; // 2. Shop duyệt
+      case 'PENDING_PAYMENT': return 1; // 2. Shop duyệt (Chờ thanh toán)
       case 'PAID':
       case 'PREPARING':
       case 'READY_FOR_HANDOVER':
+        return 3; // 4. Shop gửi hàng (Shop owner chưa bấm gửi hàng -> dừng ở bước 4)
       case 'HANDED_OVER':
       case 'SHIPPING':
       case 'DELIVERED':
-        return isSigned ? 5 : 4;
+        return isSigned ? 5 : 4; // 5. Đã nhận (Khớp CLA 3 góc) nếu chưa ký; 6. ĐANG THUÊ nếu đã ký
       case 'RENTING': return isSigned ? 5 : 4; // 6. ĐANG THUÊ chỉ khi đã ký CLA, chưa ký là Bước 5
       case 'RETURN_REQUESTED':
       case 'RETURNING': return 6; // 7. Yêu cầu trả
-      case 'RETURNED': return 7; // 8. Bench Lab kiểm định
+      case 'RETURNED':
+      case 'INSPECTING': return 7; // 8. Bench Lab kiểm định
       case 'COMPLETED': return 8; // 9. Hoàn tất cọc
       default: return isSigned ? 5 : 4;
     }
@@ -1086,13 +1110,23 @@ export const RentOrderDetail: React.FC = () => {
     const totalSteps = 9;
     const progressWidth = `${Math.min(100, Math.max(0, (currentStep / (totalSteps - 1)) * 100))}%`;
 
+    if (currentStep === 3) {
+      return {
+        progressWidth: '37.5%',
+        badgeText: 'BƯỚC 4/9: SHOP GỬI HÀNG (CHỜ SHOP XÁC NHẬN GỬI HÀNG)',
+        badgeColor: 'bg-amber-100 text-amber-900 border border-amber-300',
+        dotColor: 'bg-amber-600 animate-pulse',
+        timeCountdownText: 'Shop đang chuẩn bị hàng & giao cho bưu tá Nanuk Logistics. Quý khách vui lòng chờ Shop gửi hàng.',
+      };
+    }
+
     if (currentStep === 4) {
       return {
         progressWidth,
-        badgeText: 'KÝ ĐƠN HÀNG ĐỂ BẮT ĐẦU THUÊ',
+        badgeText: 'BƯỚC 5/9: BÀN GIAO & KÝ ĐƠN HÀNG CLA ĐỂ BẮT ĐẦU THUÊ',
         badgeColor: 'bg-[#FFF4E5] text-[#C85A00] border border-[#FFD8A8]',
         dotColor: 'bg-[#EA580C] animate-pulse',
-        timeCountdownText: 'Kiện hàng đã tới · Mời bạn mở kiện đối kiểm và ký đơn hàng CLA bên dưới để bắt đầu thuê',
+        timeCountdownText: 'Kiện hàng đang được bàn giao · Mời bạn mở kiện đối kiểm và ký đơn hàng CLA bên dưới để bắt đầu thuê',
       };
     }
 
@@ -1342,7 +1376,20 @@ export const RentOrderDetail: React.FC = () => {
 
                 {/* Action Buttons Row (Border None) */}
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
-                  {['RETURN_REQUESTED', 'RETURNING'].includes(orderData.status) ? (
+                  {orderData.status === 'PENDING' ? (
+                    <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-xs font-bold shadow-xs">
+                      <span className="material-symbols-outlined text-[17px] text-amber-600 animate-spin">hourglass_top</span>
+                      <span>Chờ Shop duyệt đơn</span>
+                    </div>
+                  ) : ['WAITING_PAYMENT', 'PENDING_PAYMENT'].includes(orderData.status) ? (
+                    <Link
+                      to={`/rent/checkout?orderId=${orderData.id || orderData.code.replace('#', '')}`}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md transition-all animate-pulse cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[17px]">credit_card</span>
+                      <span>Thanh toán Đơn Thuê Ngay</span>
+                    </Link>
+                  ) : ['RETURN_REQUESTED', 'RETURNING'].includes(orderData.status) ? (
                     <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#EAF3FA] text-[#245778] border border-[#CFE4F3] text-xs font-bold shadow-xs">
                       <span className="material-symbols-outlined text-[17px] text-[#2A6C9B] animate-pulse">local_shipping</span>
                       <span>Đã nộp yêu cầu trả · Chờ bưu tá thu hồi</span>
@@ -1355,6 +1402,15 @@ export const RentOrderDetail: React.FC = () => {
                   ) : claProof.isSigned && !['COMPLETED', 'CANCELLED'].includes(orderData.status) ? (
                     <Link
                       to={`/rent/orders/${orderData.code.replace('#', '')}/return`}
+                      onClick={() => {
+                        try {
+                          const c = (orderData.code || '').replace('#', '').trim().toLowerCase();
+                          if (c) localStorage.setItem(`user_initiated_return_${c}`, 'true');
+                          if (orderData.id) localStorage.setItem(`user_initiated_return_${String(orderData.id).toLowerCase()}`, 'true');
+                          window.dispatchEvent(new Event('storage'));
+                          window.dispatchEvent(new Event('rental_order_updated'));
+                        } catch {}
+                      }}
                       className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#EEF2EC] text-[#37533E] border border-[#D5E0D4] text-xs font-bold hover:bg-[#E3EAE0] transition-all shadow-xs"
                     >
                       <span className="material-symbols-outlined text-[17px]">assignment_return</span>
@@ -1406,6 +1462,69 @@ export const RentOrderDetail: React.FC = () => {
                 <span>Tiến trình cấp Order đồng bộ tự động từ Backend</span>
               </div>
             </div>
+
+            {/* BANNER BƯỚC 1: ĐƠN THUÊ ĐANG CHỜ SHOP DUYỆT */}
+            {orderData.status === 'PENDING' && (
+              <div className="bg-gradient-to-r from-amber-50 via-amber-100/60 to-amber-50 border border-amber-300 p-5 sm:p-6 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-amber-900 shadow-xs">
+                <div className="flex items-center gap-3.5">
+                  <span className="w-12 h-12 rounded-2xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <span className="material-symbols-outlined text-[26px] animate-spin">hourglass_top</span>
+                  </span>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-bold text-amber-950 uppercase tracking-wider text-xs">
+                        BƯỚC 2/9: ĐƠN THUÊ ĐANG CHỜ SHOP DUYỆT ĐỂ THANH TOÁN
+                      </p>
+                      <span className="px-2.5 py-0.5 rounded-full bg-white text-amber-800 font-mono text-[11px] font-bold border border-amber-300">
+                        {orderData.code}
+                      </span>
+                    </div>
+                    <p className="text-amber-800 text-xs mt-1 leading-relaxed">
+                      Yêu cầu thuê trang phục của bạn đã được ghi nhận. Chủ shop đang kiểm tra lịch hẹn và tình trạng sản phẩm để phê duyệt đơn. Sau khi shop duyệt thành công, bạn sẽ có thể thanh toán cọc &amp; phí thuê qua cổng VNPay.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                  <span className="px-4 py-2.5 rounded-xl bg-white text-amber-800 border border-amber-300 font-bold text-xs shadow-2xs flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse"></span>
+                    <span>Chờ Shop phê duyệt</span>
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* BANNER BƯỚC 2: SHOP ĐÃ PHÊ DUYỆT · VUI LÒNG THANH TOÁN */}
+            {['WAITING_PAYMENT', 'PENDING_PAYMENT'].includes(orderData.status) && (
+              <div className="bg-gradient-to-r from-blue-50 via-sky-100/60 to-blue-50 border border-blue-300 p-5 sm:p-6 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-blue-900 shadow-xs">
+                <div className="flex items-center gap-3.5">
+                  <span className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <span className="material-symbols-outlined text-[26px]">credit_card</span>
+                  </span>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-bold text-blue-950 uppercase tracking-wider text-xs">
+                        BƯỚC 2/9: SHOP ĐÃ PHÊ DUYỆT ĐƠN THUÊ · VUI LÒNG THANH TOÁN NGAY
+                      </p>
+                      <span className="px-2.5 py-0.5 rounded-full bg-white text-blue-800 font-mono text-[11px] font-bold border border-blue-300">
+                        {orderData.code}
+                      </span>
+                    </div>
+                    <p className="text-blue-800 text-xs mt-1 leading-relaxed">
+                      Chủ shop đã phê duyệt đơn thuê trang phục của bạn. Vui lòng bấm <strong>[Thanh toán ngay]</strong> để hoàn tất thanh toán cọc và phí thuê qua Cổng thanh toán VNPay Sandbox.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                  <Link
+                    to={`/rent/checkout?orderId=${orderData.id || orderData.code.replace('#', '')}`}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[17px]">payments</span>
+                    <span>Thanh toán ngay</span>
+                  </Link>
+                </div>
+              </div>
+            )}
 
             {/* BANNER BƯỚC 7: ĐÃ NỘP YÊU CẦU HOÀN TRẢ & BƯU TÁ THU HỒI */}
             {['RETURN_REQUESTED', 'RETURNING'].includes(orderData.status) && (
@@ -1473,6 +1592,39 @@ export const RentOrderDetail: React.FC = () => {
               </div>
             )}
 
+            {/* BANNER BƯỚC 9: ĐÃ HOÀN TẤT & GIẢI TỎA CỌC 100% */}
+            {orderData.status === 'COMPLETED' && (
+              <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 p-5 sm:p-6 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-emerald-900 shadow-xs">
+                <div className="flex items-center gap-3.5">
+                  <span className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <span className="material-symbols-outlined text-[26px]">verified</span>
+                  </span>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-bold text-emerald-950 uppercase tracking-wider text-xs">
+                        BƯỚC 9/9: ĐƠN THUÊ ĐÃ HOÀN TẤT · GIẢI TỎA 100% KÝ QUỸ SMART ESCROW
+                      </p>
+                      <span className="px-2.5 py-0.5 rounded-full bg-white text-emerald-800 font-mono text-[11px] font-bold border border-emerald-200">
+                        {orderData.code}
+                      </span>
+                    </div>
+                    <p className="text-emerald-800 text-xs mt-1 leading-relaxed">
+                      Shop đã ký duyệt biên bản nghiệm thu đạt chuẩn. Toàn bộ tiền ký quỹ bảo chứng <strong>{formatVnd(orderData.escrowDeposit)}</strong> đã được tự động hoàn trả về Số dư khả dụng ở Ví lưu ký ReUse Hub của bạn.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                  <Link
+                    to="/wallet"
+                    className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">account_balance_wallet</span>
+                    <span>Kiểm tra ví lưu ký</span>
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {/* 3. ORDER LIFECYCLE 9-STEP HORIZONTAL STEPPER (Theo đúng AC Timeline cấp Order) */}
             <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border-none space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1508,14 +1660,17 @@ export const RentOrderDetail: React.FC = () => {
                     { id: 7, label: '8. Bench Lab', subtext: benchLabSubtitle },
                     { id: 8, label: '9. Hoàn tất cọc', subtext: `${formatVnd(orderData.escrowDeposit)} tự động` },
                   ].map((step) => {
-                    const isPast = step.id < currentStep;
-                    const isCurrent = step.id === currentStep;
+                    const isAllCompleted = currentStep === 8;
+                    const isPast = isAllCompleted ? true : step.id < currentStep;
+                    const isCurrent = isAllCompleted ? (step.id === 8) : (step.id === currentStep);
 
                     return (
                       <div key={step.id} className="flex flex-col items-center text-center w-24 relative z-10">
                         <div
                           className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-xs transition-all border-none ${
-                            isPast
+                            isAllCompleted
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : isPast
                               ? 'bg-stone-900 text-white'
                               : isCurrent
                                 ? step.id === 5
@@ -1523,12 +1678,12 @@ export const RentOrderDetail: React.FC = () => {
                                   : step.id === 6
                                     ? 'bg-sky-600 text-white ring-4 ring-sky-100 scale-105'
                                     : step.id === 7
-                                      ? 'bg-amber-600 text-white ring-4 ring-amber-100 scale-105'
+                                      ? 'bg-purple-600 text-white ring-4 ring-purple-100 scale-105'
                                       : 'bg-stone-900 text-white ring-4 ring-stone-200 scale-105'
                                 : 'bg-stone-100 text-stone-400'
                           }`}
                         >
-                          {isPast ? (
+                          {isAllCompleted || isPast ? (
                             <span className="material-symbols-outlined text-[15px]">check</span>
                           ) : isCurrent && step.id === 5 ? (
                             <span className="material-symbols-outlined text-[15px]">visibility</span>
@@ -1538,7 +1693,9 @@ export const RentOrderDetail: React.FC = () => {
                         </div>
                         <span
                           className={`text-[11px] font-semibold mt-2 ${
-                            isCurrent
+                            isAllCompleted
+                              ? 'text-emerald-900 font-bold'
+                              : isCurrent
                               ? step.id === 5
                                 ? 'text-emerald-800 font-bold'
                                 : 'text-stone-900 font-bold'
@@ -1551,10 +1708,14 @@ export const RentOrderDetail: React.FC = () => {
                         </span>
                         <span
                           className={`text-[9px] ${
-                            isCurrent && step.id === 5 ? 'text-emerald-600 font-semibold' : 'text-stone-400'
+                            isAllCompleted && step.id === 8
+                              ? 'text-emerald-600 font-semibold'
+                              : isCurrent && step.id === 5
+                              ? 'text-emerald-600 font-semibold'
+                              : 'text-stone-400'
                           }`}
                         >
-                          {step.subtext}
+                          {isAllCompleted && step.id === 8 ? 'Đã hoàn cọc 100%' : step.subtext}
                         </span>
                       </div>
                     );
@@ -1784,7 +1945,60 @@ export const RentOrderDetail: React.FC = () => {
                 {/* CUSTODY HANDOFF AUDIT TRAIL (CLA MINH CHỨNG BÀN GIAO ĐỐI KIỂM 3 GÓC) */}
                 <div id="cla-sign" className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border-none space-y-6 scroll-mt-24 relative">
                   <div id="cla-section" className="absolute -top-24 left-0" />
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+
+                  {['PENDING', 'WAITING_PAYMENT', 'PENDING_PAYMENT', 'PAID', 'PREPARING', 'READY_FOR_HANDOVER'].includes(orderData.status) ? (
+                    <div className="space-y-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-amber-700">
+                            Bước 4/9 · Shop gửi hàng
+                          </span>
+                          <h3 className="font-serif text-xl sm:text-2xl font-bold text-stone-900">
+                            Minh chứng bàn giao (CLA) · Chờ Shop gửi hàng
+                          </h3>
+                        </div>
+                        <span className="px-3.5 py-1.5 bg-amber-50 text-amber-900 border border-amber-300 text-xs font-semibold rounded-full self-start sm:self-auto flex items-center gap-1.5 shadow-2xs">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                          Chưa mở ký CLA · Chờ giao hàng
+                        </span>
+                      </div>
+
+                      <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50/50 to-amber-50 border border-amber-200 flex items-start gap-3.5 text-xs text-amber-950 shadow-xs">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                          <span className="material-symbols-outlined text-[22px]">local_shipping</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          <p className="font-bold text-amber-900 text-sm">
+                            Shop Owner chưa bấm xác nhận gửi hàng · Chưa thể ký CLA
+                          </p>
+                          <p className="text-amber-800 leading-relaxed">
+                            Đơn hàng đã được thanh toán thành công và tiền cọc được khóa bảo chứng an toàn tại <strong>Smart Escrow</strong>. Hiện tại chủ shop đang chuẩn bị hàng hóa để bàn giao cho bưu tá vận chuyển.
+                          </p>
+                          <p className="text-amber-800 leading-relaxed">
+                            Sau khi chủ shop bấm <strong>Xác nhận gửi hàng</strong> và bưu tá giao kiện hàng đến tay bạn (Bước 5: Đã nhận &amp; Khớp CLA 3 góc), bạn sẽ mở kiện, đối chiếu ngoại quan, chụp 3 góc ảnh thực tế và <strong>ký nhận CLA</strong> để kích hoạt kỳ hạn thuê chính thức.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                        <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200/80 text-xs space-y-1">
+                          <span className="text-stone-500 block text-[11px] uppercase font-bold tracking-wider">Hình thức giao nhận:</span>
+                          <span className="font-semibold text-stone-900 block text-sm">{orderData.carrierName || 'Nanuk White-Glove (2 chiều)'}</span>
+                          <span className="text-[11px] text-stone-500 block">Bưu tá chuyên trách giao nhận và kiểm tra seal niêm phong</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200/80 text-xs space-y-1">
+                          <span className="text-stone-500 block text-[11px] uppercase font-bold tracking-wider">Tiến trình hiện tại:</span>
+                          <span className="font-semibold text-amber-800 block text-sm flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[16px] text-amber-600 animate-spin">hourglass_top</span>
+                            Bước 4: Shop chuẩn bị hàng &amp; giao bưu tá
+                          </span>
+                          <span className="text-[11px] text-stone-500 block">Sẽ mở tính năng tải ảnh 3 góc &amp; ký CLA ngay khi shipper giao tới</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <span className="text-[10px] uppercase font-bold tracking-widest text-stone-500">
                         Minh chứng bàn giao (CLA)
@@ -2087,6 +2301,8 @@ export const RentOrderDetail: React.FC = () => {
                         </div>
                       </div>
                     </div>
+                  )}
+                    </>
                   )}
                 </div>
               </div>

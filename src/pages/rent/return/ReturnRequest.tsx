@@ -72,6 +72,12 @@ export const ReturnRequest: React.FC = () => {
 
   // 1. Load real order from DB / BE / local storage
   useEffect(() => {
+    try {
+      if (cleanId) {
+        localStorage.setItem(`user_initiated_return_${cleanId.toLowerCase()}`, 'true');
+      }
+    } catch {}
+
     let isMounted = true;
 
     const loadOrderData = async () => {

@@ -211,6 +211,106 @@ export const handoverRentalOrderApi = async (
   }
 };
 
+/**
+ * Gọi API Backend: POST /api/rent/orders/:id/approve
+ * Shop Owner phê duyệt đơn thuê -> chuyển sang WAITING_PAYMENT
+ */
+export const approveRentalOrderApi = async (
+  orderId: string
+): Promise<RentalOrderApi | null> => {
+  try {
+    const res = await api.post(`/rent/orders/${orderId}/approve`);
+    return res.data?.data || res.data || null;
+  } catch (error) {
+    console.error("Lỗi khi phê duyệt đơn thuê:", error);
+    throw error;
+  }
+};
+
+/**
+ * Gọi API Backend: POST /api/rent/orders/:id/reject
+ * Shop Owner từ chối đơn thuê -> chuyển sang REJECTED
+ */
+export const rejectRentalOrderApi = async (
+  orderId: string,
+  reason?: string
+): Promise<RentalOrderApi | null> => {
+  try {
+    const res = await api.post(`/rent/orders/${orderId}/reject`, { reason });
+    return res.data?.data || res.data || null;
+  } catch (error) {
+    console.error("Lỗi khi từ chối đơn thuê:", error);
+    throw error;
+  }
+};
+
+/**
+ * Gọi API Backend: POST /api/rent/orders
+ * Tạo đơn thuê mới (trạng thái ban đầu: PENDING chờ Shop duyệt)
+ */
+export const createRentalOrderApi = async (payload: {
+  startDate: string;
+  endDate: string;
+  shippingAddress: ShippingAddressApi;
+  items?: unknown[];
+  totalAmount?: number;
+  depositAmount?: number;
+  rentalFee?: number;
+  shippingFee?: number;
+}): Promise<RentalOrderApi | null> => {
+  try {
+    const res = await api.post("/rent/orders", payload);
+    return res.data?.data || res.data || null;
+  } catch (error) {
+    console.error("Lỗi khi tạo đơn thuê mới:", error);
+    throw error;
+  }
+};
+
+/**
+ * [BE-S4-02] Gọi API Backend: POST /api/rent/orders/:id/inspect-and-refund
+ * Shop Owner kiểm định hư hại & quyết định hoàn cọc -> chuyển COMPLETED
+ */
+export const inspectAndRefundOrderApi = async (
+  orderId: string,
+  payload: {
+    damagePenaltyAmount?: number;
+    reason?: string;
+    damageImages?: string[];
+    itemInspections?: unknown[];
+  } = {}
+): Promise<RentalOrderApi | null> => {
+  try {
+    const res = await api.post(`/rent/orders/${orderId}/inspect-and-refund`, {
+      damagePenaltyAmount: payload.damagePenaltyAmount ?? 0,
+      reason: payload.reason || "Sản phẩm đạt chuẩn nguyên trạng, hoàn 100% tiền cọc",
+      damageImages: payload.damageImages || [],
+      itemInspections: payload.itemInspections || [],
+    });
+    return res.data?.data || res.data || null;
+  } catch (error) {
+    console.error("Lỗi khi kiểm định và giải tỏa cọc đơn thuê:", error);
+    throw error;
+  }
+};
+
+/**
+ * Gọi API Backend: PATCH /api/rent/orders/:id/status
+ * Cập nhật trạng thái đơn thuê (ví dụ: chuyển sang RETURNED khi vào nghiệm thu)
+ */
+export const updateOrderStatusApi = async (
+  orderId: string,
+  status: string
+): Promise<RentalOrderApi | null> => {
+  try {
+    const res = await api.patch(`/rent/orders/${orderId}/status`, { status });
+    return res.data?.data || res.data || null;
+  } catch (error) {
+    console.error(`Lỗi khi cập nhật trạng thái đơn thuê sang ${status}:`, error);
+    throw error;
+  }
+};
+
 export default {
   getMyRentalOrdersApi,
   getShopRentalOrdersApi,
@@ -218,4 +318,10 @@ export default {
   requestReturnOrderApi,
   confirmReceivedOrderApi,
   handoverRentalOrderApi,
+  approveRentalOrderApi,
+  rejectRentalOrderApi,
+  createRentalOrderApi,
+  inspectAndRefundOrderApi,
+  updateOrderStatusApi,
 };
+
