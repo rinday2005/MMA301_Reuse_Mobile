@@ -43,7 +43,7 @@ export const resolveRentProductsByIds = async (
         if (hit) result.set(pid, hit);
         return;
       }
-      let p: Record<string, unknown> | null = null;
+      let p: Record<string, unknown> | null;
       try {
         const data = (await getPublicRentProductDetailApi(pid)) as
           | { product?: Record<string, unknown> }
