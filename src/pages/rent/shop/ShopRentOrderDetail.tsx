@@ -720,12 +720,8 @@ export const ShopRentOrderDetail: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDemoState('pending')}
-<<<<<<< Updated upstream
                 className={`px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${
                   effectiveState === 'pending'
-=======
-                className={`px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${demoState === 'pending'
->>>>>>> Stashed changes
                     ? 'bg-[#6c5937] text-white font-semibold shadow-xs'
                     : 'bg-[#f2ede9] text-[#4c463c] hover:bg-[#ece7e4]'
                   }`}
@@ -735,12 +731,8 @@ export const ShopRentOrderDetail: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDemoState('paid')}
-<<<<<<< Updated upstream
                 className={`px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${
                   effectiveState === 'paid'
-=======
-                className={`px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${demoState === 'paid'
->>>>>>> Stashed changes
                     ? 'bg-[#6c5937] text-white font-semibold shadow-xs'
                     : 'bg-[#f2ede9] text-[#4c463c] hover:bg-[#ece7e4]'
                   }`}
@@ -749,14 +741,9 @@ export const ShopRentOrderDetail: React.FC = () => {
               </button>
               <button
                 type="button"
-<<<<<<< Updated upstream
                 onClick={() => setDemoState('shipping')}
                 className={`px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${
                   effectiveState === 'shipping'
-=======
-                onClick={() => setDemoState('renting')}
-                className={`px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${demoState === 'renting'
->>>>>>> Stashed changes
                     ? 'bg-[#6c5937] text-white font-semibold shadow-xs'
                     : 'bg-[#f2ede9] text-[#4c463c] hover:bg-[#ece7e4]'
                   }`}
@@ -783,12 +770,8 @@ export const ShopRentOrderDetail: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDemoState('inspecting')}
-<<<<<<< Updated upstream
                 className={`px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${
                   effectiveState === 'inspecting'
-=======
-                className={`px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${demoState === 'inspecting'
->>>>>>> Stashed changes
                     ? 'bg-[#6c5937] text-white font-semibold shadow-xs'
                     : 'bg-[#f2ede9] text-[#4c463c] hover:bg-[#ece7e4]'
                   }`}
@@ -798,12 +781,8 @@ export const ShopRentOrderDetail: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDemoState('completed')}
-<<<<<<< Updated upstream
                 className={`px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${
                   effectiveState === 'completed'
-=======
-                className={`px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${demoState === 'completed'
->>>>>>> Stashed changes
                     ? 'bg-[#6c5937] text-white font-semibold shadow-xs'
                     : 'bg-[#f2ede9] text-[#4c463c] hover:bg-[#ece7e4]'
                   }`}
@@ -846,12 +825,8 @@ export const ShopRentOrderDetail: React.FC = () => {
 
               {/* Step 2 */}
               <div className="flex flex-col items-center text-center relative z-10 px-1">
-<<<<<<< Updated upstream
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${
                   effectiveState === 'pending'
-=======
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${demoState === 'pending'
->>>>>>> Stashed changes
                     ? 'bg-[#6c5937] text-white ring-4 ring-[#f9dfb3]'
                     : 'bg-[#48654b] text-white'
                   }`}>
@@ -863,16 +838,10 @@ export const ShopRentOrderDetail: React.FC = () => {
 
               {/* Step 3 */}
               <div className="flex flex-col items-center text-center relative z-10 px-1">
-<<<<<<< Updated upstream
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${
                   effectiveState === 'pending' ? 'bg-[#f2ede9] text-[#4c463c]' : 'bg-[#48654b] text-white'
                 }`}>
                   {effectiveState === 'pending' ? '3' : <span className="material-symbols-outlined text-[16px]">check</span>}
-=======
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${demoState === 'pending' ? 'bg-[#f2ede9] text-[#4c463c]' : 'bg-[#48654b] text-white'
-                  }`}>
-                  {demoState === 'pending' ? '3' : <span className="material-symbols-outlined text-[16px]">check</span>}
->>>>>>> Stashed changes
                 </div>
                 <span className="text-[11px] font-semibold text-[#1c1b19] block leading-tight">3. Chờ thanh toán</span>
                 <span className="text-[10px] text-[#4c463c] block mt-0.5">VNPay</span>
@@ -880,7 +849,6 @@ export const ShopRentOrderDetail: React.FC = () => {
 
               {/* Step 4 */}
               <div className="flex flex-col items-center text-center relative z-10 px-1">
-<<<<<<< Updated upstream
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${
                   effectiveState === 'pending'
                     ? 'bg-[#f2ede9] text-[#4c463c]'
@@ -889,15 +857,6 @@ export const ShopRentOrderDetail: React.FC = () => {
                     : 'bg-[#48654b] text-white'
                 }`}>
                   {effectiveState === 'pending' ? '4' : <span className="material-symbols-outlined text-[16px]">check</span>}
-=======
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${demoState === 'pending'
-                    ? 'bg-[#f2ede9] text-[#4c463c]'
-                    : demoState === 'paid'
-                      ? 'bg-[#6c5937] text-white ring-4 ring-[#f9dfb3]'
-                      : 'bg-[#48654b] text-white'
-                  }`}>
-                  {demoState === 'pending' ? '4' : <span className="material-symbols-outlined text-[16px]">check</span>}
->>>>>>> Stashed changes
                 </div>
                 <span className="text-[11px] font-semibold text-[#1c1b19] block leading-tight">4. Đã thanh toán</span>
                 <span className="text-[10px] text-[#4c463c] block mt-0.5">Khóa Escrow</span>
@@ -905,16 +864,10 @@ export const ShopRentOrderDetail: React.FC = () => {
 
               {/* Step 5 */}
               <div className="flex flex-col items-center text-center relative z-10 px-1">
-<<<<<<< Updated upstream
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${
                   ['pending', 'paid'].includes(effectiveState) ? 'bg-[#f2ede9] text-[#4c463c]' : 'bg-[#48654b] text-white'
                 }`}>
                   {['pending', 'paid'].includes(effectiveState) ? '5' : <span className="material-symbols-outlined text-[16px]">check</span>}
-=======
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${['pending', 'paid'].includes(demoState) ? 'bg-[#f2ede9] text-[#4c463c]' : 'bg-[#48654b] text-white'
-                  }`}>
-                  {['pending', 'paid'].includes(demoState) ? '5' : <span className="material-symbols-outlined text-[16px]">check</span>}
->>>>>>> Stashed changes
                 </div>
                 <span className="text-[11px] font-semibold text-[#1c1b19] block leading-tight">5. Đóng gói</span>
                 <span className="text-[10px] text-[#4c463c] block mt-0.5">Túi bảo quản</span>
@@ -922,7 +875,6 @@ export const ShopRentOrderDetail: React.FC = () => {
 
               {/* Step 6: BÀN GIAO (Khi chưa ký CLA, tiến trình dừng ở đây và active) */}
               <div className="flex flex-col items-center text-center relative z-10 px-1">
-<<<<<<< Updated upstream
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${
                   ['pending', 'paid'].includes(effectiveState)
                     ? 'bg-[#f2ede9] text-[#4c463c]'
@@ -960,25 +912,6 @@ export const ShopRentOrderDetail: React.FC = () => {
                     : 'bg-[#48654b] text-white'
                 }`}>
                   {['pending', 'paid', 'shipping'].includes(effectiveState) ? '7' : <span className="material-symbols-outlined text-[16px]">check</span>}
-=======
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${['pending', 'paid'].includes(demoState) ? 'bg-[#f2ede9] text-[#4c463c]' : 'bg-[#48654b] text-white'
-                  }`}>
-                  {['pending', 'paid'].includes(demoState) ? '6' : <span className="material-symbols-outlined text-[16px]">check</span>}
-                </div>
-                <span className="text-[11px] font-semibold text-[#1c1b19] block leading-tight">6. Handed Over</span>
-                <span className="text-[10px] text-[#4c463c] block mt-0.5">Bưu tá nhận</span>
-              </div>
-
-              {/* Step 7 */}
-              <div className="flex flex-col items-center text-center relative z-10 px-1">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${demoState === 'renting'
-                    ? 'bg-[#6c5937] text-white ring-4 ring-[#f9dfb3]'
-                    : ['pending', 'paid'].includes(demoState)
-                      ? 'bg-[#f2ede9] text-[#4c463c]'
-                      : 'bg-[#48654b] text-white'
-                  }`}>
-                  {['pending', 'paid'].includes(demoState) ? '7' : <span className="material-symbols-outlined text-[16px]">check</span>}
->>>>>>> Stashed changes
                 </div>
                 <span className={`text-[11px] block leading-tight ${
                   effectiveState === 'renting' ? 'font-bold text-[#6c5937]' : 'font-semibold text-[#1c1b19]'
@@ -994,7 +927,6 @@ export const ShopRentOrderDetail: React.FC = () => {
 
               {/* Step 8: Yêu cầu trả (sáng khi user bấm yêu cầu trả đồ) */}
               <div className="flex flex-col items-center text-center relative z-10 px-1">
-<<<<<<< Updated upstream
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${
                   effectiveState === 'return_requested'
                     ? 'bg-[#6c5937] text-white ring-4 ring-[#f9dfb3]'
@@ -1009,11 +941,6 @@ export const ShopRentOrderDetail: React.FC = () => {
                   ) : (
                     '8'
                   )}
-=======
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${['inspecting', 'completed'].includes(demoState) ? 'bg-[#48654b] text-white' : 'bg-[#f2ede9] text-[#4c463c]'
-                  }`}>
-                  {['inspecting', 'completed'].includes(demoState) ? <span className="material-symbols-outlined text-[16px]">check</span> : '8'}
->>>>>>> Stashed changes
                 </div>
                 <span className={`text-[11px] block leading-tight ${
                   effectiveState === 'return_requested' ? 'font-bold text-[#6c5937]' : 'font-semibold text-[#1c1b19]'
@@ -1029,7 +956,6 @@ export const ShopRentOrderDetail: React.FC = () => {
 
               {/* Step 9: Đã hoàn trả (sáng khi user điền xong thông tin & xác nhận trả, hiển thị ngày thực tế) */}
               <div className="flex flex-col items-center text-center relative z-10 px-1">
-<<<<<<< Updated upstream
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${
                   effectiveState === 'returning'
                     ? 'bg-[#6c5937] text-white ring-4 ring-[#f9dfb3]'
@@ -1044,11 +970,6 @@ export const ShopRentOrderDetail: React.FC = () => {
                   ) : (
                     '9'
                   )}
-=======
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-xs mb-1.5 ${['inspecting', 'completed'].includes(demoState) ? 'bg-[#48654b] text-white' : 'bg-[#f2ede9] text-[#4c463c]'
-                  }`}>
-                  {['inspecting', 'completed'].includes(demoState) ? <span className="material-symbols-outlined text-[16px]">check</span> : '9'}
->>>>>>> Stashed changes
                 </div>
                 <span className={`text-[11px] block leading-tight ${
                   effectiveState === 'returning' ? 'font-bold text-[#6c5937]' : 'font-semibold text-[#1c1b19]'
@@ -1066,7 +987,6 @@ export const ShopRentOrderDetail: React.FC = () => {
 
               {/* Step 10: INSPECTING */}
               <div className="flex flex-col items-center text-center relative z-10 px-1">
-<<<<<<< Updated upstream
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-md mb-1.5 ${
                   effectiveState === 'inspecting'
                     ? 'bg-[#6c5937] text-white ring-4 ring-[#f9dfb3]'
@@ -1075,21 +995,11 @@ export const ShopRentOrderDetail: React.FC = () => {
                     : 'bg-[#f2ede9] text-[#4c463c]'
                 }`}>
                   {effectiveState === 'completed' ? (
-=======
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-md mb-1.5 ${demoState === 'inspecting'
-                    ? 'bg-[#6c5937] text-white ring-4 ring-[#f9dfb3]'
-                    : demoState === 'completed'
-                      ? 'bg-[#48654b] text-white'
-                      : 'bg-[#f2ede9] text-[#4c463c]'
-                  }`}>
-                  {demoState === 'completed' ? (
->>>>>>> Stashed changes
                     <span className="material-symbols-outlined text-[16px]">check</span>
                   ) : (
                     <span className="material-symbols-outlined text-[18px]">dry_cleaning</span>
                   )}
                 </div>
-<<<<<<< Updated upstream
                 <span className={`text-[11px] block leading-tight ${
                   effectiveState === 'inspecting' ? 'font-bold text-[#6c5937]' : 'font-semibold text-[#1c1b19]'
                 }`}>
@@ -1099,20 +1009,10 @@ export const ShopRentOrderDetail: React.FC = () => {
                   effectiveState === 'inspecting' ? 'text-[#6c5937] font-semibold' : 'text-[#4c463c]'
                 }`}>
                   {effectiveState === 'inspecting' ? 'ĐANG XỬ LÝ' : effectiveState === 'completed' ? 'Đạt chuẩn' : 'Chờ hồi kho'}
-=======
-                <span className={`text-[11px] block leading-tight ${demoState === 'inspecting' ? 'font-bold text-[#6c5937]' : 'font-semibold text-[#1c1b19]'
-                  }`}>
-                  10. Inspecting
-                </span>
-                <span className={`text-[10px] block mt-0.5 ${demoState === 'inspecting' ? 'text-[#6c5937] font-semibold' : 'text-[#4c463c]'
-                  }`}>
-                  {demoState === 'inspecting' ? 'ĐANG XỬ LÝ' : demoState === 'completed' ? 'Đã nghiệm thu' : 'Chờ hồi kho'}
->>>>>>> Stashed changes
                 </span>
               </div>
 
               {/* Step 11: COMPLETED */}
-<<<<<<< Updated upstream
               <div className={`flex flex-col items-center text-center relative z-10 px-1 ${
                 effectiveState === 'completed' ? 'opacity-100' : 'opacity-60'
               }`}>
@@ -1122,15 +1022,6 @@ export const ShopRentOrderDetail: React.FC = () => {
                     : 'bg-[#f2ede9] text-[#4c463c]'
                 }`}>
                   {effectiveState === 'completed' ? (
-=======
-              <div className={`flex flex-col items-center text-center relative z-10 px-1 ${demoState === 'completed' ? 'opacity-100' : 'opacity-60'
-                }`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs mb-1.5 ${demoState === 'completed'
-                    ? 'bg-[#48654b] text-white shadow-md ring-4 ring-[#caebc9]'
-                    : 'bg-[#f2ede9] text-[#4c463c]'
-                  }`}>
-                  {demoState === 'completed' ? (
->>>>>>> Stashed changes
                     <span className="material-symbols-outlined text-[16px]">verified</span>
                   ) : (
                     <span>11</span>

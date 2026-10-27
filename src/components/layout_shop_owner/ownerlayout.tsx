@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { ShopHeader } from "./header";
 import { ShopSidebar } from "./sidebar";
@@ -7,10 +7,13 @@ export const ShopOwnerLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
 
+  const [prevPathname, setPrevPathname] = useState(location.pathname);
+
   // Tự động đóng sidebar khi chuyển trang
-  useEffect(() => {
+  if (prevPathname !== location.pathname) {
+    setPrevPathname(location.pathname);
     setIsSidebarOpen(false);
-  }, [location.pathname]);
+  }
 
   return (
     <div className="bg-[#fdf9f2] font-sans text-[#1c1c18] min-h-screen flex flex-col antialiased selection:bg-[#d8e3ce] selection:text-[#1c1c18]">
