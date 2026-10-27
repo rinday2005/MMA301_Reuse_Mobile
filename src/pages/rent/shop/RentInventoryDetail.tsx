@@ -237,11 +237,10 @@ export const RentInventoryDetail: React.FC = () => {
 
         {/* THRIFT Eligibility Banner */}
         <section
-          className={`p-8 rounded-xl shadow-md transition-all border border-[#ebe8e1] ${
-            specimenState === 'ELIGIBLE'
+          className={`p-8 rounded-xl shadow-md transition-all border border-[#ebe8e1] ${specimenState === 'ELIGIBLE'
               ? 'bg-gradient-to-r from-[#d8e3ce]/40 via-[#f1ede6] to-[#d8e3ce]/30'
               : 'bg-[#f1ede6] opacity-70'
-          }`}
+            }`}
         >
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
             <div className="flex flex-col gap-2 max-w-2xl">
@@ -706,11 +705,10 @@ export const RentInventoryDetail: React.FC = () => {
               type="button"
               disabled={specimenState !== 'ELIGIBLE'}
               onClick={() => alert(`Bắt đầu quy trình chuyển giao ${unit.id} sang sàn bán đứt THRIFT!`)}
-              className={`w-full sm:w-auto px-5 py-2.5 text-white rounded text-center font-semibold uppercase tracking-wider ${
-                specimenState === 'ELIGIBLE'
+              className={`w-full sm:w-auto px-5 py-2.5 text-white rounded text-center font-semibold uppercase tracking-wider ${specimenState === 'ELIGIBLE'
                   ? 'bg-[#141310] hover:bg-[#292724] cursor-pointer'
                   : 'bg-gray-400 opacity-50 cursor-not-allowed'
-              }`}
+                }`}
             >
               Chuyển sang THRIFT →
             </button>

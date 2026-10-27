@@ -505,81 +505,73 @@ export const ShopThriftListings: React.FC = () => {
           <div className="flex items-center gap-space-xs overflow-x-auto pb-1 no-scrollbar">
             <button
               onClick={() => { setStatusFilter('ALL'); setCurrentPage(1); }}
-              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap shadow-sm transition-colors cursor-pointer ${
-                statusFilter === 'ALL'
-                  ? 'bg-on-surface text-surface'
-                  : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
-              }`}
+              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap shadow-sm transition-colors cursor-pointer ${statusFilter === 'ALL'
+                ? 'bg-on-surface text-surface'
+                : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
+                }`}
             >
               Tất cả (38)
             </button>
             <button
               onClick={() => { setStatusFilter('DRAFT'); setCurrentPage(1); }}
-              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${
-                statusFilter === 'DRAFT'
-                  ? 'bg-on-surface text-surface'
-                  : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
-              }`}
+              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${statusFilter === 'DRAFT'
+                ? 'bg-on-surface text-surface'
+                : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
+                }`}
             >
               Bản nháp (2)
             </button>
             <button
               onClick={() => { setStatusFilter('PENDING'); setCurrentPage(1); }}
-              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${
-                statusFilter === 'PENDING'
-                  ? 'bg-on-surface text-surface'
-                  : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
-              }`}
+              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${statusFilter === 'PENDING'
+                ? 'bg-on-surface text-surface'
+                : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
+                }`}
             >
               Chờ duyệt (5)
             </button>
             <button
               onClick={() => { setStatusFilter('APPROVED'); setCurrentPage(1); }}
-              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${
-                statusFilter === 'APPROVED'
-                  ? 'bg-on-surface text-surface'
-                  : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
-              }`}
+              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${statusFilter === 'APPROVED'
+                ? 'bg-on-surface text-surface'
+                : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
+                }`}
             >
               Đã duyệt (26)
             </button>
             <button
               onClick={() => { setStatusFilter('REJECTED'); setCurrentPage(1); }}
-              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${
-                statusFilter === 'REJECTED'
-                  ? 'bg-on-surface text-surface'
-                  : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
-              }`}
+              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${statusFilter === 'REJECTED'
+                ? 'bg-on-surface text-surface'
+                : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
+                }`}
             >
               Từ chối (1)
             </button>
             <button
               onClick={() => { setStatusFilter('AVAILABLE'); setCurrentPage(1); }}
-              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${
-                statusFilter === 'AVAILABLE'
-                  ? 'bg-on-surface text-surface'
-                  : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
-              }`}
+              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${statusFilter === 'AVAILABLE'
+                ? 'bg-on-surface text-surface'
+                : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
+                }`}
             >
               Đang mở bán (24)
             </button>
             <button
               onClick={() => { setStatusFilter('SOLD'); setCurrentPage(1); }}
-              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${
-                statusFilter === 'SOLD'
-                  ? 'bg-on-surface text-surface'
-                  : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
-              }`}
+              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${statusFilter === 'SOLD'
+                ? 'bg-on-surface text-surface'
+                : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
+                }`}
             >
               Đã bán (7)
             </button>
             <button
               onClick={() => { setStatusFilter('HIDDEN'); setCurrentPage(1); }}
-              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${
-                statusFilter === 'HIDDEN'
-                  ? 'bg-on-surface text-surface'
-                  : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
-              }`}
+              className={`px-3 py-1.5 font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT whitespace-nowrap transition-colors cursor-pointer ${statusFilter === 'HIDDEN'
+                ? 'bg-on-surface text-surface'
+                : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
+                }`}
             >
               Đang ẩn (1)
             </button>
@@ -681,18 +673,16 @@ export const ShopThriftListings: React.FC = () => {
               return (
                 <div
                   key={item.id}
-                  className={`bg-surface-container rounded-DEFAULT shadow-sm flex flex-col justify-between overflow-hidden group hover:shadow-md transition-shadow border border-surface-dim ${
-                    isSold ? 'opacity-90' : ''
-                  }`}
+                  className={`bg-surface-container rounded-DEFAULT shadow-sm flex flex-col justify-between overflow-hidden group hover:shadow-md transition-shadow border border-surface-dim ${isSold ? 'opacity-90' : ''
+                    }`}
                 >
                   <div className="p-space-md flex flex-col gap-space-sm">
                     {/* Thumbnail & Source Badges */}
                     <div className="relative w-full aspect-[4/3] bg-surface-container-high rounded-DEFAULT overflow-hidden">
                       <Link to={`/shop/thrift/listings/${item.id}`} className="block w-full h-full cursor-pointer">
                         <img
-                          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${
-                            isSold ? 'grayscale-[0.25]' : ''
-                          }`}
+                          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${isSold ? 'grayscale-[0.25]' : ''
+                            }`}
                           src={item.image}
                           alt={item.title}
                           loading="lazy"
@@ -799,15 +789,14 @@ export const ShopThriftListings: React.FC = () => {
                         <span className="font-label-sm text-label-sm uppercase text-on-surface-variant">Tình trạng Thẩm định</span>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span
-                            className={`w-2 h-2 rounded-full ${
-                              isApproved
-                                ? 'bg-secondary'
-                                : isPending
+                            className={`w-2 h-2 rounded-full ${isApproved
+                              ? 'bg-secondary'
+                              : isPending
                                 ? 'bg-primary'
                                 : isRejected
-                                ? 'bg-outline'
-                                : 'bg-secondary'
-                            }`}
+                                  ? 'bg-outline'
+                                  : 'bg-secondary'
+                              }`}
                           ></span>
                           <span className="font-title-md text-title-md text-on-surface font-semibold">{item.conditionGrade}</span>
                         </div>
@@ -817,15 +806,14 @@ export const ShopThriftListings: React.FC = () => {
                           {isSold
                             ? 'Giá Chuyển Giao'
                             : isRejected
-                            ? 'Giá Đề Xuất'
-                            : isDraft
-                            ? 'Dự kiến Niêm Yết'
-                            : 'Giá Bán Đứt THRIFT'}
+                              ? 'Giá Đề Xuất'
+                              : isDraft
+                                ? 'Dự kiến Niêm Yết'
+                                : 'Giá Bán Đứt THRIFT'}
                         </span>
                         <span
-                          className={`font-title-md text-title-md font-bold ${
-                            isSold ? 'line-through text-on-surface' : 'text-primary'
-                          }`}
+                          className={`font-title-md text-title-md font-bold ${isSold ? 'line-through text-on-surface' : 'text-primary'
+                            }`}
                         >
                           {item.priceFormatted}
                         </span>
@@ -961,11 +949,10 @@ export const ShopThriftListings: React.FC = () => {
                 <button
                   key={pageNum}
                   onClick={() => setCurrentPage(pageNum)}
-                  className={`w-8 h-8 font-label-md text-label-md rounded-DEFAULT shadow-sm transition-colors cursor-pointer ${
-                    isActive
-                      ? 'bg-primary text-on-primary font-bold'
-                      : 'bg-surface hover:bg-surface-container-high text-on-surface'
-                  }`}
+                  className={`w-8 h-8 font-label-md text-label-md rounded-DEFAULT shadow-sm transition-colors cursor-pointer ${isActive
+                    ? 'bg-primary text-on-primary font-bold'
+                    : 'bg-surface hover:bg-surface-container-high text-on-surface'
+                    }`}
                 >
                   {pageNum}
                 </button>

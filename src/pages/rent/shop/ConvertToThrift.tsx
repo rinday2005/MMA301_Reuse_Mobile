@@ -163,7 +163,7 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
         const rentStoreKey = 'REUSE_HUB_RENT_PRODUCTS_STORE_V1';
         const existingRentProducts = JSON.parse(localStorage.getItem(rentStoreKey) || '[]');
         const updatedRentProducts = existingRentProducts.map(
-          (p: { sku?: string; [key: string]: unknown }) => {
+          (p: { sku?: string;[key: string]: unknown }) => {
             if (p.sku === formData.sku) {
               return {
                 ...p,
@@ -283,19 +283,18 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
                   Trạng thái hiện vật
                 </span>
                 <span
-                  className={`font-headline-sm text-headline-sm font-bold font-serif ${
-                    isAlreadyConverted
+                  className={`font-headline-sm text-headline-sm font-bold font-serif ${isAlreadyConverted
                       ? 'text-primary'
                       : !isEligible
-                      ? 'text-error'
-                      : 'text-secondary'
-                  }`}
+                        ? 'text-error'
+                        : 'text-secondary'
+                    }`}
                 >
                   {isAlreadyConverted
                     ? 'PENDING APPROVAL'
                     : !isEligible
-                    ? 'KHÓA: KHÔNG ĐỦ ĐIỀU KIỆN'
-                    : 'READY TO THRIFT'}
+                      ? 'KHÓA: KHÔNG ĐỦ ĐIỀU KIỆN'
+                      : 'READY TO THRIFT'}
                 </span>
                 <span className="font-label-sm text-label-sm text-on-surface-variant">
                   Khấu hao: 86.5% • {formData.cycleCount} Chu kỳ luân chuyển
@@ -312,10 +311,10 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
                       formData.status === 'PENDING_APPROVAL'
                         ? 'CONVERTED'
                         : isCurrentlyRenting
-                        ? 'RENTING'
-                        : hasFutureBooking
-                        ? 'FUTURE_BOOKING'
-                        : 'ELIGIBLE'
+                          ? 'RENTING'
+                          : hasFutureBooking
+                            ? 'FUTURE_BOOKING'
+                            : 'ELIGIBLE'
                     }
                     onChange={(e) => {
                       const val = e.target.value;
@@ -436,19 +435,17 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
             {/* Node 1: RENT */}
             <div
               onClick={() => setActiveTimelineStep(1)}
-              className={`flex flex-col p-space-sm rounded-lg relative border cursor-pointer transition-all ${
-                activeTimelineStep === 1
+              className={`flex flex-col p-space-sm rounded-lg relative border cursor-pointer transition-all ${activeTimelineStep === 1
                   ? 'bg-primary text-on-primary border-primary shadow'
                   : 'bg-surface border-outline-variant/30 hover:border-outline-variant'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span
-                  className={`w-6 h-6 rounded-full flex items-center justify-center font-label-sm text-label-sm font-semibold ${
-                    activeTimelineStep === 1
+                  className={`w-6 h-6 rounded-full flex items-center justify-center font-label-sm text-label-sm font-semibold ${activeTimelineStep === 1
                       ? 'bg-on-primary/20 text-on-primary'
                       : 'bg-surface-variant text-on-surface-variant'
-                  }`}
+                    }`}
                 >
                   01
                 </span>
@@ -467,19 +464,17 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
             {/* Node 2: USE */}
             <div
               onClick={() => setActiveTimelineStep(2)}
-              className={`flex flex-col p-space-sm rounded-lg relative border cursor-pointer transition-all ${
-                activeTimelineStep === 2
+              className={`flex flex-col p-space-sm rounded-lg relative border cursor-pointer transition-all ${activeTimelineStep === 2
                   ? 'bg-primary text-on-primary border-primary shadow'
                   : 'bg-surface border-outline-variant/30 hover:border-outline-variant'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span
-                  className={`w-6 h-6 rounded-full flex items-center justify-center font-label-sm text-label-sm font-semibold ${
-                    activeTimelineStep === 2
+                  className={`w-6 h-6 rounded-full flex items-center justify-center font-label-sm text-label-sm font-semibold ${activeTimelineStep === 2
                       ? 'bg-on-primary/20 text-on-primary'
                       : 'bg-surface-variant text-on-surface-variant'
-                  }`}
+                    }`}
                 >
                   02
                 </span>
@@ -498,26 +493,23 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
             {/* Node 3: RETURN */}
             <div
               onClick={() => setActiveTimelineStep(3)}
-              className={`flex flex-col p-space-sm rounded-lg relative border cursor-pointer transition-all ${
-                activeTimelineStep === 3
+              className={`flex flex-col p-space-sm rounded-lg relative border cursor-pointer transition-all ${activeTimelineStep === 3
                   ? 'bg-primary text-on-primary border-primary shadow'
                   : 'bg-surface border-outline-variant/30 hover:border-outline-variant'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span
-                  className={`w-6 h-6 rounded-full flex items-center justify-center font-label-sm text-label-sm font-semibold ${
-                    activeTimelineStep === 3
+                  className={`w-6 h-6 rounded-full flex items-center justify-center font-label-sm text-label-sm font-semibold ${activeTimelineStep === 3
                       ? 'bg-on-primary/20 text-on-primary'
                       : 'bg-surface-variant text-on-surface-variant'
-                  }`}
+                    }`}
                 >
                   03
                 </span>
                 <span
-                  className={`material-symbols-outlined text-[18px] ${
-                    isCurrentlyRenting ? 'text-amber-500' : activeTimelineStep === 3 ? 'text-on-primary' : 'text-secondary'
-                  }`}
+                  className={`material-symbols-outlined text-[18px] ${isCurrentlyRenting ? 'text-amber-500' : activeTimelineStep === 3 ? 'text-on-primary' : 'text-secondary'
+                    }`}
                 >
                   {isCurrentlyRenting ? 'pending' : 'check_circle'}
                 </span>
@@ -533,19 +525,17 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
             {/* Node 4: INSPECT */}
             <div
               onClick={() => setActiveTimelineStep(4)}
-              className={`flex flex-col p-space-sm rounded-lg relative border cursor-pointer transition-all ${
-                activeTimelineStep === 4
+              className={`flex flex-col p-space-sm rounded-lg relative border cursor-pointer transition-all ${activeTimelineStep === 4
                   ? 'bg-primary text-on-primary border-primary shadow'
                   : 'bg-surface border-outline-variant/30 hover:border-outline-variant'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span
-                  className={`w-6 h-6 rounded-full flex items-center justify-center font-label-sm text-label-sm font-semibold ${
-                    activeTimelineStep === 4
+                  className={`w-6 h-6 rounded-full flex items-center justify-center font-label-sm text-label-sm font-semibold ${activeTimelineStep === 4
                       ? 'bg-on-primary/20 text-on-primary'
                       : 'bg-surface-variant text-on-surface-variant'
-                  }`}
+                    }`}
                 >
                   04
                 </span>
@@ -564,19 +554,17 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
             {/* Node 5: REUSE */}
             <div
               onClick={() => setActiveTimelineStep(5)}
-              className={`flex flex-col p-space-sm rounded-lg relative border cursor-pointer transition-all ${
-                activeTimelineStep === 5
+              className={`flex flex-col p-space-sm rounded-lg relative border cursor-pointer transition-all ${activeTimelineStep === 5
                   ? 'bg-primary text-on-primary border-primary shadow'
                   : 'bg-surface border-outline-variant/30 hover:border-outline-variant'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span
-                  className={`w-6 h-6 rounded-full flex items-center justify-center font-label-sm text-label-sm font-semibold ${
-                    activeTimelineStep === 5
+                  className={`w-6 h-6 rounded-full flex items-center justify-center font-label-sm text-label-sm font-semibold ${activeTimelineStep === 5
                       ? 'bg-on-primary/20 text-on-primary'
                       : 'bg-surface-variant text-on-surface-variant'
-                  }`}
+                    }`}
                 >
                   05
                 </span>
@@ -595,23 +583,21 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
             {/* Node 6: THRIFT (ACTIVE / CONVERTED) */}
             <div
               onClick={() => setActiveTimelineStep(6)}
-              className={`flex flex-col p-space-sm rounded-lg relative shadow-md transition-all cursor-pointer ${
-                isAlreadyConverted
+              className={`flex flex-col p-space-sm rounded-lg relative shadow-md transition-all cursor-pointer ${isAlreadyConverted
                   ? 'bg-secondary text-on-secondary ring-2 ring-secondary'
                   : !isEligible
-                  ? 'bg-surface-variant text-on-surface-variant opacity-80'
-                  : 'bg-primary text-on-primary ring-2 ring-primary'
-              }`}
+                    ? 'bg-surface-variant text-on-surface-variant opacity-80'
+                    : 'bg-primary text-on-primary ring-2 ring-primary'
+                }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span
-                  className={`w-6 h-6 rounded-full flex items-center justify-center font-label-sm text-label-sm font-bold ${
-                    isAlreadyConverted
+                  className={`w-6 h-6 rounded-full flex items-center justify-center font-label-sm text-label-sm font-bold ${isAlreadyConverted
                       ? 'bg-white/20 text-white'
                       : !isEligible
-                      ? 'bg-outline-variant text-on-surface'
-                      : 'bg-on-primary/20 text-on-primary'
-                  }`}
+                        ? 'bg-outline-variant text-on-surface'
+                        : 'bg-on-primary/20 text-on-primary'
+                    }`}
                 >
                   06
                 </span>
@@ -619,26 +605,25 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
                   {isAlreadyConverted
                     ? 'task_alt'
                     : !isEligible
-                    ? 'lock'
-                    : 'radio_button_checked'}
+                      ? 'lock'
+                      : 'radio_button_checked'}
                 </span>
               </div>
               <div className="flex items-center gap-1 mb-0.5">
                 <span className="font-title-md text-title-md text-xs font-bold">THRIFT</span>
                 <span
-                  className={`text-[9px] px-1 py-0.2 font-bold rounded ${
-                    isAlreadyConverted
+                  className={`text-[9px] px-1 py-0.2 font-bold rounded ${isAlreadyConverted
                       ? 'bg-white text-secondary'
                       : !isEligible
-                      ? 'bg-error text-white'
-                      : 'bg-secondary-fixed text-on-secondary-fixed'
-                  }`}
+                        ? 'bg-error text-white'
+                        : 'bg-secondary-fixed text-on-secondary-fixed'
+                    }`}
                 >
                   {isAlreadyConverted
                     ? 'ĐÃ GỬI DUYỆT'
                     : !isEligible
-                    ? 'KHÓA'
-                    : 'ĐANG KÍCH HOẠT'}
+                      ? 'KHÓA'
+                      : 'ĐANG KÍCH HOẠT'}
                 </span>
               </div>
               <span className="font-label-sm text-label-sm opacity-90">
@@ -658,11 +643,10 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
                   B-CORP CIRCULAR AUDIT
                 </span>
                 <span
-                  className={`inline-flex items-center gap-1 font-label-sm text-label-sm px-space-xs py-0.5 rounded font-bold ${
-                    isEligible
+                  className={`inline-flex items-center gap-1 font-label-sm text-label-sm px-space-xs py-0.5 rounded font-bold ${isEligible
                       ? 'bg-secondary/15 text-secondary'
                       : 'bg-error/15 text-error'
-                  }`}
+                    }`}
                 >
                   {isEligible ? '100% ĐẠT TIÊU CHUẨN' : 'CHƯA ĐẠT TIÊU CHUẨN'}
                 </span>
@@ -674,16 +658,14 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
               <div className="flex flex-col gap-space-sm">
                 {/* Check 1 */}
                 <div
-                  className={`flex items-start gap-space-sm p-space-sm rounded-lg border ${
-                    isCurrentlyRenting
+                  className={`flex items-start gap-space-sm p-space-sm rounded-lg border ${isCurrentlyRenting
                       ? 'bg-error-container/20 border-error/30'
                       : 'bg-surface border-outline-variant/20'
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`material-symbols-outlined text-[20px] shrink-0 mt-0.5 ${
-                      isCurrentlyRenting ? 'text-error' : 'text-secondary'
-                    }`}
+                    className={`material-symbols-outlined text-[20px] shrink-0 mt-0.5 ${isCurrentlyRenting ? 'text-error' : 'text-secondary'
+                      }`}
                   >
                     {isCurrentlyRenting ? 'error' : 'task_alt'}
                   </span>
@@ -731,16 +713,14 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
 
                 {/* Check 4 */}
                 <div
-                  className={`flex items-start gap-space-sm p-space-sm rounded-lg border ${
-                    hasFutureBooking
+                  className={`flex items-start gap-space-sm p-space-sm rounded-lg border ${hasFutureBooking
                       ? 'bg-error-container/20 border-error/30'
                       : 'bg-surface border-outline-variant/20'
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`material-symbols-outlined text-[20px] shrink-0 mt-0.5 ${
-                      hasFutureBooking ? 'text-error' : 'text-secondary'
-                    }`}
+                    className={`material-symbols-outlined text-[20px] shrink-0 mt-0.5 ${hasFutureBooking ? 'text-error' : 'text-secondary'
+                      }`}
                   >
                     {hasFutureBooking ? 'error' : 'task_alt'}
                   </span>
@@ -1026,11 +1006,10 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
                     <div
                       key={img.id}
                       onClick={() => handleSelectHero(img.url)}
-                      className={`relative aspect-square rounded overflow-hidden shadow-sm group cursor-pointer border-2 transition-all ${
-                        isHero
+                      className={`relative aspect-square rounded overflow-hidden shadow-sm group cursor-pointer border-2 transition-all ${isHero
                           ? 'border-primary ring-2 ring-primary/40'
                           : 'border-transparent hover:border-outline-variant'
-                      }`}
+                        }`}
                       title={isHero ? 'Ảnh đại diện (HERO)' : 'Bấm để chọn làm ảnh chính (Set HERO)'}
                     >
                       <img
@@ -1039,11 +1018,10 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
                         alt={img.label}
                       />
                       <span
-                        className={`absolute bottom-1 left-1 text-[9px] px-1 rounded font-semibold ${
-                          isHero
+                        className={`absolute bottom-1 left-1 text-[9px] px-1 rounded font-semibold ${isHero
                             ? 'bg-primary text-on-primary font-bold shadow'
                             : 'bg-on-surface/80 text-surface'
-                        }`}
+                          }`}
                       >
                         {isHero ? '★ HERO' : img.label}
                       </span>
@@ -1183,13 +1161,12 @@ const ConvertToThriftForm: React.FC<{ targetId: string }> = ({ targetId }) => {
                 type="button"
                 disabled={!isEligible || isAlreadyConverted || isSubmitting}
                 onClick={() => setIsConfirmModalOpen(true)}
-                className={`w-full font-label-md text-label-md uppercase tracking-wider py-space-md rounded shadow-md transition-all flex items-center justify-center gap-2 font-medium ${
-                  isAlreadyConverted
+                className={`w-full font-label-md text-label-md uppercase tracking-wider py-space-md rounded shadow-md transition-all flex items-center justify-center gap-2 font-medium ${isAlreadyConverted
                     ? 'bg-secondary text-white cursor-default'
                     : !isEligible
-                    ? 'bg-outline-variant/60 text-on-surface-variant cursor-not-allowed'
-                    : 'bg-on-background text-background hover:bg-primary cursor-pointer'
-                }`}
+                      ? 'bg-outline-variant/60 text-on-surface-variant cursor-not-allowed'
+                      : 'bg-on-background text-background hover:bg-primary cursor-pointer'
+                  }`}
               >
                 {isSubmitting ? (
                   <>

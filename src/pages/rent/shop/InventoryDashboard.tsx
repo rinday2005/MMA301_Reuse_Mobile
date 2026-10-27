@@ -197,56 +197,50 @@ export const InventoryDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('ALL')}
-              className={`px-4 py-2 rounded shrink-0 transition-colors shadow-sm ${
-                activeTab === 'ALL' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
-              }`}
+              className={`px-4 py-2 rounded shrink-0 transition-colors shadow-sm ${activeTab === 'ALL' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
+                }`}
             >
               Tất cả (29)
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('READY')}
-              className={`px-4 py-2 rounded shrink-0 transition-colors ${
-                activeTab === 'READY' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
-              }`}
+              className={`px-4 py-2 rounded shrink-0 transition-colors ${activeTab === 'READY' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
+                }`}
             >
               Sẵn sàng (8)
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('RENTING')}
-              className={`px-4 py-2 rounded shrink-0 transition-colors ${
-                activeTab === 'RENTING' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
-              }`}
+              className={`px-4 py-2 rounded shrink-0 transition-colors ${activeTab === 'RENTING' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
+                }`}
             >
               Đang cho thuê (14)
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('INSPECTION')}
-              className={`px-4 py-2 rounded shrink-0 transition-colors ${
-                activeTab === 'INSPECTION' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
-              }`}
+              className={`px-4 py-2 rounded shrink-0 transition-colors ${activeTab === 'INSPECTION' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
+                }`}
             >
               Chờ đối kiểm (2)
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('MAINTENANCE')}
-              className={`px-4 py-2 rounded shrink-0 transition-colors ${
-                activeTab === 'MAINTENANCE' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
-              }`}
+              className={`px-4 py-2 rounded shrink-0 transition-colors ${activeTab === 'MAINTENANCE' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
+                }`}
             >
               Đang bảo dưỡng (2)
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('THRIFT')}
-              className={`px-4 py-2 rounded shrink-0 transition-colors flex items-center gap-1.5 ${
-                activeTab === 'THRIFT'
+              className={`px-4 py-2 rounded shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'THRIFT'
                   ? 'bg-[#292724] text-[#f0e0cb] shadow'
                   : 'bg-[#d8e3ce] text-[#151e11] hover:bg-[#c6d7bb]'
-              }`}
+                }`}
             >
               <span className="material-symbols-outlined text-[16px]">verified</span>
               <span>Đủ điều kiện sang THRIFT (3)</span>
@@ -346,9 +340,8 @@ export const InventoryDashboard: React.FC = () => {
                 {filteredUnits.map((item) => (
                   <tr
                     key={item.id}
-                    className={`hover:bg-[#f7f3ec] transition-colors ${
-                      item.status === 'ELIGIBLE_FOR_THRIFT' ? 'bg-[#d8e3ce]/15' : 'bg-white'
-                    }`}
+                    className={`hover:bg-[#f7f3ec] transition-colors ${item.status === 'ELIGIBLE_FOR_THRIFT' ? 'bg-[#d8e3ce]/15' : 'bg-white'
+                      }`}
                   >
                     {/* Col 1: Product & SKU */}
                     <td className="py-4 px-4 align-top">
@@ -375,13 +368,12 @@ export const InventoryDashboard: React.FC = () => {
                     <td className="py-4 px-4 align-top">
                       <div className="flex items-center gap-1.5">
                         <span
-                          className={`w-2 h-2 rounded-full ${
-                            item.status === 'ELIGIBLE_FOR_THRIFT'
+                          className={`w-2 h-2 rounded-full ${item.status === 'ELIGIBLE_FOR_THRIFT'
                               ? 'bg-[#576151]'
                               : item.status === 'MAINTENANCE'
-                              ? 'bg-amber-600'
-                              : 'bg-[#576151]'
-                          }`}
+                                ? 'bg-amber-600'
+                                : 'bg-[#576151]'
+                            }`}
                         ></span>
                         <span className="font-semibold text-[#141310]">{item.conditionGrade}</span>
                       </div>
@@ -453,13 +445,12 @@ export const InventoryDashboard: React.FC = () => {
                     {/* Col 6: Ready Date */}
                     <td className="py-4 px-4 align-top">
                       <span
-                        className={`font-semibold ${
-                          item.status === 'ELIGIBLE_FOR_THRIFT'
+                        className={`font-semibold ${item.status === 'ELIGIBLE_FOR_THRIFT'
                             ? 'text-[#141310]'
                             : item.status === 'AVAILABLE'
-                            ? 'text-[#576151]'
-                            : 'text-[#141310]'
-                        }`}
+                              ? 'text-[#576151]'
+                              : 'text-[#141310]'
+                          }`}
                       >
                         {item.readyDate}
                       </span>

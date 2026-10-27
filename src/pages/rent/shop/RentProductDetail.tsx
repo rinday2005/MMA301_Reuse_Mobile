@@ -12,11 +12,11 @@ export const RentProductDetail: React.FC = () => {
   const inspectionAngleImages = product.inspectionImages?.length
     ? product.inspectionImages
     : [
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuB5mewsMdaznDQrFK3uXQ0ihH8fVJyGA-WwquJd7sHBRJcbcASR1h27dY0EvVQTUaE69efi0nc6VSjoejNknSYsRdmO8MUGxl8UfYvNkQwMYFHbcvEBLKUrbsKj7QJfR8VzHSex4ytaneQ6Vfe5TMT_tFbtg-wysYGL3leviHOWD9x2ksGBMixc-9RCj_42X9g8exMpZ2BuvEwG0WbMj1VoX5TIamV0rJ0SdTxOKs8D',
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuCT-OQ367RurILCr0jpdGdNGfpHFT-WqdCF6Oq35n4oaSaBpANBBXeAs4ktLCvxqk0koCY36igHYPWdSQrz9Pb7nCNo1TvbiKRKIAtOL5gUxc02M00a1pbYHhl21_ZrBiDepTYB1JxrPmDKbdjRCXiAPYb7OHaPR9nzQFCcxm0d4I19Xl0XpUglbILawc4TSuN7MB6a2WeX7u-picVp1m93K0Nd7KPkzannCN3w92vo',
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuAQ9AFXrozgzjAjZS06ET7kj4_p_AHlmdARrZhSO4zoBDTkKvSEocbrbxbY19GU40IhXxxUBydeKobXsidYauNtblWcV572MaBP1nVzlYLVXvEvWblq2o87dvMtSM8LzFRiJR3pk4HqfO42ovSmJFJjJrLZ4TZ8A1YOnuAD6MwTLupK0JSqDn4_ETghWwOxL3n0xP8_0Rpp2cgWc8z3VZkIkM-NIRXZz5AOvC4ipoS7',
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuCg-wK086gI3TlRyzKSKjwyOQYqjrGDMEvdr90lwqo7PUr6KbBaK3bVQfHrYQt5aWi-FI6dr_VErQHtfzflWiBhG0qLLJJerOcxHkboPMqwOIfX7k2zwLaOIgQXdAsSKPypn0civfMCdPukEVFgth7WuRZbRmXwMgL9h1ihco5JkQeY96JKpAWJjE2iU2slgtywZEhhgUG0csMsHY_YM-PbfFyeunfLfx7j89XS2csw',
-      ];
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuB5mewsMdaznDQrFK3uXQ0ihH8fVJyGA-WwquJd7sHBRJcbcASR1h27dY0EvVQTUaE69efi0nc6VSjoejNknSYsRdmO8MUGxl8UfYvNkQwMYFHbcvEBLKUrbsKj7QJfR8VzHSex4ytaneQ6Vfe5TMT_tFbtg-wysYGL3leviHOWD9x2ksGBMixc-9RCj_42X9g8exMpZ2BuvEwG0WbMj1VoX5TIamV0rJ0SdTxOKs8D',
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuCT-OQ367RurILCr0jpdGdNGfpHFT-WqdCF6Oq35n4oaSaBpANBBXeAs4ktLCvxqk0koCY36igHYPWdSQrz9Pb7nCNo1TvbiKRKIAtOL5gUxc02M00a1pbYHhl21_ZrBiDepTYB1JxrPmDKbdjRCXiAPYb7OHaPR9nzQFCcxm0d4I19Xl0XpUglbILawc4TSuN7MB6a2WeX7u-picVp1m93K0Nd7KPkzannCN3w92vo',
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuAQ9AFXrozgzjAjZS06ET7kj4_p_AHlmdARrZhSO4zoBDTkKvSEocbrbxbY19GU40IhXxxUBydeKobXsidYauNtblWcV572MaBP1nVzlYLVXvEvWblq2o87dvMtSM8LzFRiJR3pk4HqfO42ovSmJFJjJrLZ4TZ8A1YOnuAD6MwTLupK0JSqDn4_ETghWwOxL3n0xP8_0Rpp2cgWc8z3VZkIkM-NIRXZz5AOvC4ipoS7',
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuCg-wK086gI3TlRyzKSKjwyOQYqjrGDMEvdr90lwqo7PUr6KbBaK3bVQfHrYQt5aWi-FI6dr_VErQHtfzflWiBhG0qLLJJerOcxHkboPMqwOIfX7k2zwLaOIgQXdAsSKPypn0civfMCdPukEVFgth7WuRZbRmXwMgL9h1ihco5JkQeY96JKpAWJjE2iU2slgtywZEhhgUG0csMsHY_YM-PbfFyeunfLfx7j89XS2csw',
+    ];
 
   const [selectedAngleIndex, setSelectedAngleIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -125,9 +125,8 @@ export const RentProductDetail: React.FC = () => {
               <button
                 type="button"
                 onClick={handlePauseToggle}
-                className={`inline-flex items-center gap-1.5 px-3 py-2.5 rounded text-xs uppercase tracking-wider transition-colors ${
-                  isPaused ? 'text-[#ba1a1a] font-bold bg-[#ffdad6]/40' : 'text-[#7b766f] hover:text-[#ba1a1a] hover:bg-[#ffdad6]/40'
-                }`}
+                className={`inline-flex items-center gap-1.5 px-3 py-2.5 rounded text-xs uppercase tracking-wider transition-colors ${isPaused ? 'text-[#ba1a1a] font-bold bg-[#ffdad6]/40' : 'text-[#7b766f] hover:text-[#ba1a1a] hover:bg-[#ffdad6]/40'
+                  }`}
                 title="Tạm ngưng niêm yết trong kho"
               >
                 <span className="material-symbols-outlined text-[18px]">{isPaused ? 'pause' : 'pause_circle'}</span>
@@ -197,9 +196,8 @@ export const RentProductDetail: React.FC = () => {
                     key={idx}
                     type="button"
                     onClick={() => setSelectedAngleIndex(idx)}
-                    className={`relative aspect-square rounded overflow-hidden bg-[#f1ede6] group text-left shadow-sm transition-all ${
-                      selectedAngleIndex === idx ? 'ring-2 ring-[#141310]' : 'hover:opacity-90'
-                    }`}
+                    className={`relative aspect-square rounded overflow-hidden bg-[#f1ede6] group text-left shadow-sm transition-all ${selectedAngleIndex === idx ? 'ring-2 ring-[#141310]' : 'hover:opacity-90'
+                      }`}
                   >
                     <img src={img} alt={`Góc ${idx + 1}`} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#141310]/80 to-transparent flex flex-col justify-end p-2 text-white">
