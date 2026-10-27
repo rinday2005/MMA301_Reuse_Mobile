@@ -63,6 +63,8 @@ interface ThriftOrderDetailData {
   benchInspection: ThriftBenchInspectionMetric[];
   cancelReason?: string;
   disputeReason?: string;
+  buyerConfirmed?: boolean;
+  buyerConfirmedAt?: string | null;
   timeline: Array<{
     status: string;
     title: string;
@@ -327,6 +329,8 @@ export const ThriftOrderDetail: React.FC = () => {
         benchInspection: benchMetrics,
         cancelReason: raw.cancelReason,
         disputeReason: raw.disputeReason,
+        buyerConfirmed: Boolean(raw.buyerConfirmed),
+        buyerConfirmedAt: raw.buyerConfirmedAt || null,
         timeline: raw.timeline || [
           {
             status: 'PENDING_PAYMENT',
