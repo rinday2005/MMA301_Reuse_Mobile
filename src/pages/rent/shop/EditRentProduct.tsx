@@ -29,16 +29,16 @@ export const EditRentProduct: React.FC = () => {
   const [handoverBatteryCheck, setHandoverBatteryCheck] = useState<boolean>(true);
   const [damagePolicy, setDamagePolicy] = useState<string>('');
   const [listingStatus, setListingStatus] = useState<'active' | 'hidden' | 'draft'>('active');
-/* eslint-disable react-hooks/set-state-in-effect */
-useEffect(() => {
-  if (currentProduct) {
-    setProdName(currentProduct.name || '');
-    setCategory(currentProduct.category || 'Máy ảnh Medium Format Digital');
-    setBrand(currentProduct.brand || '');
-    // Nếu có setMountSensor, truyền đúng giá trị hoặc xóa nếu không dùng:
-    // setMountSensor(currentProduct.mountSensor || '');
-  }
-}, [currentProduct]);
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (currentProduct) {
+      setProdName(currentProduct.name || '');
+      setCategory(currentProduct.category || 'Máy ảnh Medium Format Digital');
+      setBrand(currentProduct.brand || '');
+      // Nếu có setMountSensor, truyền đúng giá trị hoặc xóa nếu không dùng:
+      // setMountSensor(currentProduct.mountSensor || '');
+    }
+  }, [currentProduct]);
   // Đổ dữ liệu của sản phẩm vào form khi mở trang
   useEffect(() => {
     if (currentProduct) {
@@ -47,15 +47,15 @@ useEffect(() => {
       setBrand(currentProduct.brand || '');
       setMountSensor(
         currentProduct.mountSensor ||
-          'Hasselblad XCD Mount • Cảm biến CMOS 50MP 43.8×32.9mm • Màu 16-bit 14 Dải Stops (HNCS)'
+        'Hasselblad XCD Mount • Cảm biến CMOS 50MP 43.8×32.9mm • Màu 16-bit 14 Dải Stops (HNCS)'
       );
       setAccessories(
         currentProduct.accessoriesIncluded ||
-          '2x Pin sạc Hasselblad 3400mAh nguyên bản, Đốc sạc kép Dual Hub USB-C PD, Cáp Tether Pro Type-C 4.6m, Dây đeo da thuộc thảo mộc thủ công Thụy Điển, Ngàm che nắp sensor & lens caps, Thùng chống sốc Nanuk 910 bọt khí chống ẩm.'
+        '2x Pin sạc Hasselblad 3400mAh nguyên bản, Đốc sạc kép Dual Hub USB-C PD, Cáp Tether Pro Type-C 4.6m, Dây đeo da thuộc thảo mộc thủ công Thụy Điển, Ngàm che nắp sensor & lens caps, Thùng chống sốc Nanuk 910 bọt khí chống ẩm.'
       );
       setDescription(
         currentProduct.description ||
-          'Thiết bị được quản lý trực tiếp bởi Atelier Chronos & Optics từ tháng 04/2023. Chỉ phục vụ các dự án Fine-Art Photography nội bộ và các đoàn quay thương mại chọn lọc. Cảm biến định kỳ được vệ sinh tại phòng sạch Class 1000 mỗi 30 ngày.'
+        'Thiết bị được quản lý trực tiếp bởi Atelier Chronos & Optics từ tháng 04/2023. Chỉ phục vụ các dự án Fine-Art Photography nội bộ và các đoàn quay thương mại chọn lọc. Cảm biến định kỳ được vệ sinh tại phòng sạch Class 1000 mỗi 30 ngày.'
       );
       setPricePerDay(currentProduct.pricePerDay ? currentProduct.pricePerDay.toLocaleString() : '450.000');
       setDeposit(currentProduct.deposit ? currentProduct.deposit.toLocaleString() : '16.000.000');

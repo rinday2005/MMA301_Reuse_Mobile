@@ -92,8 +92,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
               typeof p.categoryId === 'object' && p.categoryId
                 ? p.categoryId.name
                 : typeof p.category === 'object' && p.category
-                ? p.category.name
-                : 'RENT Equipment';
+                  ? p.category.name
+                  : 'RENT Equipment';
             const ownerIdStr =
               typeof p.ownerId === 'object' && p.ownerId
                 ? p.ownerId._id
@@ -112,8 +112,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 p.status === 'APPROVED'
                   ? 'APPROVED'
                   : p.status === 'PENDING'
-                  ? 'PENDING'
-                  : 'DRAFT',
+                    ? 'PENDING'
+                    : 'DRAFT',
               coverImage: p.images?.[0] || 'https://placehold.co/600x400',
               description: p.description,
               ownerId: ownerIdStr,
@@ -191,9 +191,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (remainingReady < 0) {
       return {
         success: false,
-        message: `Không đủ máy khả dụng! Đang có ${target.rentingUnits} máy đang thuê, số bảo trì tối đa chỉ được ${
-          target.totalUnits - target.rentingUnits
-        }`,
+        message: `Không đủ máy khả dụng! Đang có ${target.rentingUnits} máy đang thuê, số bảo trì tối đa chỉ được ${target.totalUnits - target.rentingUnits
+          }`,
       };
     }
 
@@ -201,10 +200,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       prev.map((item) =>
         item.sku === sku
           ? {
-              ...item,
-              maintenanceUnits: newMaintenance,
-              readyUnits: remainingReady,
-            }
+            ...item,
+            maintenanceUnits: newMaintenance,
+            readyUnits: remainingReady,
+          }
           : item
       )
     );

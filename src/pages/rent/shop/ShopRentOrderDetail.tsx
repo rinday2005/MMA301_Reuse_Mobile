@@ -41,6 +41,7 @@ export const ShopRentOrderDetail: React.FC = () => {
     'Chất liệu vải lụa tơ tằm & satin cao cấp, đường kim mũi chỉ thủ công chắc chắn, giữ phom dáng nguyên vẹn. Toàn bộ cúc đính đá/pha lê và khóa kéo trượt êm mượt, không sờn rách, không vết ố mỹ phẩm hay rượu vang. Đã xử lý qua buồng khử khuẩn Ozone. Đạt tiêu chuẩn hoàn cọc toàn phần 100%.'
   );
 
+
   // Modals state
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
@@ -723,7 +724,7 @@ export const ShopRentOrderDetail: React.FC = () => {
                   effectiveState === 'pending'
                     ? 'bg-[#6c5937] text-white font-semibold shadow-xs'
                     : 'bg-[#f2ede9] text-[#4c463c] hover:bg-[#ece7e4]'
-                }`}
+                  }`}
               >
                 1. PENDING (Chờ duyệt)
               </button>
@@ -734,7 +735,7 @@ export const ShopRentOrderDetail: React.FC = () => {
                   effectiveState === 'paid'
                     ? 'bg-[#6c5937] text-white font-semibold shadow-xs'
                     : 'bg-[#f2ede9] text-[#4c463c] hover:bg-[#ece7e4]'
-                }`}
+                  }`}
               >
                 2. PAID (Chờ giao)
               </button>
@@ -745,7 +746,7 @@ export const ShopRentOrderDetail: React.FC = () => {
                   effectiveState === 'shipping'
                     ? 'bg-[#6c5937] text-white font-semibold shadow-xs'
                     : 'bg-[#f2ede9] text-[#4c463c] hover:bg-[#ece7e4]'
-                }`}
+                  }`}
               >
                 3. BÀN GIAO (Đang giao)
               </button>
@@ -773,7 +774,7 @@ export const ShopRentOrderDetail: React.FC = () => {
                   effectiveState === 'inspecting'
                     ? 'bg-[#6c5937] text-white font-semibold shadow-xs'
                     : 'bg-[#f2ede9] text-[#4c463c] hover:bg-[#ece7e4]'
-                }`}
+                  }`}
               >
                 5. INSPECTING (Nghiệm thu)
               </button>
@@ -784,7 +785,7 @@ export const ShopRentOrderDetail: React.FC = () => {
                   effectiveState === 'completed'
                     ? 'bg-[#6c5937] text-white font-semibold shadow-xs'
                     : 'bg-[#f2ede9] text-[#4c463c] hover:bg-[#ece7e4]'
-                }`}
+                  }`}
               >
                 6. COMPLETED (Hoàn tất)
               </button>
@@ -828,7 +829,7 @@ export const ShopRentOrderDetail: React.FC = () => {
                   effectiveState === 'pending'
                     ? 'bg-[#6c5937] text-white ring-4 ring-[#f9dfb3]'
                     : 'bg-[#48654b] text-white'
-                }`}>
+                  }`}>
                   <span className="material-symbols-outlined text-[16px]">check</span>
                 </div>
                 <span className="text-[11px] font-semibold text-[#1c1b19] block leading-tight">2. Shop duyệt</span>
@@ -1432,9 +1433,8 @@ export const ShopRentOrderDetail: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-xs text-[#4c463c] block">Khấu trừ hao tổn / Vi phạm</span>
-                      <span className={`font-serif text-lg sm:text-xl font-semibold ${
-                        deductionAmount > 0 ? 'text-[#ba1a1a]' : 'text-[#48654b]'
-                      }`}>
+                      <span className={`font-serif text-lg sm:text-xl font-semibold ${deductionAmount > 0 ? 'text-[#ba1a1a]' : 'text-[#48654b]'
+                        }`}>
                         {deductionAmount > 0 ? `-${deductionAmount.toLocaleString('vi-VN')} ₫` : '-0 ₫'}
                       </span>
                     </div>
@@ -1927,11 +1927,10 @@ export const ShopRentOrderDetail: React.FC = () => {
                   className={`flex flex-col ${msg.sender === 'shop' ? 'items-end' : 'items-start'}`}
                 >
                   <div
-                    className={`max-w-[85%] p-3 rounded-xl leading-relaxed ${
-                      msg.sender === 'shop'
+                    className={`max-w-[85%] p-3 rounded-xl leading-relaxed ${msg.sender === 'shop'
                         ? 'bg-[#1c1b19] text-white rounded-br-none'
                         : 'bg-[#f2ede9] text-[#1c1b19] rounded-bl-none'
-                    }`}
+                      }`}
                   >
                     {msg.text}
                   </div>

@@ -73,7 +73,7 @@ export const EditThriftListing: React.FC = () => {
   const [condition, setCondition] = useState<'like-new' | 'good' | 'fair'>('like-new');
   const [conditionNotes, setConditionNotes] = useState(
     initialItem.curatorNotes ||
-      `Hiện vật được bảo quản liên tục trong tủ chống ẩm tiêu chuẩn 40% RH tại buồng Atelier.
+    `Hiện vật được bảo quản liên tục trong tủ chống ẩm tiêu chuẩn 40% RH tại buồng Atelier.
 - Số phát màn trập (Shutter Count): 4,820 / 100,000 nhát (tương đương 4.8% vòng đời thiết kế).
 - Sai số cơ học màn trập lá trên ống XCD 45mm: +-0.02ms (chuẩn kỹ thuật xuất xưởng).
 - Cảm biến Medium Format CMOS 50MP: Không có điểm chết (zero dead pixels), lớp phủ IR-cut không trầy xước.
@@ -178,8 +178,8 @@ export const EditThriftListing: React.FC = () => {
           status === 'APPROVED'
             ? 'Đã Duyệt (Admin)'
             : status === 'HIDDEN'
-            ? 'Đang ẩn'
-            : 'Chờ Duyệt Admin',
+              ? 'Đang ẩn'
+              : 'Chờ Duyệt Admin',
         image: photos[0]?.url || initialItem.image,
       };
 
@@ -537,11 +537,10 @@ export const EditThriftListing: React.FC = () => {
                     {/* Like New Option */}
                     <label
                       onClick={() => setCondition('like-new')}
-                      className={`relative p-4 rounded-DEFAULT cursor-pointer shadow-sm flex flex-col justify-between transition-all border ${
-                        condition === 'like-new'
+                      className={`relative p-4 rounded-DEFAULT cursor-pointer shadow-sm flex flex-col justify-between transition-all border ${condition === 'like-new'
                           ? 'bg-surface border-primary ring-2 ring-primary/40'
                           : 'bg-surface border-surface-dim hover:bg-surface-container'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start justify-between mb-2">
                         <span className="font-title-md text-title-md text-on-surface font-semibold">
@@ -567,11 +566,10 @@ export const EditThriftListing: React.FC = () => {
                     {/* Good Option */}
                     <label
                       onClick={() => setCondition('good')}
-                      className={`relative p-4 rounded-DEFAULT cursor-pointer shadow-sm flex flex-col justify-between transition-all border ${
-                        condition === 'good'
+                      className={`relative p-4 rounded-DEFAULT cursor-pointer shadow-sm flex flex-col justify-between transition-all border ${condition === 'good'
                           ? 'bg-surface border-primary ring-2 ring-primary/40'
                           : 'bg-surface border-surface-dim hover:bg-surface-container'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start justify-between mb-2">
                         <span className="font-title-md text-title-md text-on-surface font-semibold">
@@ -597,11 +595,10 @@ export const EditThriftListing: React.FC = () => {
                     {/* Fair Option */}
                     <label
                       onClick={() => setCondition('fair')}
-                      className={`relative p-4 rounded-DEFAULT cursor-pointer shadow-sm flex flex-col justify-between transition-all border ${
-                        condition === 'fair'
+                      className={`relative p-4 rounded-DEFAULT cursor-pointer shadow-sm flex flex-col justify-between transition-all border ${condition === 'fair'
                           ? 'bg-surface border-primary ring-2 ring-primary/40'
                           : 'bg-surface border-surface-dim hover:bg-surface-container'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start justify-between mb-2">
                         <span className="font-title-md text-title-md text-on-surface font-semibold">
@@ -945,8 +942,8 @@ export const EditThriftListing: React.FC = () => {
                       {condition === 'like-new'
                         ? '98% Like New'
                         : condition === 'good'
-                        ? '94% Good'
-                        : '86% Fair'}
+                          ? '94% Good'
+                          : '86% Fair'}
                     </span>
                   </div>
 
@@ -1139,11 +1136,10 @@ export const EditThriftListing: React.FC = () => {
             </span>
             <span className="text-outline-variant hidden sm:inline">•</span>
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-DEFAULT font-label-sm text-label-sm uppercase tracking-wider font-semibold ${
-                status === 'APPROVED'
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-DEFAULT font-label-sm text-label-sm uppercase tracking-wider font-semibold ${status === 'APPROVED'
                   ? 'bg-secondary-container/60 text-secondary'
                   : 'bg-surface-dim text-on-surface-variant'
-              }`}
+                }`}
             >
               <span
                 className={`w-1.5 h-1.5 rounded-full ${status === 'APPROVED' ? 'bg-secondary' : 'bg-outline'}`}

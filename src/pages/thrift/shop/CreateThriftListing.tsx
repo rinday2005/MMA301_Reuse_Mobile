@@ -260,11 +260,10 @@ export const CreateThriftListing: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <label
                   onClick={() => setOriginSource('shop_direct')}
-                  className={`relative flex flex-col p-4 rounded-DEFAULT cursor-pointer transition-all ${
-                    originSource === 'shop_direct'
-                      ? 'bg-surface-container-high border-2 border-primary/40 shadow-sm'
-                      : 'bg-surface-container-low hover:bg-surface-container'
-                  }`}
+                  className={`relative flex flex-col p-4 rounded-DEFAULT cursor-pointer transition-all ${originSource === 'shop_direct'
+                    ? 'bg-surface-container-high border-2 border-primary/40 shadow-sm'
+                    : 'bg-surface-container-low hover:bg-surface-container'
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-title-md text-body-md font-semibold text-on-surface">
@@ -286,11 +285,10 @@ export const CreateThriftListing: React.FC = () => {
 
                 <label
                   onClick={() => setOriginSource('rental_archive')}
-                  className={`relative flex flex-col p-4 rounded-DEFAULT cursor-pointer shadow-sm transition-all ${
-                    originSource === 'rental_archive'
-                      ? 'bg-surface-container-high border-2 border-primary/40 shadow-sm'
-                      : 'bg-surface-container-low hover:bg-surface-container'
-                  }`}
+                  className={`relative flex flex-col p-4 rounded-DEFAULT cursor-pointer shadow-sm transition-all ${originSource === 'rental_archive'
+                    ? 'bg-surface-container-high border-2 border-primary/40 shadow-sm'
+                    : 'bg-surface-container-low hover:bg-surface-container'
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -506,11 +504,10 @@ export const CreateThriftListing: React.FC = () => {
                     {/* Option Like New */}
                     <label
                       onClick={() => setConditionGrade('like_new')}
-                      className={`flex flex-col p-4 rounded-DEFAULT cursor-pointer shadow-sm transition-all ${
-                        conditionGrade === 'like_new'
-                          ? 'bg-surface-container-high border-2 border-primary/50'
-                          : 'bg-surface-container-low hover:bg-surface-container'
-                      }`}
+                      className={`flex flex-col p-4 rounded-DEFAULT cursor-pointer shadow-sm transition-all ${conditionGrade === 'like_new'
+                        ? 'bg-surface-container-high border-2 border-primary/50'
+                        : 'bg-surface-container-low hover:bg-surface-container'
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-title-md text-body-md font-semibold text-primary">Like New</span>
@@ -534,11 +531,10 @@ export const CreateThriftListing: React.FC = () => {
                     {/* Option Good */}
                     <label
                       onClick={() => setConditionGrade('good')}
-                      className={`flex flex-col p-4 rounded-DEFAULT cursor-pointer transition-colors ${
-                        conditionGrade === 'good'
-                          ? 'bg-surface-container-high border-2 border-primary/50'
-                          : 'bg-surface-container-low hover:bg-surface-container'
-                      }`}
+                      className={`flex flex-col p-4 rounded-DEFAULT cursor-pointer transition-colors ${conditionGrade === 'good'
+                        ? 'bg-surface-container-high border-2 border-primary/50'
+                        : 'bg-surface-container-low hover:bg-surface-container'
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-title-md text-body-md font-semibold text-on-surface">Good</span>
@@ -562,11 +558,10 @@ export const CreateThriftListing: React.FC = () => {
                     {/* Option Fair */}
                     <label
                       onClick={() => setConditionGrade('fair')}
-                      className={`flex flex-col p-4 rounded-DEFAULT cursor-pointer transition-colors ${
-                        conditionGrade === 'fair'
-                          ? 'bg-surface-container-high border-2 border-primary/50'
-                          : 'bg-surface-container-low hover:bg-surface-container'
-                      }`}
+                      className={`flex flex-col p-4 rounded-DEFAULT cursor-pointer transition-colors ${conditionGrade === 'fair'
+                        ? 'bg-surface-container-high border-2 border-primary/50'
+                        : 'bg-surface-container-low hover:bg-surface-container'
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-title-md text-body-md font-semibold text-on-surface">Fair</span>
@@ -641,13 +636,12 @@ export const CreateThriftListing: React.FC = () => {
                       className="w-full h-full object-cover transition-transform group-hover:scale-105"
                     />
                     <div
-                      className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 font-label-sm text-[9px] uppercase tracking-wider rounded-DEFAULT ${
-                        photo.badge === 'Hero'
-                          ? 'bg-primary text-on-primary'
-                          : photo.badge === 'Serial đáy'
+                      className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 font-label-sm text-[9px] uppercase tracking-wider rounded-DEFAULT ${photo.badge === 'Hero'
+                        ? 'bg-primary text-on-primary'
+                        : photo.badge === 'Serial đáy'
                           ? 'bg-secondary text-on-secondary'
                           : 'bg-surface-container-highest/90 text-on-surface'
-                      }`}
+                        }`}
                     >
                       {photo.badge}
                     </div>

@@ -62,7 +62,7 @@ export const ShopThriftListingDetail: React.FC = () => {
   const [editPrice, setEditPrice] = useState(listing.price.toLocaleString('vi-VN'));
   const [editNotes, setEditNotes] = useState(
     listing.curatorNotes ||
-      'Bộ máy ảnh medium format Hasselblad 907X 50C kỷ niệm thiết kế cổ điển Thụy Điển, bao gồm thân máy siêu mỏng 907X, lưng số CFV II 50C với màn hình cảm ứng lật 3.2 inch và ống kính prime XCD 45mm f/4 P có màn trập lá tích hợp tốc độ đồng bộ đèn flash lên đến 1/2000s.'
+    'Bộ máy ảnh medium format Hasselblad 907X 50C kỷ niệm thiết kế cổ điển Thụy Điển, bao gồm thân máy siêu mỏng 907X, lưng số CFV II 50C với màn hình cảm ứng lật 3.2 inch và ống kính prime XCD 45mm f/4 P có màn trập lá tích hợp tốc độ đồng bộ đèn flash lên đến 1/2000s.'
   );
 
   // Customer Chat Modal State
@@ -278,11 +278,10 @@ export const ShopThriftListingDetail: React.FC = () => {
               <div className="space-y-3 max-w-4xl">
                 <div className="flex flex-wrap items-center gap-2.5">
                   <span
-                    className={`px-2.5 py-0.5 rounded-DEFAULT font-label-sm text-label-sm uppercase tracking-widest font-bold inline-flex items-center gap-1.5 ${
-                      isPaused
+                    className={`px-2.5 py-0.5 rounded-DEFAULT font-label-sm text-label-sm uppercase tracking-widest font-bold inline-flex items-center gap-1.5 ${isPaused
                         ? 'bg-surface-dim text-on-surface-variant'
                         : 'bg-secondary-container text-on-secondary-container'
-                    }`}
+                      }`}
                   >
                     <span
                       className={`w-1.5 h-1.5 rounded-full ${isPaused ? 'bg-outline' : 'bg-secondary'}`}
@@ -370,11 +369,10 @@ export const ShopThriftListingDetail: React.FC = () => {
 
                 {/* Approved (Active) */}
                 <div
-                  className={`p-3.5 rounded-DEFAULT shadow-sm border ${
-                    !isPaused
+                  className={`p-3.5 rounded-DEFAULT shadow-sm border ${!isPaused
                       ? 'bg-secondary-container/50 border-secondary/30'
                       : 'bg-surface-container-low border-surface-dim'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-label-sm text-label-sm uppercase tracking-wider font-bold text-on-secondary-container">
@@ -442,11 +440,10 @@ export const ShopThriftListingDetail: React.FC = () => {
                         key={img.id}
                         type="button"
                         onClick={() => setActiveMainImage(img.url)}
-                        className={`aspect-square rounded-DEFAULT overflow-hidden p-1 shadow-sm transition-all focus:outline-none cursor-pointer border ${
-                          isSelected
+                        className={`aspect-square rounded-DEFAULT overflow-hidden p-1 shadow-sm transition-all focus:outline-none cursor-pointer border ${isSelected
                             ? 'bg-surface border-primary ring-2 ring-primary/40'
                             : 'bg-surface-container border-surface-dim hover:bg-surface'
-                        }`}
+                          }`}
                       >
                         <img
                           src={img.url}
@@ -454,9 +451,8 @@ export const ShopThriftListingDetail: React.FC = () => {
                           className="w-full h-full object-cover rounded-DEFAULT"
                         />
                         <span
-                          className={`block font-label-sm text-label-sm text-center truncate mt-1 ${
-                            isSelected ? 'text-primary font-bold' : 'text-on-surface-variant'
-                          }`}
+                          className={`block font-label-sm text-label-sm text-center truncate mt-1 ${isSelected ? 'text-primary font-bold' : 'text-on-surface-variant'
+                            }`}
                         >
                           {img.label}
                         </span>
@@ -779,11 +775,10 @@ export const ShopThriftListingDetail: React.FC = () => {
                     <h3 className="font-title-md text-title-md font-semibold">Đơn Hàng &amp; Mức Độ Quan Tâm</h3>
                   </div>
                   <span
-                    className={`px-2 py-0.5 rounded-DEFAULT font-label-sm text-label-sm uppercase font-semibold ${
-                      isPaused
+                    className={`px-2 py-0.5 rounded-DEFAULT font-label-sm text-label-sm uppercase font-semibold ${isPaused
                         ? 'bg-surface-dim text-on-surface-variant'
                         : 'bg-secondary-container text-on-secondary-container'
-                    }`}
+                      }`}
                   >
                     {isPaused ? 'Đang Ẩn' : 'Đang Mở Bán'}
                   </span>
@@ -855,11 +850,10 @@ export const ShopThriftListingDetail: React.FC = () => {
             <button
               type="button"
               onClick={handleTogglePause}
-              className={`px-3.5 py-2.5 rounded-DEFAULT font-label-md text-label-md uppercase tracking-wider transition-colors shadow-sm inline-flex items-center gap-1.5 cursor-pointer border border-surface-dim ${
-                isPaused
+              className={`px-3.5 py-2.5 rounded-DEFAULT font-label-md text-label-md uppercase tracking-wider transition-colors shadow-sm inline-flex items-center gap-1.5 cursor-pointer border border-surface-dim ${isPaused
                   ? 'bg-secondary text-on-secondary hover:bg-secondary/90'
                   : 'bg-surface hover:bg-error-container hover:text-on-error-container text-on-surface-variant'
-              }`}
+                }`}
             >
               <span className="material-symbols-outlined text-[16px]">
                 {isPaused ? 'visibility' : 'visibility_off'}
@@ -1037,11 +1031,10 @@ export const ShopThriftListingDetail: React.FC = () => {
                     className={`flex flex-col ${isShop ? 'items-end' : 'items-start'}`}
                   >
                     <div
-                      className={`max-w-[85%] p-3 rounded-lg text-xs leading-relaxed ${
-                        isShop
+                      className={`max-w-[85%] p-3 rounded-lg text-xs leading-relaxed ${isShop
                           ? 'bg-primary text-on-primary rounded-br-none'
                           : 'bg-surface-container-high text-on-surface rounded-bl-none border border-surface-dim'
-                      }`}
+                        }`}
                     >
                       {msg.text}
                     </div>

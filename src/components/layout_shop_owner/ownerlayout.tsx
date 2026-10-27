@@ -1,19 +1,41 @@
-import React from "react";
-import { Outlet } from "react-router-dom";
+import React, { useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import { ShopHeader } from "./header";
+import { ShopSidebar } from "./sidebar";
 
 export const ShopOwnerLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  return (
-    <div className="bg-[#fdf9f2] font-sans text-[#1c1c18] min-h-screen flex flex-col antialiased">
-      {/* 1. Thanh Header duy nhất (đã gom menu và profile) */}
-      <ShopHeader />
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const location = useLocation();
 
-      {/* 2. Main content đẩy lùi vừa đúng 64px (h-16) của header */}
-      <main className="w-full pt-16 xl:pt-16 bg-[#fdf9f2] flex-1 flex flex-col">
-        <div className="w-full flex-1">
+  const [prevPathname, setPrevPathname] = useState(location.pathname);
+
+  // Tự động đóng sidebar khi chuyển trang
+  if (prevPathname !== location.pathname) {
+    setPrevPathname(location.pathname);
+    setIsSidebarOpen(false);
+  }
+
+  return (
+    <div className="bg-[#fdf9f2] font-sans text-[#1c1c18] min-h-screen flex flex-col antialiased selection:bg-[#d8e3ce] selection:text-[#1c1c18]">
+      {/* 1. Header trên cùng có nút bấm Mở/Đóng Menu Xưởng */}
+      <ShopHeader
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+      />
+
+      {/* 2. Sidebar trượt từ bên trái khi bấm nút + Main Content rộng rãi */}
+      <div className="flex flex-1 w-full pt-16">
+        {/* Sidebar trượt từ trái ra khi isSidebarOpen === true */}
+        <ShopSidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+
+        {/* Nội dung chính */}
+        <main className="flex-1 w-full min-w-0 bg-[#fdf9f2] flex flex-col overflow-y-auto">
           {children ? children : <Outlet />}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

@@ -701,9 +701,8 @@ export function getProductBookedDates(product?: RentProductDetailData | { id?: s
                 realBookedRanges.push({
                   startDate: o.startDate,
                   endDate: o.endDate,
-                  note: `Đã có khách đặt đơn ${o.orderCode || ''} (${
-                    o.status === 'PAID' || o.paymentStatus === 'PAID' ? 'Đã thanh toán Escrow' : 'Đang thuê'
-                  })`,
+                  note: `Đã có khách đặt đơn ${o.orderCode || ''} (${o.status === 'PAID' || o.paymentStatus === 'PAID' ? 'Đã thanh toán Escrow' : 'Đang thuê'
+                    })`,
                   customerName: o.custodyHolder || 'Khách hàng ReUse Hub',
                 });
               }
