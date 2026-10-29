@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { mockRentProducts } from '../pages/data/shop/rentProductsData';
 import { AuthContext } from './auth-context';
 import {
   getShopRentProductsApi,
@@ -8,12 +7,14 @@ import {
   updateRentProductApi,
   deleteRentProductApi,
 } from '../services/rentProduct.api';
+import { normalizeImageUrl } from '../utils/imageUrl';
 
 // Thêm module augmentation để ép TypeScript hiểu User có name và username
 // (Giúp fix lỗi ở cả file header.tsx)
 declare module './auth-context' {
   interface User {
     id?: string;
+    _id?: string;
     name?: string;
     username?: string;
   }
@@ -71,24 +72,26 @@ const STORAGE_KEY = 'REUSE_HUB_RENT_PRODUCTS_STORE_V1';
 
 export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const auth = useContext(AuthContext);
-  const currentOwnerId = auth?.user?.id || auth?.user?.username || 'OWNER-01';
+  // Do ta đã khai báo mở rộng module ở trên, TS sẽ không báo lỗi username nữa
+  const currentOwnerId =
+    auth?.user?._id ||
+    auth?.user?.id ||
+    auth?.user?.username ||
+    'OWNER-01';
 
   const [products, setProducts] = useState<ShopProductItem[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((p: ShopProductItem) => !p.sku.startsWith('mock-'));
+        }
       } catch (err) {
         console.error('Lỗi parse localStorage:', err);
       }
     }
-    // Gán mặc định nếu chưa có trong localStorage (dùng unknown thay vì any để pass lint)
-    return (mockRentProducts as unknown as RentProductItem[]).map((p) => ({
-      ...p,
-      ownerId: 'OWNER-01',
-      isVisible: true,
-      maintenanceUnits: p.inspectionUnits || 0,
-    }));
+    return [];
   });
 
   // Nạp sản phẩm RENT từ MongoDB
@@ -102,56 +105,87 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         apiProducts = await getPublicRentProductsApi();
       }
 
-      if (apiProducts && apiProducts.length > 0) {
-        const mappedProducts: ShopProductItem[] = apiProducts.map((p) => {
+      if (Array.isArray(apiProducts) && apiProducts.length > 0) {
+        const mappedProducts: ShopProductItem[] = apiProducts.map((p, index) => {
           const catName =
-            typeof p.categoryId === 'object' && p.categoryId
+            typeof p.categoryId === 'object' && p.categoryId && p.categoryId.name
               ? p.categoryId.name
-              : typeof p.category === 'object' && p.category
-                ? p.category.name
-                : 'RENT Equipment';
+              : typeof p.category === 'object' && p.category && (p.category as { name?: string }).name
+                ? (p.category as { name: string }).name
+                : typeof p.category === 'string' && p.category
+                  ? p.category
+                  : typeof p.categoryId === 'string' && p.categoryId
+                    ? p.categoryId
+                    : 'RENT Equipment';
           const catIdStr =
             typeof p.categoryId === 'object' && p.categoryId
               ? p.categoryId._id
               : typeof p.category === 'object' && p.category
-                ? p.category._id
+                ? (p.category as { _id?: string })._id
                 : typeof p.categoryId === 'string'
                   ? p.categoryId
                   : undefined;
           const ownerIdStr =
             typeof p.ownerId === 'object' && p.ownerId
-              ? p.ownerId._id
+              ? ((p.ownerId as { _id?: string; id?: string })._id || (p.ownerId as { id?: string }).id || currentOwnerId)
               : p.ownerId || currentOwnerId;
 
-          let normalizedStatus: 'APPROVED' | 'PENDING' | 'REJECTED' | 'DRAFT';
-          if (p.status === 'APPROVED') normalizedStatus = 'APPROVED';
-          else if (p.status === 'PENDING' || p.status === 'PENDING_APPROVAL') normalizedStatus = 'PENDING';
-          else if (p.status === 'REJECTED') normalizedStatus = 'REJECTED';
-          else normalizedStatus = 'DRAFT';
+          const st = (p.status || '').toUpperCase();
+          const approvalStatus: 'APPROVED' | 'PENDING' | 'REJECTED' | 'DRAFT' =
+            st === 'APPROVED' || st === 'ACTIVE'
+              ? 'APPROVED'
+              : st === 'PENDING' || st === 'PENDING_APPROVAL'
+                ? 'PENDING'
+                : st === 'REJECTED'
+                  ? 'REJECTED'
+                  : 'DRAFT';
+
+          const rawImg = Array.isArray(p.images) && p.images.length > 0
+            ? p.images[0]
+            : typeof p.images === 'string'
+              ? p.images
+              : '';
+          const coverImage = rawImg ? normalizeImageUrl(rawImg) : 'https://placehold.co/600x400';
+
+          const detailImages = Array.isArray(p.images)
+            ? p.images.map((img) => normalizeImageUrl(img))
+            : [];
+
+          const skuStr = p._id || (p as { id?: string }).id || `RENT-${index + 1}`;
 
           return {
-            sku: p._id,
-            name: p.name,
+            sku: String(skuStr),
+            name: p.name || 'Sản phẩm cho thuê',
             category: catName,
             categoryId: catIdStr,
-            brand: 'Atelier / Chronos',
-            pricePerDay: p.pricePerDay || 0,
-            deposit: p.depositAmount || 0,
-            totalUnits: p.totalQuantity || 1,
-            readyUnits: p.totalQuantity || 1,
+            brand: (p as { brand?: string }).brand || 'Atelier / Chronos',
+            mountSensor: (p as { mountSensor?: string }).mountSensor || '',
+            pricePerDay: Number(p.pricePerDay) || 0,
+            deposit: Number(p.depositAmount) || 0,
+            replacementValue: (p as { replacementValue?: number }).replacementValue
+              ? Number((p as { replacementValue?: number }).replacementValue)
+              : (Number(p.depositAmount) || 0) * 2,
+            totalUnits: Number(p.totalQuantity) || 1,
+            readyUnits: Number(p.totalQuantity) || 1,
             rentingUnits: 0,
-            approvalStatus: normalizedStatus,
+            inspectionUnits: 0,
+            approvalStatus,
             rejectionReason: (p as any).rejectionReason || (p as any).reason || '',
-            coverImage: p.images?.[0] || 'https://placehold.co/600x400',
-            inspectionImages: p.images || [],
-            description: p.description,
-            ownerId: ownerIdStr,
+            coverImage,
+            inspectionImages: detailImages,
+            description: p.description || '',
+            accessoriesIncluded: (p as { accessoriesIncluded?: string; rentalRules?: string }).accessoriesIncluded || (p as { rentalRules?: string }).rentalRules || '',
+            minDays: Number((p as { minDays?: number }).minDays) || 1,
+            maxDays: Number((p as { maxDays?: number }).maxDays) || 30,
+            ownerId: String(ownerIdStr),
             location: p.location || 'Hà Nội',
             condition: p.condition || 'LIKE_NEW',
-            isVisible: p.status !== 'HIDDEN',
+            isVisible: st !== 'HIDDEN',
             maintenanceUnits: 0,
           };
         });
+
+        // Chỉ lưu sản phẩm thật từ MongoDB, loại bỏ hoàn toàn mock tĩnh
         setProducts(mappedProducts);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(mappedProducts));
       }
@@ -170,8 +204,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
   }, [products]);
 
-  // Lọc sản phẩm thuộc về Shop Owner hiện tại
-  const ownerProducts = products.filter((p) => p.ownerId === currentOwnerId || p.ownerId === 'OWNER-01' || true);
+  // Lọc sản phẩm thuộc về Shop Owner hiện tại (hoặc hiển thị tất cả nếu đang ở tài khoản mặc định OWNER-01)
+  const ownerProducts = products.filter((p) => {
+    if (!p.ownerId) return true;
+    if (currentOwnerId === 'OWNER-01') return true;
+    return p.ownerId === currentOwnerId || p.ownerId === 'OWNER-01';
+  });
 
   // Thêm mới lưu trực tiếp vào MongoDB
   const addProduct = async (data: Omit<ShopProductItem, 'ownerId' | 'approvalStatus' | 'isVisible'>): Promise<ShopProductItem | null> => {
