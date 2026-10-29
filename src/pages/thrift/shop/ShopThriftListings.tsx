@@ -185,13 +185,13 @@ export const ShopThriftListings: React.FC = () => {
     return filteredListings.slice(start, start + itemsPerPage);
   }, [filteredListings, currentPage, itemsPerPage]);
 
-  // Metrics counts
-  const totalListingsCount = 38; // Display ledger total conforming to user spec
-  const availableCount = 24;
-  const pendingCount = 5;
-  const soldCount = 7;
-  const draftCount = 2;
-  const secondLifeCount = 14;
+  // Metrics counts tính động theo danh sách hiện vật thật từ DB
+  const totalListingsCount = listings.length;
+  const availableCount = listings.filter((l) => l.status === 'APPROVED' && !l.isSold).length;
+  const pendingCount = listings.filter((l) => l.status === 'PENDING').length;
+  const soldCount = listings.filter((l) => l.status === 'SOLD' || l.isSold).length;
+  const draftCount = listings.filter((l) => l.status === 'DRAFT').length;
+  const secondLifeCount = listings.filter((l) => l.source === 'RETURNED_RENTAL').length;
 
   // Handle Export CSV
   const handleExportCSV = () => {

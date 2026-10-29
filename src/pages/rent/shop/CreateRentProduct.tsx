@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/incompatible-library */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useShop } from '../../../context/ShopContext';
+import { uploadImageApi } from '../../../services/upload.api';
+import { getCategoriesApi, type CategoryItem } from '../../../services/category.api';
 
 // Schema validate bằng Zod theo chuẩn Jira AC
 const rentProductSchema = z.object({
@@ -33,6 +35,18 @@ export const CreateRentProduct: React.FC = () => {
 
   const [coverImage, setCoverImage] = useState<string>('');
   const [detailImages, setDetailImages] = useState<string[]>([]);
+  const [isUploadingCover, setIsUploadingCover] = useState<boolean>(false);
+  const [isUploadingDetails, setIsUploadingDetails] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+
+  useEffect(() => {
+    getCategoriesApi().then((data) => {
+      if (data && data.length > 0) {
+        setCategories(data);
+      }
+    });
+  }, []);
 
   // Ép kiểu tường minh qua any rồi đến RentProductFormData để tránh lỗi type sâu của hook form
   const {
@@ -60,42 +74,86 @@ export const CreateRentProduct: React.FC = () => {
   const watchedUnits = watch('totalUnits');
   const watchedMinDays = watch('minDays');
 
-  const onSubmit = (data: RentProductFormData) => {
+  const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingCover(true);
+      const url = await uploadImageApi(file);
+      setCoverImage(url);
+    } catch (err) {
+      console.error(err);
+      alert('Không thể tải ảnh bìa lên Cloudinary. Vui lòng thử lại.');
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
+
+  const handleUploadDetails = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    try {
+      setIsUploadingDetails(true);
+      const uploadPromises = files.map((file) => uploadImageApi(file));
+      const urls = await Promise.all(uploadPromises);
+      setDetailImages((prev) => [...prev, ...urls]);
+    } catch (err) {
+      console.error(err);
+      alert('Một số ảnh tải lên Cloudinary bị lỗi. Vui lòng kiểm tra lại.');
+    } finally {
+      setIsUploadingDetails(false);
+    }
+  };
+
+  const onSubmit = async (data: RentProductFormData) => {
     if (!coverImage) {
-      alert('Vui lòng tải lên ảnh bìa đại diện!');
+      alert('Vui lòng tải lên ảnh bìa đại diện lên Cloudinary!');
       return;
     }
     if (detailImages.length < 3) {
-      alert('Vui lòng tải tối thiểu 3 ảnh chi tiết kỹ thuật!');
+      alert('Vui lòng tải tối thiểu 3 ảnh chi tiết kỹ thuật lên Cloudinary!');
       return;
     }
 
-    const autoSku = `HBL-${Date.now().toString().slice(-6)}`;
+    try {
+      setIsSubmitting(true);
+      const autoSku = `HBL-${Date.now().toString().slice(-6)}`;
+      const matchedCat = categories.find(
+        (c) => c.name === data.category || c._id === data.category
+      );
 
-    addProduct({
-      sku: autoSku,
-      name: data.name,
-      category: data.category,
-      brand: data.brand,
-      mountSensor: data.mountSensor,
-      accessoriesIncluded: data.accessoriesIncluded,
-      description: data.description,
-      // Đảm bảo ép đúng kiểu number trước khi push vào context
-      pricePerDay: Number(data.pricePerDay),
-      deposit: Number(data.deposit),
-      replacementValue: Number(data.deposit) * 2,
-      totalUnits: Number(data.totalUnits),
-      readyUnits: Number(data.totalUnits),
-      rentingUnits: 0,
-      coverImage,
-      inspectionImages: detailImages,
-      minDays: Number(data.minDays),
-      maxDays: Number(data.maxDays),
-      maintenanceUnits: 0,
-    });
+      await addProduct({
+        sku: autoSku,
+        name: data.name,
+        category: matchedCat?.name || data.category,
+        categoryId: matchedCat?._id,
+        brand: data.brand,
+        mountSensor: data.mountSensor,
+        accessoriesIncluded: data.accessoriesIncluded,
+        description: data.description,
+        pricePerDay: Number(data.pricePerDay),
+        deposit: Number(data.deposit),
+        replacementValue: Number(data.deposit) * 2,
+        totalUnits: Number(data.totalUnits),
+        readyUnits: Number(data.totalUnits),
+        rentingUnits: 0,
+        coverImage,
+        inspectionImages: detailImages,
+        minDays: Number(data.minDays),
+        maxDays: Number(data.maxDays),
+        maintenanceUnits: 0,
+      });
 
-    alert('Đã tạo thành công sản phẩm RENT mới ở trạng thái "Chờ duyệt" (Pending)!');
-    navigate('/shop/rent/products');
+      alert('Đã tạo thành công sản phẩm RENT mới trên MongoDB và đồng bộ ảnh Cloudinary! Trạng thái: "Chờ duyệt" (Pending)');
+      navigate('/shop/rent/products');
+    } catch (err) {
+      console.error(err);
+      alert('Có lỗi xảy ra khi tạo sản phẩm. Vui lòng thử lại.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -104,7 +162,7 @@ export const CreateRentProduct: React.FC = () => {
         <div className="mb-6">
           <h1 className="font-serif text-3xl text-[#141310]">Khởi tạo Sản phẩm Cho thuê RENT</h1>
           <p className="text-xs text-[#7b766f] mt-1">
-            Mọi sản phẩm tạo mới sẽ ở trạng thái <strong>"Chờ duyệt" (Pending)</strong> để Admin thẩm định. (ownerId được hệ thống tự xác định).
+            Mọi sản phẩm tạo mới sẽ lưu trực tiếp vào <strong>MongoDB</strong>, ảnh upload lên <strong>Cloudinary</strong> và ở trạng thái <strong>"Chờ duyệt" (Pending)</strong> để Admin thẩm định.
           </p>
         </div>
 
@@ -113,7 +171,13 @@ export const CreateRentProduct: React.FC = () => {
           <div className="lg:col-span-8 space-y-6">
             {/* Ảnh */}
             <div className="bg-white p-6 rounded-xl border border-[#ebe8e1] space-y-4 shadow-sm">
-              <h2 className="font-serif text-lg text-[#141310]">A. Ảnh sản phẩm &amp; Thẩm định</h2>
+              <h2 className="font-serif text-lg text-[#141310] flex items-center justify-between">
+                <span>A. Ảnh sản phẩm &amp; Thẩm định</span>
+                <span className="text-[10px] text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded font-mono">
+                  Cloudinary CDN Storage
+                </span>
+              </h2>
+
               <div>
                 <label className="block text-xs font-semibold uppercase mb-1">Ảnh bìa chính *</label>
                 {coverImage ? (
@@ -122,41 +186,63 @@ export const CreateRentProduct: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setCoverImage('')}
-                      className="absolute top-1 right-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded"
+                      className="absolute top-1 right-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow"
                     >
                       Xóa
                     </button>
+                    <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1 rounded">
+                      Cloudinary
+                    </span>
                   </div>
                 ) : (
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) setCoverImage(URL.createObjectURL(file));
-                    }}
-                    className="text-xs"
-                  />
+                  <div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadCover}
+                      disabled={isUploadingCover}
+                      className="text-xs"
+                    />
+                    {isUploadingCover && (
+                      <p className="text-[11px] text-amber-600 mt-1 animate-pulse">
+                        ⏳ Đang tải ảnh lên Cloudinary, vui lòng chờ...
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase mb-1">Ảnh kỹ thuật 3 góc (Tối thiểu 3 ảnh) *</label>
+                <label className="block text-xs font-semibold uppercase mb-1">
+                  Ảnh kỹ thuật 3 góc (Tối thiểu 3 ảnh) *
+                </label>
                 <div className="flex gap-2 flex-wrap mb-2">
                   {detailImages.map((img, i) => (
-                    <img key={i} src={img} alt="Detail" className="w-20 h-20 object-cover rounded border" />
+                    <div key={i} className="relative w-20 h-20 rounded overflow-hidden border group">
+                      <img src={img} alt={`Detail ${i}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setDetailImages((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="absolute top-0.5 right-0.5 bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center opacity-80 hover:opacity-100"
+                      >
+                        ×
+                      </button>
+                    </div>
                   ))}
                 </div>
                 <input
                   type="file"
                   multiple
                   accept="image/*"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    setDetailImages(files.map((f) => URL.createObjectURL(f)));
-                  }}
+                  onChange={handleUploadDetails}
+                  disabled={isUploadingDetails}
                   className="text-xs"
                 />
+                {isUploadingDetails && (
+                  <p className="text-[11px] text-amber-600 mt-1 animate-pulse">
+                    ⏳ Đang tải loạt ảnh lên Cloudinary...
+                  </p>
+                )}
               </div>
             </div>
 
@@ -178,10 +264,20 @@ export const CreateRentProduct: React.FC = () => {
                   <label className="block text-xs font-semibold uppercase mb-1">Phân mục *</label>
                   <select {...register('category')} className="w-full px-3 py-2 bg-[#f7f3ec] rounded text-sm focus:outline-none">
                     <option value="">-- Chọn danh mục --</option>
-                    <option value="Medium Format Digital">Medium Format Digital</option>
-                    <option value="Analog 35mm">Analog 35mm</option>
-                    <option value="Hybrid Mirrorless">Hybrid Mirrorless</option>
-                    <option value="Cinema Optics">Cinema Optics</option>
+                    {categories.length > 0 ? (
+                      categories.map((c) => (
+                        <option key={c._id} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Medium Format Digital">Medium Format Digital</option>
+                        <option value="Analog 35mm">Analog 35mm</option>
+                        <option value="Hybrid Mirrorless">Hybrid Mirrorless</option>
+                        <option value="Cinema Optics">Cinema Optics</option>
+                      </>
+                    )}
                   </select>
                   {errors.category && <p className="text-red-600 text-[11px] mt-1">{errors.category.message as string}</p>}
                 </div>
@@ -281,9 +377,10 @@ export const CreateRentProduct: React.FC = () => {
 
               <button
                 type="submit"
-                className="mt-6 w-full py-3.5 bg-[#141310] hover:bg-[#292724] text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow transition-all cursor-pointer"
+                disabled={isSubmitting || isUploadingCover || isUploadingDetails}
+                className="mt-6 w-full py-3.5 bg-[#141310] hover:bg-[#292724] disabled:bg-gray-400 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow transition-all cursor-pointer disabled:cursor-not-allowed"
               >
-                Gửi yêu cầu duyệt đến Admin
+                {isSubmitting ? 'Đang lưu vào MongoDB...' : 'Gửi yêu cầu duyệt đến Admin'}
               </button>
               <Link to="/shop/rent/products" className="block text-center text-xs text-[#7b766f] hover:text-[#141310] mt-3">
                 Hủy và quay lại
