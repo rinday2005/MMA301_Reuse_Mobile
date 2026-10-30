@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useShop } from '../../../context/ShopContext';
 import { mockInventoryUnits } from '../../data/shop/inventoryData';
+import { calculateThriftDiscount } from '../../../utils/thriftPricing';
 
 export const InventoryDashboard: React.FC = () => {
   const { products } = useShop();
@@ -432,7 +433,7 @@ export const InventoryDashboard: React.FC = () => {
                       <div className="text-[11px] text-[#7b766f] font-mono tracking-wider">SN: {item.serialNumber}</div>
                     </td>
 
-                    {/* Col 3: Condition Grade */}
+                    {/* Col 3: Condition Grade & Khấu hao bậc thuê */}
                     <td className="py-4 px-4 align-top">
                       <div className="flex items-center gap-1.5">
                         <span
@@ -445,9 +446,19 @@ export const InventoryDashboard: React.FC = () => {
                         ></span>
                         <span className="font-semibold text-[#141310]">{item.conditionGrade}</span>
                       </div>
-                      <div className="text-[#7b766f] mt-0.5">
-                        {item.cycleCount} chu kỳ thuê • Khấu hao {item.depreciationRate}
-                      </div>
+                      {(() => {
+                        const dep = calculateThriftDiscount(item.cycleCount, 10000000);
+                        return (
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs text-[#4a463f] font-medium">
+                              {item.cycleCount} lần thuê
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                              -{dep.discountPercent}% khấu hao
+                            </span>
+                          </div>
+                        );
+                      })()}
                       {item.maintenanceNote && (
                         <div className="text-[#576151] font-medium text-[11px] mt-0.5">{item.maintenanceNote}</div>
                       )}
