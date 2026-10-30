@@ -251,7 +251,9 @@ const App = () => {
               <Route path="/shop/thrift-listings" element={<ShopThriftListings />} />
               <Route path="/shop/thrift/listings/create" element={<CreateThriftListing />} />
               <Route path="/shop/thrift/create" element={<CreateThriftListing />} />
+              <Route path="/shop/thrift/listings/:id" element={<EditThriftListing />} />
               <Route path="/shop/thrift/listings/:id/edit" element={<EditThriftListing />} />
+              <Route path="/shop/thrift/edit/:id" element={<EditThriftListing />} />
               <Route path="/shop/thrift/listings/:id/view" element={<ShopThriftListingDetail />} />
               <Route path="/shop/thrift/:id" element={<EditThriftListing />} />
 

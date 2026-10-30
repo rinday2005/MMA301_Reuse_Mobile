@@ -189,8 +189,11 @@ export const ShopThriftListings: React.FC = () => {
   const totalListingsCount = listings.length;
   const availableCount = listings.filter((l) => l.status === 'APPROVED' && !l.isSold).length;
   const pendingCount = listings.filter((l) => l.status === 'PENDING').length;
+  const approvedCount = listings.filter((l) => l.status === 'APPROVED').length;
+  const rejectedCount = listings.filter((l) => l.status === 'REJECTED').length;
   const soldCount = listings.filter((l) => l.status === 'SOLD' || l.isSold).length;
   const draftCount = listings.filter((l) => l.status === 'DRAFT').length;
+  const hiddenCount = listings.filter((l) => l.status === 'HIDDEN').length;
   const secondLifeCount = listings.filter((l) => l.source === 'RETURNED_RENTAL').length;
 
   // Handle Export CSV
@@ -230,7 +233,7 @@ export const ShopThriftListings: React.FC = () => {
 
   // Open Edit page
   const handleOpenEdit = (item: ThriftListingItem) => {
-    navigate(`/shop/thrift/listings/${item.id}`);
+    navigate(`/shop/thrift/listings/${item.id}/edit`);
   };
 
   // Save edit
@@ -510,7 +513,7 @@ export const ShopThriftListings: React.FC = () => {
                 : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
                 }`}
             >
-              Tất cả (38)
+              Tất cả ({totalListingsCount})
             </button>
             <button
               onClick={() => { setStatusFilter('DRAFT'); setCurrentPage(1); }}
@@ -519,7 +522,7 @@ export const ShopThriftListings: React.FC = () => {
                 : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
                 }`}
             >
-              Bản nháp (2)
+              Bản nháp ({draftCount})
             </button>
             <button
               onClick={() => { setStatusFilter('PENDING'); setCurrentPage(1); }}
@@ -528,7 +531,7 @@ export const ShopThriftListings: React.FC = () => {
                 : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
                 }`}
             >
-              Chờ duyệt (5)
+              Chờ duyệt ({pendingCount})
             </button>
             <button
               onClick={() => { setStatusFilter('APPROVED'); setCurrentPage(1); }}
@@ -537,7 +540,7 @@ export const ShopThriftListings: React.FC = () => {
                 : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
                 }`}
             >
-              Đã duyệt (26)
+              Đã duyệt ({approvedCount})
             </button>
             <button
               onClick={() => { setStatusFilter('REJECTED'); setCurrentPage(1); }}
@@ -546,7 +549,7 @@ export const ShopThriftListings: React.FC = () => {
                 : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
                 }`}
             >
-              Từ chối (1)
+              Từ chối ({rejectedCount})
             </button>
             <button
               onClick={() => { setStatusFilter('AVAILABLE'); setCurrentPage(1); }}
@@ -555,7 +558,7 @@ export const ShopThriftListings: React.FC = () => {
                 : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
                 }`}
             >
-              Đang mở bán (24)
+              Đang mở bán ({availableCount})
             </button>
             <button
               onClick={() => { setStatusFilter('SOLD'); setCurrentPage(1); }}
@@ -564,7 +567,7 @@ export const ShopThriftListings: React.FC = () => {
                 : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
                 }`}
             >
-              Đã bán (7)
+              Đã bán ({soldCount})
             </button>
             <button
               onClick={() => { setStatusFilter('HIDDEN'); setCurrentPage(1); }}
@@ -573,7 +576,7 @@ export const ShopThriftListings: React.FC = () => {
                 : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
                 }`}
             >
-              Đang ẩn (1)
+              Đang ẩn ({hiddenCount})
             </button>
           </div>
 
@@ -773,7 +776,7 @@ export const ShopThriftListings: React.FC = () => {
                         <span className="uppercase font-semibold tracking-wider text-primary">{item.category}</span>
                         <span className="font-mono text-outline">SKU: {item.sku}</span>
                       </div>
-                      <Link to={`/shop/thrift/listings/${item.id}`} className="block">
+                      <Link to={`/shop/thrift/listings/${item.id}/edit`} className="block">
                         <h2 className="font-serif text-lg font-semibold text-on-surface line-clamp-1 group-hover:text-primary transition-colors hover:underline cursor-pointer">
                           {item.title}
                         </h2>
@@ -854,15 +857,15 @@ export const ShopThriftListings: React.FC = () => {
                     {isRejected ? (
                       <>
                         <Link
-                          to={`/shop/thrift/listings/${item.id}`}
+                          to={`/shop/thrift/listings/${item.id}/edit`}
                           className="flex-1 text-center py-2 bg-primary text-on-primary hover:bg-primary-container font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT transition-colors shadow-sm cursor-pointer"
                         >
                           Cập nhật Hồ sơ Ảnh
                         </Link>
                         <Link
-                          to={`/shop/thrift/listings/${item.id}`}
+                          to={`/shop/thrift/listings/${item.id}/view`}
                           className="px-3 py-2 bg-surface hover:bg-surface-container-high text-on-surface font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT transition-colors shadow-sm cursor-pointer flex items-center justify-center"
-                          title="Xem chi tiết & Chỉnh sửa"
+                          title="Xem chi tiết hồ sơ lưu ký"
                         >
                           <span className="material-symbols-outlined text-[16px] block">visibility</span>
                         </Link>
@@ -870,7 +873,7 @@ export const ShopThriftListings: React.FC = () => {
                     ) : isDraft ? (
                       <>
                         <Link
-                          to={`/shop/thrift/listings/${item.id}`}
+                          to={`/shop/thrift/listings/${item.id}/edit`}
                           className="flex-1 text-center py-2 bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT transition-colors shadow-sm cursor-pointer"
                         >
                           Tiếp tục Soạn thảo
@@ -886,10 +889,10 @@ export const ShopThriftListings: React.FC = () => {
                     ) : isSold && item.orderId ? (
                       <>
                         <Link
-                          to={`/shop/thrift/listings/${item.id}`}
+                          to={`/shop/thrift/listings/${item.id}/view`}
                           className="flex-1 text-center py-2 bg-surface hover:bg-surface-container-high text-on-surface font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT transition-colors shadow-sm"
                         >
-                          Chỉnh sửa / Chi tiết
+                          Chi tiết hồ sơ
                         </Link>
                         <Link
                           to={`/shop/thrift/orders?order=${item.orderId}`}
@@ -902,14 +905,21 @@ export const ShopThriftListings: React.FC = () => {
                     ) : (
                       <>
                         <Link
-                          to={`/shop/thrift/listings/${item.id}`}
+                          to={`/shop/thrift/listings/${item.id}/edit`}
                           className="flex-1 text-center py-2 bg-surface hover:bg-surface-container-high text-on-surface font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT transition-colors shadow-sm"
                         >
                           Chỉnh sửa mục đăng
                         </Link>
                         <Link
-                          to={`/shop/thrift/listings/${item.id}`}
-                          className="px-3 py-2 bg-surface hover:bg-surface-container-high text-on-surface font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT transition-colors shadow-sm cursor-pointer flex items-center justify-center"
+                          to={`/shop/thrift/listings/${item.id}/view`}
+                          className="px-2.5 py-2 bg-surface hover:bg-surface-container-high text-on-surface font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT transition-colors shadow-sm cursor-pointer flex items-center justify-center"
+                          title="Xem chi tiết"
+                        >
+                          <span className="material-symbols-outlined text-[16px] block">visibility</span>
+                        </Link>
+                        <Link
+                          to={`/shop/thrift/listings/${item.id}/edit`}
+                          className="px-2.5 py-2 bg-surface hover:bg-surface-container-high text-on-surface font-label-md text-label-md uppercase tracking-wider rounded-DEFAULT transition-colors shadow-sm cursor-pointer flex items-center justify-center"
                           title="Chỉnh sửa thông tin"
                         >
                           <span className="material-symbols-outlined text-[16px] block">edit</span>
