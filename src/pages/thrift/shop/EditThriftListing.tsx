@@ -63,12 +63,10 @@ export const EditThriftListing: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [showAuditModal, setShowAuditModal] = useState(false);
-  const [isLoadingApi, setIsLoadingApi] = useState(false);
 
   // Fetch listing data from MongoDB API
   useEffect(() => {
     if (!id) return;
-    setIsLoadingApi(true);
     getPublicThriftListingByIdApi(id)
       .then((apiItem) => {
         if (apiItem) {
@@ -105,9 +103,6 @@ export const EditThriftListing: React.FC = () => {
       })
       .catch((err) => {
         console.warn('Lỗi khi nạp dữ liệu thrift từ API:', err);
-      })
-      .finally(() => {
-        setIsLoadingApi(false);
       });
   }, [id]);
 
