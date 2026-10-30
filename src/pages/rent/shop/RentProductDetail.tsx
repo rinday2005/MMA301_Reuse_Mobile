@@ -8,7 +8,7 @@ export const RentProductDetail: React.FC = () => {
   const { products } = useShop();
 
   // Lấy dữ liệu sản phẩm tương ứng từ MongoDB ShopContext hoặc mock data
-  const matchedProduct = products.find((p) => p.sku === id || (p as any)._id === id);
+  const matchedProduct = products.find((p) => p.sku === id || (p as { _id?: string })._id === id);
   const product = matchedProduct || mockRentProducts.find((p) => p.sku === id) || mockRentProducts[0];
 
   // Danh sách ảnh 4 góc giám định

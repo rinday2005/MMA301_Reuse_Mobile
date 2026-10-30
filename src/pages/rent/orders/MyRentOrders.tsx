@@ -10,7 +10,7 @@ import {
   type MetricCardData,
 } from '../../data/rent/myRentOrdersData';
 import { getRentProductDetail } from '../../data/rent/rentOrderDetailData';
-import { resolveCleanAddress } from '../../../utils/address';
+import { resolveCleanAddress, calculateDynamicShippingFee, normalizeShopBranch } from '../../../utils/address';
 import { normalizeImageUrl } from '../../../utils/imageUrl';
 import { isObjectIdLike, isUnusableItemTitle, resolveRentProductsByIds } from '../../../utils/rentOrderItemResolver';
 
@@ -418,7 +418,10 @@ export const MyRentOrders: React.FC = () => {
         : (raw as StoredRentalOrderRecord).totalDeposit && (raw as StoredRentalOrderRecord).totalDeposit! > 0
         ? (raw as StoredRentalOrderRecord).totalDeposit!
         : 1500000;
-    const shipFee: number = raw.shippingFee ?? 25000;
+    const firstP = rawItems[0] && typeof rawItems[0].productId === 'object' && rawItems[0].productId !== null ? (rawItems[0].productId as Record<string, unknown>) : null;
+    const itemBranch = normalizeShopBranch(String(firstP?.location || (rawItems[0] as { location?: string; warehouse?: string })?.location || (rawItems[0] as { warehouse?: string })?.warehouse || 'Đà Nẵng'));
+    const shipFee: number = calculateDynamicShippingFee(resolveCleanAddress(raw.shippingAddress, user), itemBranch);
+    const grandFee: number = rentFee + depFee + shipFee;
 
     const rawGrand =
       raw.totalAmount && raw.totalAmount !== 4400000
@@ -426,7 +429,7 @@ export const MyRentOrders: React.FC = () => {
         : (raw as StoredRentalOrderRecord).totalPayment && (raw as StoredRentalOrderRecord).totalPayment !== 4400000
         ? (raw as StoredRentalOrderRecord).totalPayment
         : rentFee + depFee + shipFee;
-    const grandFee: number = rawGrand ?? (rentFee + depFee + shipFee);
+    void rawGrand;
 
     const shipAddress = raw.shippingAddress;
     const addressStr = resolveCleanAddress(shipAddress, user);
@@ -1662,7 +1665,7 @@ export const MyRentOrders: React.FC = () => {
                                     try {
                                       const c = (order.id || '').replace('#', '').trim().toLowerCase();
                                       if (c) localStorage.setItem(`user_initiated_return_${c}`, 'true');
-                                      const rawId = (order as any)._id;
+                                      const rawId = (order as { _id?: string })._id;
                                       if (rawId) localStorage.setItem(`user_initiated_return_${String(rawId).toLowerCase()}`, 'true');
                                       window.dispatchEvent(new Event('storage'));
                                       window.dispatchEvent(new Event('rental_order_updated'));

@@ -42,6 +42,7 @@ export const CreateThriftListing: React.FC = () => {
   const [listingTitle, setListingTitle] = useState('Hasselblad 907X 50C + Kit Lens XCD 45mm f/4 P (Ex-Rental Archive Mint-)');
   const [category, setCategory] = useState('Camera & Quang học / Medium Format Digital');
   const [brandOrigin, setBrandOrigin] = useState('Hasselblad (Thụy Điển / Göteborg)');
+  const [branchLocation, setBranchLocation] = useState<'Đà Nẵng' | 'Hà Nội' | 'TP. Hồ Chí Minh'>('Đà Nẵng');
   const [skuCode, setSkuCode] = useState('HBL-907X-TH01');
   const [conditionGrade, setConditionGrade] = useState<'like_new' | 'good' | 'fair'>('like_new');
   const [forensicNotes, setForensicNotes] = useState(
@@ -135,13 +136,13 @@ export const CreateThriftListing: React.FC = () => {
         price: numericPrice,
         condition: conditionGrade.toUpperCase(),
         images: imageUrls.length > 0 ? imageUrls : ['https://placehold.co/600x400'],
-        location: 'Hà Nội',
+        location: branchLocation,
         categoryId: matchedCat?._id || '67c000000000000000000001',
         sourceType: originSource === 'rental_archive' ? 'FROM_RENTAL' : 'MANUAL',
         status: status === 'PENDING' ? 'PENDING_APPROVAL' : 'DRAFT',
       };
 
-      let createdMongoListing: any = null;
+      let createdMongoListing: { _id?: string } | null = null;
       try {
         createdMongoListing = await createThriftListingApi(payload);
       } catch (apiErr) {
@@ -173,6 +174,7 @@ export const CreateThriftListing: React.FC = () => {
         priceFormatted: formattedDisplayPrice,
         image: photos[0]?.url || 'https://placehold.co/600x400',
         serialNumber: '#HB-907-88201',
+        location: branchLocation,
         submittedAt: new Date().toLocaleDateString('vi-VN'),
         appraiserName: 'Atelier Chronos & Optics',
         curatorNotes: forensicNotes,
@@ -499,6 +501,26 @@ export const CreateThriftListing: React.FC = () => {
                 </div>
 
                 <div>
+                  <label className="block font-label-md text-label-md uppercase tracking-wider text-on-surface mb-2 font-semibold">
+                    Chi Nhánh Kho Lưu Ký / Địa Điểm Xuất Hàng <span className="text-error">*</span>
+                  </label>
+                  <div className="relative mb-5">
+                    <select
+                      value={branchLocation}
+                      onChange={(e) => setBranchLocation(e.target.value as 'Đà Nẵng' | 'Hà Nội' | 'TP. Hồ Chí Minh')}
+                      className="w-full px-4 py-3 bg-surface-container-low text-on-surface font-semibold rounded-DEFAULT focus:outline-none focus:ring-1 focus:ring-primary appearance-none font-body-md text-body-md cursor-pointer border border-surface-dim"
+                    >
+                      <option value="Đà Nẵng">Chi nhánh Đà Nẵng (Kho Miền Trung)</option>
+                      <option value="Hà Nội">Chi nhánh Hà Nội (Kho Miền Bắc)</option>
+                      <option value="TP. Hồ Chí Minh">Chi nhánh TP. Hồ Chí Minh (Kho Miền Nam)</option>
+                    </select>
+                    <span className="material-symbols-outlined pointer-events-none absolute right-3 top-3 text-on-surface-variant text-[20px]">
+                      expand_more
+                    </span>
+                    <p className="font-label-sm text-label-sm text-on-surface-variant mt-1.5">
+                      Phí vận chuyển sẽ tự động tính dựa trên chi nhánh kho này và địa chỉ của người mua: Nội tỉnh (25.000₫) • Nội miền (35.000₫) • Liên miền (45.000₫).
+                    </p>
+                  </div>
                   <label className="block font-label-md text-label-md uppercase tracking-wider text-on-surface mb-2 font-semibold">
                     Mã Phân Loại Lưu Kho Xưởng (Custom Atelier SKU)
                   </label>

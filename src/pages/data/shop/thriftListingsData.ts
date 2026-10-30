@@ -41,6 +41,7 @@ export interface ThriftListingItem {
   submittedAt: string;
   appraiserName?: string;
   curatorNotes?: string;
+  location?: string;
 }
 
 export const INITIAL_THRIFT_LISTINGS: ThriftListingItem[] = [

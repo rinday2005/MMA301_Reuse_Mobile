@@ -17,6 +17,7 @@ import {
 import type { RentProductDetailData } from '../../data/rent/rentOrderDetailData';
 import { getPublicRentProductDetailApi } from '../../../services/rentProduct.api';
 import { normalizeImageUrl } from '../../../utils/imageUrl';
+import { getUserProfileAddress, calculateDynamicShippingFee, normalizeShopBranch } from '../../../utils/address';
 
 type TabKey = 'desc' | 'terms' | 'audit' | 'deposit' | 'shipping';
 
@@ -173,7 +174,15 @@ export const RentProductDetail: React.FC = () => {
 
   const baseDailyRate = product.pricePerDay;
   const baseDeposit = product.deposit;
-  const shippingFee = 25000;
+  const userProfileAddress = useMemo(() => getUserProfileAddress(user), [user]);
+  const shippingFee = useMemo(
+    () =>
+      calculateDynamicShippingFee(
+        userProfileAddress.province || userProfileAddress.full,
+        normalizeShopBranch(product.location || 'Đà Nẵng')
+      ),
+    [userProfileAddress, product.location]
+  );
 
   const rentTotal = baseDailyRate * days * quantity;
   const depositTotal = baseDeposit * quantity;
