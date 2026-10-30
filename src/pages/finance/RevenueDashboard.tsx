@@ -20,6 +20,7 @@ import {
   getPublicThriftListingsApi,
   type ThriftListingItemApi,
 } from '../../services/thrift.api';
+import { getShopRevenueApi } from '../../services/shop.api';
 import { normalizeImageUrl } from '../../utils/imageUrl';
 
 // ─── Fashion Clothing Fallbacks & Image Catalog ──────────────────────────────
@@ -240,6 +241,16 @@ export const RevenueDashboard: React.FC = () => {
       setThriftListings(listings || []);
     } catch (e) {
       console.warn('Lỗi tải listings THRIFT:', e);
+    }
+
+    // 5. Đồng bộ doanh thu thật từ MongoDB Aggregation Pipeline (/api/shop/revenue)
+    try {
+      const revData = await getShopRevenueApi();
+      if (revData?.summary?.walletBalance !== undefined && revData.summary.walletBalance > 0) {
+        setWalletBalance(revData.summary.walletBalance);
+      }
+    } catch (e) {
+      console.warn('Lỗi tải thống kê doanh thu MongoDB Aggregation:', e);
     }
   }, []);
 
