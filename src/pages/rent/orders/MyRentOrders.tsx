@@ -1665,7 +1665,7 @@ export const MyRentOrders: React.FC = () => {
                                     try {
                                       const c = (order.id || '').replace('#', '').trim().toLowerCase();
                                       if (c) localStorage.setItem(`user_initiated_return_${c}`, 'true');
-                                      const rawId = (order as any)._id;
+                                      const rawId = (order as { _id?: string })._id;
                                       if (rawId) localStorage.setItem(`user_initiated_return_${String(rawId).toLowerCase()}`, 'true');
                                       window.dispatchEvent(new Event('storage'));
                                       window.dispatchEvent(new Event('rental_order_updated'));

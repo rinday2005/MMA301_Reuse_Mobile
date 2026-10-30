@@ -629,7 +629,7 @@ export const RentOrderDetail: React.FC = () => {
         rawStatus === 'COMPLETED' ||
         urlStatus === 'COMPLETED' ||
         candidateKeys.some((ck) => localStorage.getItem(`inspection_approved_${ck.toLowerCase()}`)) ||
-        Boolean((source as any)?.inspectionResult?.isApproved)
+        Boolean((source as { inspectionResult?: { isApproved?: boolean } })?.inspectionResult?.isApproved)
       );
 
       const isInspectionEntered = Boolean(

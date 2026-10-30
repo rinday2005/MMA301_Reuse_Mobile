@@ -210,9 +210,9 @@ export const UserWallet: React.FC = () => {
         pendingItems.push(itemLabel);
       } else if (o.status === 'COMPLETED') {
         const refundVal =
-          typeof (o as { inspectionResult?: { refundAmount?: number; damagePenaltyAmount?: number } }).inspectionResult?.refundAmount === 'number'
-            ? (o as { inspectionResult: { refundAmount: number } }).inspectionResult.refundAmount
-            : Math.max(0, dep - ((o as { inspectionResult?: { damagePenaltyAmount?: number } }).inspectionResult?.damagePenaltyAmount || 0));
+          typeof o.inspectionResult?.refundAmount === 'number'
+            ? o.inspectionResult.refundAmount
+            : Math.max(0, dep - (o.inspectionResult?.damagePenaltyAmount || 0));
         completedRefund += refundVal;
         completedItems.push(itemLabel);
       }
@@ -224,7 +224,7 @@ export const UserWallet: React.FC = () => {
       const withdrawnAmount = uId ? Math.max(0, Number(localStorage.getItem(`user_wallet_withdrawn_${uId}`) || 0)) : 0;
       availableBalance = Math.max(0, completedRefund - withdrawnAmount);
 
-      if (false) {
+      if (withdrawnAmount < 0) {
         availableBalance = Math.max(completedRefund, 0);
       } else {
         availableBalance = Math.max(0, completedRefund - withdrawnAmount);

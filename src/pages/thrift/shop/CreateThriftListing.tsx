@@ -142,7 +142,7 @@ export const CreateThriftListing: React.FC = () => {
         status: status === 'PENDING' ? 'PENDING_APPROVAL' : 'DRAFT',
       };
 
-      let createdMongoListing: any = null;
+      let createdMongoListing: { _id?: string } | null = null;
       try {
         createdMongoListing = await createThriftListingApi(payload);
       } catch (apiErr) {

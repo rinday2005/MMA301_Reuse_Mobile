@@ -113,7 +113,7 @@ export const ShopRentOrderDetail: React.FC = () => {
           const hasInspectionApproved = Boolean(
             loadedOrder.status === 'COMPLETED' ||
             candidateKeys.some((k) => localStorage.getItem(`inspection_approved_${k}`)) ||
-            (loadedOrder as any)?.inspectionResult?.isApproved
+            (loadedOrder as { inspectionResult?: { isApproved?: boolean } })?.inspectionResult?.isApproved
           );
           const hasInspectionEntered = Boolean(
             loadedOrder.status === 'RETURNED' ||
@@ -267,16 +267,16 @@ export const ShopRentOrderDetail: React.FC = () => {
   // Dynamic Customer Rental & Dispute Statistics (tính toán động từ đơn thuê thực tế)
 
   const customerStats = useMemo(() => {
-    const renterIdStr = typeof order?.renterId === 'object' ? (order?.renterId as any)?._id : order?.renterId;
+    const renterIdStr = typeof order?.renterId === 'object' ? (order?.renterId as { _id?: string })?._id : order?.renterId;
     const targetEmail = customerInfo.email?.toLowerCase();
     const targetPhone = customerInfo.phone?.replace(/\D/g, '');
     const targetName = customerInfo.fullName?.toLowerCase();
 
     // Tìm tất cả các đơn của khách hàng này trong shop orders và localStorage
     const matched = allShopOrders.filter((o) => {
-      const oRenterId = typeof o.renterId === 'object' ? (o.renterId as any)?._id : o.renterId;
+      const oRenterId = typeof o.renterId === 'object' ? (o.renterId as { _id?: string })?._id : o.renterId;
       if (renterIdStr && oRenterId && String(renterIdStr) === String(oRenterId)) return true;
-      const oEmail = (o.shippingAddress as any)?.recipientEmail?.toLowerCase() || (o as any).renterEmail?.toLowerCase();
+      const oEmail = (o.shippingAddress as { recipientEmail?: string })?.recipientEmail?.toLowerCase() || (o as { renterEmail?: string }).renterEmail?.toLowerCase();
       if (targetEmail && oEmail && oEmail === targetEmail) return true;
       const oPhone = o.shippingAddress?.recipientPhone?.replace(/\D/g, '');
       if (targetPhone && oPhone && oPhone === targetPhone) return true;
@@ -286,7 +286,7 @@ export const ShopRentOrderDetail: React.FC = () => {
     });
 
     const count = Math.max(matched.length, order ? 1 : 1);
-    const disputes = matched.filter((o) => o.status === 'DISPUTED' || (o as any).complaint).length;
+    const disputes = matched.filter((o) => o.status === 'DISPUTED' || (o as { complaint?: unknown }).complaint).length;
     const trustPercent = disputes === 0 ? '100%' : `${Math.max(60, Math.round(((count - disputes) / count) * 100))}%`;
 
     return {
@@ -359,16 +359,16 @@ export const ShopRentOrderDetail: React.FC = () => {
     return 630000;
   }, [order, originalDeposit]);
 
-  const totalPayment = useMemo(() => rentalFee + originalDeposit + shippingFee, [rentalFee, originalDeposit, shippingFee]);
+  const totalPayment = useMemo(() => rentalFee + originalDeposit + shippingFee, [rentalFee, originalDeposit, shippingFee]); void totalPayment;
   const legacyTotalPayment = useMemo(() => {
   const unusedTotalPaymentRef = totalPayment; void unusedTotalPaymentRef;
 
       if (order?.totalAmount) return order.totalAmount;
       return rentalFee + originalDeposit + 50000;
-    }, [order, rentalFee, originalDeposit]);
+    }, [order, rentalFee, originalDeposit, totalPayment]); void legacyTotalPayment;
 
     const rentalDays = useMemo(() => {
-      void legacyTotalPayment;
+      void order;
       if (order?.rentalDays) return order.rentalDays;
       if (order?.startDate && order?.endDate) {
         const diff = new Date(order.endDate).getTime() - new Date(order.startDate).getTime();
@@ -412,7 +412,7 @@ export const ShopRentOrderDetail: React.FC = () => {
         } catch { }
       }
 
-      const rawOrderReturnedAt = (order as any)?.returnedAt || (order as any)?.actualReturnDate;
+      const rawOrderReturnedAt = (order as { returnedAt?: string; actualReturnDate?: string })?.returnedAt || (order as { actualReturnDate?: string })?.actualReturnDate;
       if (rawOrderReturnedAt) {
         return new Date(rawOrderReturnedAt).toLocaleDateString('vi-VN');
       }
@@ -485,13 +485,13 @@ export const ShopRentOrderDetail: React.FC = () => {
               damagePenaltyAmount: deductionAmount,
               refundAmount,
               reason: inspectionNote,
-            } as any,
+            },
           }
           : null
       );
 
       // Cập nhật số dư ví khả dụng của khách và lưu trạng thái COMPLETED vào localStorage
-      const renterId = typeof order?.renterId === 'object' ? (order?.renterId as any)?._id : order?.renterId;
+      const renterId = typeof order?.renterId === 'object' ? (order?.renterId as { _id?: string })?._id : order?.renterId;
       const cleanCode = (order?.orderCode || cleanId).replace('#', '').trim();
 
       try {
@@ -500,7 +500,7 @@ export const ShopRentOrderDetail: React.FC = () => {
         allKeys.forEach((k) => {
           try {
             const list = JSON.parse(localStorage.getItem(k) || '[]');
-            const updated = list.map((o: any) => {
+            const updated = list.map((o: { orderCode?: string; id?: string; _id?: string; [key: string]: unknown }) => {
               const oCode = (o.orderCode || o.id || o._id || '').replace('#', '').trim();
               if (oCode === cleanCode || o._id === targetId || o.id === targetId) {
                 return {
@@ -1238,7 +1238,7 @@ export const ShopRentOrderDetail: React.FC = () => {
                             {claProofData?.photos && (
                               <div className="grid grid-cols-3 gap-1.5 mb-2.5">
                                 {['slot1', 'slot2', 'slot3'].map((slotKey, sIdx) => {
-                                  const photoUrl = (claProofData.photos as any)?.[slotKey];
+                                  const photoUrl = (claProofData.photos as Record<string, string>)?.[slotKey];
                                   if (!photoUrl) return null;
                                   return (
                                     <div

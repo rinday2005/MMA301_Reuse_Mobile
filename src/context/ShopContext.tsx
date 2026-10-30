@@ -5,7 +5,7 @@ import {
   getPublicRentProductsApi,
   createRentProductApi,
   updateRentProductApi,
-  deleteRentProductApi,
+  deleteRentProductApi, type RentalProductApi,
 } from '../services/rentProduct.api';
 import { getShopRentalOrdersApi, type RentalOrderApi } from '../services/order.api';
 import { normalizeImageUrl } from '../utils/imageUrl';
@@ -228,7 +228,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             rentingUnits: rentedUnits,
             inspectionUnits: 0,
             approvalStatus,
-            rejectionReason: (p as any).rejectionReason || (p as any).reason || '',
+            rejectionReason: (p as { rejectionReason?: string; reason?: string }).rejectionReason || (p as { reason?: string }).reason || '',
             coverImage,
             inspectionImages: detailImages,
             description: p.description || '',
@@ -280,13 +280,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         pricePerDay: Number(data.pricePerDay),
         depositAmount: Number(data.deposit),
         images: images.length > 0 ? images : ['https://placehold.co/600x400'],
-        condition: (data.condition as any) || 'LIKE_NEW',
+        condition: (data.condition as string) || 'LIKE_NEW',
         location: normalizeShopBranch(data.location || 'Đà Nẵng'),
         totalQuantity: Number(data.totalUnits) || 1,
         rentalRules: data.accessoriesIncluded || 'Vali Nanuk đối kiểm 3 góc',
       };
 
-      const created = await createRentProductApi(payload as any);
+      const created = await createRentProductApi(payload as Partial<RentalProductApi>);
       const newProduct: ShopProductItem = {
         ...data,
         sku: created._id || data.sku,
@@ -330,7 +330,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (data.totalUnits) payload.totalQuantity = Number(data.totalUnits);
         if (data.location) payload.location = normalizeShopBranch(data.location);
         if (data.coverImage) payload.images = [data.coverImage, ...(data.inspectionImages || [])];
-        await updateRentProductApi(sku, payload as any);
+        await updateRentProductApi(sku, payload as Partial<RentalProductApi>);
       } catch (err) {
         console.warn('Lỗi gọi API cập nhật sản phẩm:', err);
       }
@@ -366,7 +366,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         await updateRentProductApi(sku, {
           status: newVisible ? 'APPROVED' : 'HIDDEN',
-        } as any);
+        } as Partial<RentalProductApi>);
       } catch (err) {
         console.warn('Lỗi toggle visibility trên MongoDB:', err);
       }

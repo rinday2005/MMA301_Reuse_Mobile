@@ -106,12 +106,12 @@ export const ShopOrders: React.FC = () => {
 
     // Đồng bộ sang localStorage user để timeline hiển thị Bước 8
     try {
-      const cleanCode = ((order as any).orderCode || order.id || order._id || '').replace('#', '').trim();
+      const cleanCode = ((order as { orderCode?: string }).orderCode || order.id || order._id || '').replace('#', '').trim();
       const allKeys = Object.keys(localStorage).filter((k) => k.startsWith('user_rental_orders'));
       allKeys.forEach((k) => {
         try {
           const list = JSON.parse(localStorage.getItem(k) || '[]');
-          const updated = list.map((o: any) => {
+          const updated = list.map((o: { orderCode?: string; id?: string; _id?: string; [key: string]: unknown }) => {
             const oCode = (o.orderCode || o.id || o._id || '').replace('#', '').trim();
             if (oCode === cleanCode || o._id === targetId || o.id === targetId) {
               return { ...o, status: 'RETURNED' };
@@ -180,7 +180,7 @@ export const ShopOrders: React.FC = () => {
         allKeys.forEach((k) => {
           try {
             const list = JSON.parse(localStorage.getItem(k) || '[]');
-            const updated = list.map((o: any) => {
+            const updated = list.map((o: { orderCode?: string; id?: string; _id?: string; [key: string]: unknown }) => {
               if (o.orderCode === order.id || o.id === order.id || o._id === order._id || o.orderCode === order._id) {
                 return { ...o, status: 'WAITING_PAYMENT' };
               }
@@ -252,7 +252,7 @@ export const ShopOrders: React.FC = () => {
         allKeys.forEach((k) => {
           try {
             const list = JSON.parse(localStorage.getItem(k) || '[]');
-            const updated = list.map((o: any) => {
+            const updated = list.map((o: { orderCode?: string; id?: string; _id?: string; [key: string]: unknown }) => {
               const oCode = (o.orderCode || o.id || o._id || '').replace('#', '').trim();
               if (oCode === cleanCode || o._id === selectedOrder._id || o.id === selectedOrder._id) {
                 return {
