@@ -443,18 +443,24 @@ export const UserDashboard: React.FC = () => {
     return thriftOrders.slice(0, 3).map((order: ThriftOrderApi, idx: number) => {
       const itemsList = order.items;
       const item = itemsList?.[0];
+      const listing =
+        item && typeof item.listingId === 'object' && item.listingId !== null
+          ? item.listingId
+          : item && typeof item.productId === 'object' && item.productId
+            ? item.productId
+            : null;
       const rawId = order.orderCode || order._id || `RH-THF-${idx + 1}`;
       const code = rawId.startsWith('#') ? rawId : `#${rawId}`;
-      const title = item?.productName || (item as unknown as { title?: string })?.title || `Hiện vật THRIFT ${code}`;
-      const rawImg =
-        item?.imageUrl ||
-        (item as unknown as { image?: string })?.image ||
-        '';
+      const title =
+        item?.name || item?.productName || item?.title || listing?.name || listing?.title || `Hiện vật THRIFT ${code}`;
+      const listingImages = (listing as { images?: string[] } | null)?.images;
       const image =
-        rawImg ||
-        'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80';
-      const price = order.totalAmount || item?.price || 0;
-      const condition = item?.condition || 'Tình trạng: Kiểm định chuẩn ReUse Grade A';
+        (Array.isArray(listingImages) && listingImages[0]) ||
+        item?.imageUrl ||
+        (Array.isArray(item?.images) && item?.images?.[0]) ||
+        '/images/clothes2.jpg';
+      const price = order.totalAmount || item?.price || listing?.price || 0;
+      const condition = item?.condition || listing?.condition || '';
 
       let status = 'ĐÃ XÁC NHẬN';
       if (order.status === 'COMPLETED') status = 'ĐÃ GIAO HÀNG';
