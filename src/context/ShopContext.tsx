@@ -7,6 +7,7 @@ import {
   updateRentProductApi,
   deleteRentProductApi,
 } from '../services/rentProduct.api';
+import { getShopRentalOrdersApi, type RentalOrderApi } from '../services/order.api';
 import { normalizeImageUrl } from '../utils/imageUrl';
 
 // Thêm module augmentation để ép TypeScript hiểu User có name và username
@@ -94,7 +95,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return [];
   });
 
-  // Nạp sản phẩm RENT từ MongoDB
+  // Nạp sản phẩm RENT từ MongoDB và tính số lượng tồn kho theo đơn hàng thực tế
   const fetchProductsFromDB = useCallback(async () => {
     try {
       // 1. Thử lấy danh sách sản phẩm riêng của Shop Owner hiện tại
@@ -104,6 +105,37 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!apiProducts || apiProducts.length === 0) {
         apiProducts = await getPublicRentProductsApi();
       }
+
+      // 3. Lấy danh sách đơn hàng của Shop để tính số lượng đang thuê (Rented)
+      let shopOrders: RentalOrderApi[] = [];
+      try {
+        const orderRes = await getShopRentalOrdersApi();
+        if (Array.isArray(orderRes)) {
+          shopOrders = orderRes;
+        }
+      } catch {
+        // Fallback im lặng nếu chưa có quyền xem đơn hàng
+      }
+
+      // Map số lượng đang thuê theo từng sản phẩm
+      const rentedCountMap: Record<string, number> = {};
+      const activeRentalStatuses = [
+        'RENTING', 'DELIVERED', 'ACTIVE', 'IN_RENTAL',
+        'RETURN_REQUESTED', 'INSPECTING', 'APPROVED', 'SHIPPED'
+      ];
+
+      shopOrders.forEach((order) => {
+        const st = (order.status || '').toUpperCase();
+        if (activeRentalStatuses.includes(st) && Array.isArray(order.items)) {
+          order.items.forEach((it) => {
+            const pId = it.productId ? String(it.productId) : '';
+            if (pId) {
+              const qty = Number(it.quantity) || 1;
+              rentedCountMap[pId] = (rentedCountMap[pId] || 0) + qty;
+            }
+          });
+        }
+      });
 
       if (Array.isArray(apiProducts) && apiProducts.length > 0) {
         const mappedProducts: ShopProductItem[] = apiProducts.map((p, index) => {
@@ -152,6 +184,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : [];
 
           const skuStr = p._id || (p as { id?: string }).id || `RENT-${index + 1}`;
+          const totalUnits = Number(p.totalQuantity) || 1;
+          const rentedUnits = rentedCountMap[String(p._id)] || rentedCountMap[String(skuStr)] || 0;
+          const readyUnits = Math.max(0, totalUnits - rentedUnits);
 
           return {
             sku: String(skuStr),
@@ -165,9 +200,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             replacementValue: (p as { replacementValue?: number }).replacementValue
               ? Number((p as { replacementValue?: number }).replacementValue)
               : (Number(p.depositAmount) || 0) * 2,
-            totalUnits: Number(p.totalQuantity) || 1,
-            readyUnits: Number(p.totalQuantity) || 1,
-            rentingUnits: 0,
+            totalUnits,
+            readyUnits,
+            rentingUnits: rentedUnits,
             inspectionUnits: 0,
             approvalStatus,
             rejectionReason: (p as any).rejectionReason || (p as any).reason || '',
