@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { AppSidebar } from '../../components/layout/AppSidebar';
+import { AppSidebar } from '../../components/layout/AppSidebar'; import { AIHomeRecommendations } from '../../components/ai/AIHomeRecommendations';
 
 export const Home: React.FC = () => {
   const { user } = useAuth();
@@ -155,7 +155,7 @@ export const Home: React.FC = () => {
             </div>
           </section>
 
-          {/* 2. CATEGORIES SECTION */}
+          <AIHomeRecommendations /> {/* 2. CATEGORIES SECTION */}
           <section className="py-16 px-6 lg:px-12 mx-auto max-w-7xl">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 pb-4 border-b border-[#E7E2DA]">
               <div>
