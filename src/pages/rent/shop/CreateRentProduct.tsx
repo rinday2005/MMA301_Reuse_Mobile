@@ -39,6 +39,7 @@ export const CreateRentProduct: React.FC = () => {
   const [isUploadingCover, setIsUploadingCover] = useState<boolean>(false);
   const [isUploadingDetails, setIsUploadingDetails] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [createdName, setCreatedName] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
 
   const coverInputRef = useRef<HTMLInputElement | null>(null);
@@ -167,8 +168,8 @@ export const CreateRentProduct: React.FC = () => {
         condition: data.condition as any,
       });
 
-      alert('Đã tạo thành công sản phẩm cho thuê mới trên MongoDB! Trạng thái: "Chờ duyệt" (Pending)');
-      navigate('/shop/rent/products');
+      setCreatedName(data.name);
+      setTimeout(() => navigate('/shop/rent/products'), 3000);
     } catch (err) {
       console.error(err);
       alert('Có lỗi xảy ra khi tạo sản phẩm trên máy chủ. Vui lòng thử lại.');
@@ -176,6 +177,39 @@ export const CreateRentProduct: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (createdName) {
+    return (
+      <div className="w-full flex items-center justify-center bg-[#fdf9f2] min-h-[calc(100vh-4rem)] px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-[#ebe8e1] shadow-sm p-8 text-center space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+            <span className="material-symbols-outlined text-emerald-600 text-[36px]">check_circle</span>
+          </div>
+          <h2 className="font-serif text-xl font-bold text-[#141310]">Tạo sản phẩm thành công!</h2>
+          <p className="text-sm text-[#4a463f]">
+            <strong>{createdName}</strong> đã được gửi đến Admin với trạng thái{' '}
+            <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-bold">Chờ duyệt</span>
+          </p>
+          <p className="text-xs text-[#7b766f]">Tự động chuyển về danh sách sau vài giây...</p>
+          <div className="flex gap-3 justify-center pt-2">
+            <Link
+              to="/shop/rent/products"
+              className="px-4 py-2.5 bg-[#141310] text-white text-xs font-bold uppercase tracking-wider rounded-lg"
+            >
+              Về danh sách
+            </Link>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="px-4 py-2.5 bg-[#f1ede6] text-[#141310] text-xs font-bold uppercase tracking-wider rounded-lg"
+            >
+              Tạo thêm
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full flex flex-col font-sans text-[#1c1c18] bg-[#fdf9f2] min-h-[calc(100vh-4rem)]">
@@ -616,7 +650,7 @@ export const CreateRentProduct: React.FC = () => {
           </div>
 
           {/* CỘT PHẢI: LIVE PREVIEW & GỬI DUYỆT */}
-          <div className="lg:col-span-4 lg:sticky lg:top-24 space-y-4">
+          <div className="lg:col-span-4 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto space-y-4">
             <div className="bg-white p-5 rounded-2xl border border-[#ebe8e1] shadow-sm">
               <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#f1eee7]">
                 <h3 className="text-xs uppercase font-bold tracking-wider text-[#7b766f]">

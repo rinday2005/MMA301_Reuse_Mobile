@@ -32,7 +32,7 @@ export const ShopOwnerLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
         />
 
         {/* Nội dung chính */}
-        <main className="flex-1 w-full min-w-0 bg-[#fdf9f2] flex flex-col overflow-y-auto">
+        <main className="flex-1 w-full min-w-0 bg-[#fdf9f2] flex flex-col overflow-x-clip">
           {children ? children : <Outlet />}
         </main>
       </div>

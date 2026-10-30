@@ -1,11 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useShop } from '../../../context/ShopContext';
-import { mockInventoryUnits } from '../../data/shop/inventoryData';
+import type { InventoryUnitItem } from '../../data/shop/inventoryData';
 import { calculateThriftDiscount } from '../../../utils/thriftPricing';
+import { normalizeImageUrl } from '../../../utils/imageUrl';
 
 export const InventoryDashboard: React.FC = () => {
-  const { products } = useShop();
+  const { products, refreshProducts } = useShop();
+
+  // Luôn đồng bộ danh sách sản phẩm mới nhất từ MongoDB khi vào trang
+  useEffect(() => {
+    refreshProducts();
+  }, [refreshProducts]);
 
   // Tabs lọc trạng thái
   const [activeTab, setActiveTab] = useState<string>('ALL');
@@ -14,14 +20,16 @@ export const InventoryDashboard: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedCondition, setSelectedCondition] = useState<string>('ALL');
   const [sortBy, setSortBy] = useState<string>('CYCLES_DESC');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 15;
 
   // Sinh danh sách hiện vật từng máy (Serialized Inventory Units) theo dữ liệu thực từ MongoDB
   const inventoryUnits = useMemo(() => {
+    const units: InventoryUnitItem[] = [];
     if (!products || products.length === 0) {
-      return mockInventoryUnits;
+      return units;
     }
 
-    const units: typeof mockInventoryUnits = [];
     products.forEach((p) => {
       const total = Number(p.totalUnits) || 1;
       const renting = Number(p.rentingUnits) || 0;
@@ -52,7 +60,7 @@ export const InventoryDashboard: React.FC = () => {
           id: `INV-${p.sku.slice(-4).toUpperCase()}-${String(i).padStart(2, '0')}`,
           sku: p.sku,
           productName: p.name,
-          category: p.category,
+          category: typeof p.category === 'object' && p.category !== null ? (p.category as { name?: string }).name || 'RENT Equipment' : String(p.category || 'RENT Equipment'),
           serialNumber,
           conditionGrade: p.condition || 'LIKE_NEW (98%)',
           cycleCount: 4 + i * 3,
@@ -61,7 +69,7 @@ export const InventoryDashboard: React.FC = () => {
           statusText,
           currentOrderCode,
           readyDate: 'Sẵn sàng giao ngay',
-          imageUrl: p.coverImage || 'https://placehold.co/600x400',
+          imageUrl: normalizeImageUrl(p.coverImage) || 'https://placehold.co/600x400',
         });
       }
     });
@@ -69,37 +77,59 @@ export const InventoryDashboard: React.FC = () => {
     return units;
   }, [products]);
 
-  // Lọc dữ liệu theo tab & search
-  const filteredUnits = inventoryUnits.filter((item) => {
-    if (activeTab === 'READY' && item.status !== 'AVAILABLE') return false;
-    if (activeTab === 'RENTING' && item.status !== 'RENTING') return false;
-    if (activeTab === 'INSPECTION' && item.status !== 'INSPECTION') return false;
-    if (activeTab === 'MAINTENANCE' && item.status !== 'MAINTENANCE') return false;
-    if (activeTab === 'THRIFT' && item.status !== 'ELIGIBLE_FOR_THRIFT') return false;
+  // Lọc dữ liệu theo tab & search (đảm bảo tab ALL hiển thị toàn bộ hiện vật không sót món nào)
+  const filteredUnits = useMemo(() => {
+    return inventoryUnits.filter((item) => {
+      if (activeTab === 'READY' && item.status !== 'AVAILABLE') return false;
+      if (activeTab === 'RENTING' && item.status !== 'RENTING') return false;
+      if (activeTab === 'INSPECTION' && item.status !== 'INSPECTION') return false;
+      if (activeTab === 'MAINTENANCE' && item.status !== 'MAINTENANCE') return false;
+      if (activeTab === 'THRIFT' && item.status !== 'ELIGIBLE_FOR_THRIFT') return false;
 
-    const matchesSearch =
-      item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.currentOrderCode && item.currentOrderCode.toLowerCase().includes(searchTerm.toLowerCase()));
-    if (!matchesSearch) return false;
+      const q = (searchTerm || '').trim().toLowerCase();
+      if (q) {
+        const idStr = String(item.id || '').toLowerCase();
+        const nameStr = String(item.productName || '').toLowerCase();
+        const snStr = String(item.serialNumber || '').toLowerCase();
+        const orderStr = String(item.currentOrderCode || '').toLowerCase();
+        if (!idStr.includes(q) && !nameStr.includes(q) && !snStr.includes(q) && !orderStr.includes(q)) {
+          return false;
+        }
+      }
 
-    if (selectedProduct !== 'ALL' && !item.productName.toLowerCase().includes(selectedProduct.toLowerCase())) {
-      return false;
-    }
-    if (selectedCategory !== 'ALL' && !item.category.toLowerCase().includes(selectedCategory.toLowerCase())) {
-      return false;
-    }
-    if (selectedCondition !== 'ALL' && !item.conditionGrade.toLowerCase().includes(selectedCondition.toLowerCase())) {
-      return false;
-    }
+      if (selectedProduct && selectedProduct !== 'ALL') {
+        const nameStr = String(item.productName || '').toLowerCase();
+        if (!nameStr.includes(selectedProduct.toLowerCase())) {
+          return false;
+        }
+      }
+      if (selectedCategory && selectedCategory !== 'ALL') {
+        const catStr = String(item.category || '').toLowerCase();
+        if (!catStr.includes(selectedCategory.toLowerCase())) {
+          return false;
+        }
+      }
+      if (selectedCondition && selectedCondition !== 'ALL') {
+        const condStr = String(item.conditionGrade || '').toLowerCase();
+        if (!condStr.includes(selectedCondition.toLowerCase())) {
+          return false;
+        }
+      }
 
-    return true;
-  }).sort((a, b) => {
-    if (sortBy === 'CYCLES_DESC') return b.cycleCount - a.cycleCount;
-    if (sortBy === 'ID_ASC') return a.id.localeCompare(b.id);
-    return 0;
-  });
+      return true;
+    }).sort((a, b) => {
+      if (sortBy === 'CYCLES_DESC') return b.cycleCount - a.cycleCount;
+      if (sortBy === 'ID_ASC') return a.id.localeCompare(b.id);
+      return 0;
+    });
+  }, [inventoryUnits, activeTab, searchTerm, selectedProduct, selectedCategory, selectedCondition, sortBy]);
+
+  // Phân trang danh sách hiện vật để render mượt mà
+  const totalPages = Math.ceil(filteredUnits.length / itemsPerPage) || 1;
+  const paginatedUnits = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredUnits.slice(start, start + itemsPerPage);
+  }, [filteredUnits, currentPage, itemsPerPage]);
 
   // Tính toán số liệu KPI ĐỘNG 100% từ Database
   const totalAllUnits = inventoryUnits.length;
@@ -108,6 +138,10 @@ export const InventoryDashboard: React.FC = () => {
   const inspectionCount = inventoryUnits.filter((u) => u.status === 'INSPECTION').length;
   const maintenanceCount = inventoryUnits.filter((u) => u.status === 'MAINTENANCE').length;
   const thriftCount = inventoryUnits.filter((u) => u.status === 'ELIGIBLE_FOR_THRIFT').length;
+
+  const productOptions = Array.from(new Set(inventoryUnits.map((u) => u.productName)));
+  const categoryOptions = Array.from(new Set(inventoryUnits.map((u) => u.category).filter(Boolean)));
+  const conditionOptions = Array.from(new Set(inventoryUnits.map((u) => u.conditionGrade).filter(Boolean)));
 
   const readyPct = totalAllUnits > 0 ? ((readyCount / totalAllUnits) * 100).toFixed(1) : '0';
   const rentingPct = totalAllUnits > 0 ? ((rentingCount / totalAllUnits) * 100).toFixed(1) : '0';
@@ -265,54 +299,54 @@ export const InventoryDashboard: React.FC = () => {
           <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none text-xs font-semibold uppercase tracking-wider">
             <button
               type="button"
-              onClick={() => setActiveTab('ALL')}
+              onClick={() => { setActiveTab('ALL'); setCurrentPage(1); }}
               className={`px-4 py-2 rounded shrink-0 transition-colors shadow-sm ${activeTab === 'ALL' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
                 }`}
             >
-              Tất cả (29)
+              Tất cả ({totalAllUnits})
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('READY')}
+              onClick={() => { setActiveTab('READY'); setCurrentPage(1); }}
               className={`px-4 py-2 rounded shrink-0 transition-colors ${activeTab === 'READY' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
                 }`}
             >
-              Sẵn sàng (8)
+              Sẵn sàng ({readyCount})
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('RENTING')}
+              onClick={() => { setActiveTab('RENTING'); setCurrentPage(1); }}
               className={`px-4 py-2 rounded shrink-0 transition-colors ${activeTab === 'RENTING' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
                 }`}
             >
-              Đang cho thuê (14)
+              Đang cho thuê ({rentingCount})
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('INSPECTION')}
+              onClick={() => { setActiveTab('INSPECTION'); setCurrentPage(1); }}
               className={`px-4 py-2 rounded shrink-0 transition-colors ${activeTab === 'INSPECTION' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
                 }`}
             >
-              Chờ đối kiểm (2)
+              Chờ đối kiểm ({inspectionCount})
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('MAINTENANCE')}
+              onClick={() => { setActiveTab('MAINTENANCE'); setCurrentPage(1); }}
               className={`px-4 py-2 rounded shrink-0 transition-colors ${activeTab === 'MAINTENANCE' ? 'bg-[#141310] text-white' : 'bg-[#f1ede6] text-[#4a463f] hover:bg-[#ebe8e1]'
                 }`}
             >
-              Đang bảo dưỡng (2)
+              Đang bảo dưỡng ({maintenanceCount})
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('THRIFT')}
+              onClick={() => { setActiveTab('THRIFT'); setCurrentPage(1); }}
               className={`px-4 py-2 rounded shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'THRIFT'
                   ? 'bg-[#292724] text-[#f0e0cb] shadow'
                   : 'bg-[#d8e3ce] text-[#151e11] hover:bg-[#c6d7bb]'
                 }`}
             >
               <span className="material-symbols-outlined text-[16px]">verified</span>
-              <span>Đủ điều kiện sang THRIFT (3)</span>
+              <span>Đủ điều kiện sang THRIFT ({thriftCount})</span>
             </button>
           </div>
 
@@ -325,7 +359,10 @@ export const InventoryDashboard: React.FC = () => {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder="Tìm theo Mã hiện vật (Serial ID), Tên máy, Hợp đồng thuê..."
                 className="w-full pl-10 pr-4 py-2.5 bg-white text-[#141310] text-xs rounded border border-[#ebe8e1] shadow-sm focus:outline-none focus:border-[#576151]"
               />
@@ -334,51 +371,58 @@ export const InventoryDashboard: React.FC = () => {
             <div className="md:col-span-2">
               <select
                 value={selectedProduct}
-                onChange={(e) => setSelectedProduct(e.target.value)}
+                onChange={(e) => {
+                  setSelectedProduct(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full px-3 py-2.5 bg-white text-[#4a463f] text-xs rounded border border-[#ebe8e1] shadow-sm focus:outline-none cursor-pointer"
               >
                 <option value="ALL">Tất cả Sản phẩm</option>
-                <option value="Hasselblad 907X">Hasselblad 907X 50C</option>
-                <option value="Leica M10-R">Leica M10-R Rangefinder</option>
-                <option value="Hasselblad 500C/M">Hasselblad 500C/M Body</option>
-                <option value="Sony FX3">Sony FX3 Cinema</option>
-                <option value="Canon EOS R6">Canon EOS R6 Mark II</option>
-                <option value="Beosound 9000">Bang &amp; Olufsen Beosound 9000</option>
+                {productOptions.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
               </select>
             </div>
 
             <div className="md:col-span-2">
               <select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full px-3 py-2.5 bg-white text-[#4a463f] text-xs rounded border border-[#ebe8e1] shadow-sm focus:outline-none cursor-pointer"
               >
                 <option value="ALL">Phân loại Thiết bị</option>
-                <option value="Medium Format">Medium Format Digital</option>
-                <option value="Rangefinder">Vintage Rangefinder 35mm</option>
-                <option value="Cinema">Cinema &amp; Video Rig</option>
-                <option value="Hi-Fi">Hi-Fi Audio Circular</option>
+                {categoryOptions.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
               </select>
             </div>
 
             <div className="md:col-span-1.5">
               <select
                 value={selectedCondition}
-                onChange={(e) => setSelectedCondition(e.target.value)}
+                onChange={(e) => {
+                  setSelectedCondition(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full px-3 py-2.5 bg-white text-[#4a463f] text-xs rounded border border-[#ebe8e1] shadow-sm focus:outline-none cursor-pointer"
               >
                 <option value="ALL">Độ mới</option>
-                <option value="Mint-">Mint- 98-99%</option>
-                <option value="Near Mint">Near Mint 94-97%</option>
-                <option value="Excellent">Excellent 89-93%</option>
-                <option value="Good Vintage">Good Vintage 85-88%</option>
+                {conditionOptions.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
               </select>
             </div>
 
             <div className="md:col-span-1.5">
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full px-3 py-2.5 bg-white text-[#4a463f] text-xs rounded border border-[#ebe8e1] shadow-sm focus:outline-none cursor-pointer"
               >
                 <option value="CYCLES_DESC">Chu kỳ thuê cao nhất</option>
@@ -406,7 +450,7 @@ export const InventoryDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f1ede6]">
-                {filteredUnits.map((item) => (
+                {paginatedUnits.map((item) => (
                   <tr
                     key={item.id}
                     className={`hover:bg-[#f7f3ec] transition-colors ${item.status === 'ELIGIBLE_FOR_THRIFT' ? 'bg-[#d8e3ce]/15' : 'bg-white'
@@ -505,7 +549,7 @@ export const InventoryDashboard: React.FC = () => {
                           <Link to="/shop/rent/orders" className="font-semibold text-[#141310] hover:underline">
                             {item.currentOrderCode}
                           </Link>
-                          <div>Khách: {item.currentCustomerName}</div>
+                          {item.currentCustomerName && <div>Khách: {item.currentCustomerName}</div>}
                           {item.returnDueDate && (
                             <div className="text-[#576151] font-medium text-[11px]">Hạn trả: {item.returnDueDate}</div>
                           )}
@@ -564,6 +608,29 @@ export const InventoryDashboard: React.FC = () => {
                     </td>
                   </tr>
                 ))}
+                {filteredUnits.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-14 px-4 text-center text-[#7b766f]">
+                      <span className="material-symbols-outlined text-[36px] block mb-2">inventory_2</span>
+                      <div className="font-semibold text-[#141310] text-sm mb-1">
+                        {totalAllUnits === 0 ? 'Kho chưa có hiện vật nào' : 'Không có hiện vật khớp bộ lọc'}
+                      </div>
+                      <div className="text-xs mb-4">
+                        {totalAllUnits === 0
+                          ? 'Mỗi sản phẩm cho thuê bạn đăng sẽ được tách thành từng hiện vật (theo số lượng) tại đây.'
+                          : 'Hãy thử đổi tab, từ khóa tìm kiếm hoặc bộ lọc.'}
+                      </div>
+                      {totalAllUnits === 0 && (
+                        <Link
+                          to="/shop/rent/create"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#141310] text-white text-xs uppercase tracking-wider font-semibold rounded"
+                        >
+                          + Nhập Hiện vật Mới
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -571,34 +638,35 @@ export const InventoryDashboard: React.FC = () => {
           {/* Pagination Toolbar */}
           <div className="p-4 bg-[#f7f3ec] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs border-t border-[#ebe8e1]">
             <div className="text-[#4a463f]">
-              Hiển thị <span className="font-semibold text-[#141310]">1 - {filteredUnits.length}</span> trong tổng số{' '}
-              <span className="font-semibold text-[#141310]">{mockInventoryUnits.length}</span> hiện vật vật lý đang lưu ký
+              Hiển thị <span className="font-semibold text-[#141310]">{filteredUnits.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}</span>-
+              <span className="font-semibold text-[#141310]">{Math.min(currentPage * itemsPerPage, filteredUnits.length)}</span> trong tổng số{' '}
+              <span className="font-semibold text-[#141310]">{filteredUnits.length}</span> hiện vật (toàn kho: {inventoryUnits.length})
             </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled
-                className="p-1.5 rounded bg-white text-[#ccc5bc] disabled:opacity-40 border border-[#ebe8e1]"
-              >
-                <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-              </button>
-              <button type="button" className="w-8 h-8 rounded bg-[#141310] text-white font-semibold flex items-center justify-center shadow-xs">
-                1
-              </button>
-              <button type="button" className="w-8 h-8 rounded bg-white hover:bg-[#f1ede6] text-[#141310] font-medium flex items-center justify-center transition-colors border border-[#ebe8e1]">
-                2
-              </button>
-              <button type="button" className="w-8 h-8 rounded bg-white hover:bg-[#f1ede6] text-[#141310] font-medium flex items-center justify-center transition-colors border border-[#ebe8e1]">
-                3
-              </button>
-              <button type="button" className="w-8 h-8 rounded bg-white hover:bg-[#f1ede6] text-[#141310] font-medium flex items-center justify-center transition-colors border border-[#ebe8e1]">
-                4
-              </button>
-              <button type="button" className="p-1.5 rounded bg-white text-[#141310] hover:bg-[#f1ede6] transition-colors border border-[#ebe8e1]">
-                <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-              </button>
-            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded bg-white border border-[#ebe8e1] text-[#141310] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f1ede6] font-medium transition-colors"
+                >
+                  Trang trước
+                </button>
+                <span className="px-2 font-medium text-[#4a463f]">
+                  Trang {currentPage} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1.5 rounded bg-white border border-[#ebe8e1] text-[#141310] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#f1ede6] font-medium transition-colors"
+                >
+                  Trang sau
+                </button>
+              </div>
+            )}
           </div>
+
         </div>
       </section>
 
