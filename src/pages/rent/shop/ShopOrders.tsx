@@ -4,6 +4,7 @@ import { ShippingModal } from '../../../components/orders/ShippingModal';
 import type { ShippingData } from '../../../components/orders/ShippingModal';
 import { getShopRentalOrdersApi, handoverRentalOrderApi, approveRentalOrderApi, updateOrderStatusApi } from '../../../services/order.api';
 import type { RentalOrderApi } from '../../../services/order.api';
+import { calculateDynamicShippingFee, normalizeShopBranch } from '../../../utils/address';
 
 export interface FormattedRentalOrder {
   _id: string;
@@ -65,7 +66,7 @@ const mapApiOrderToFormatted = (apiOrder: RentalOrderApi): FormattedRentalOrder 
     productName,
     customerName,
     rentalPeriod,
-    totalAmount: apiOrder.totalAmount || 0,
+    totalAmount: (apiOrder.rentalFee && apiOrder.depositAmount) ? (apiOrder.rentalFee + apiOrder.depositAmount + calculateDynamicShippingFee(apiOrder.shippingAddress ? [apiOrder.shippingAddress.detail, apiOrder.shippingAddress.ward, apiOrder.shippingAddress.district, apiOrder.shippingAddress.province].filter(Boolean).join(', ') : 'Đà Nẵng', normalizeShopBranch(((item?.productId as unknown as { location?: string })?.location) || (item as unknown as { location?: string })?.location || 'Đà Nẵng'))) : (apiOrder.totalAmount || 0),
     depositAmount: apiOrder.depositAmount || 0,
     status: effectiveStatus,
     shippingCarrier: apiOrder.shippingDetails?.carrierName || apiOrder.shippingDetails?.carrier || '',

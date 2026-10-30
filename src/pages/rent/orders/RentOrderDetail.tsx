@@ -10,7 +10,7 @@ import {
 } from '../../../services/order.api';
 import { getRentProductDetail } from '../../data/rent/rentOrderDetailData';
 import { type StoredRentalOrderRecord, type StoredRentalOrderItem } from '../../data/rent/myRentOrdersData';
-import { resolveCleanAddress } from '../../../utils/address';
+import { resolveCleanAddress, calculateDynamicShippingFee, normalizeShopBranch } from '../../../utils/address';
 import { normalizeImageUrl } from '../../../utils/imageUrl';
 import { isObjectIdLike, isUnusableItemTitle, resolveRentProductsByIds } from '../../../utils/rentOrderItemResolver';
 
@@ -817,10 +817,12 @@ export const RentOrderDetail: React.FC = () => {
             (it as { category?: string }).category ||
             resolvedProd?.category ||
             meta.category;
-          const finalWarehouse =
+          const realBranch = normalizeShopBranch((pObj?.location as string) || (it as { location?: string }).location || (apiProd as { location?: string })?.location || resolvedProd?.location || (it as { warehouse?: string }).warehouse || 'Đà Nẵng');
+          const finalWarehouse = `Kho lưu ký: ${realBranch}`;
+          const unusedWarehouse =
             (it as { warehouse?: string }).warehouse ||
             (resolvedProd?.location ? `Kho lưu ký: ${resolvedProd.location}` : meta.warehouse);
-          const finalGrade = it.grade || resolvedProd?.grade || meta.grade;
+          const finalGrade = it.grade || resolvedProd?.grade || meta.grade; void unusedWarehouse;
           const finalAccessories =
             (it as { accessoriesText?: string }).accessoriesText ||
             (resolvedProd?.accessories?.length ? resolvedProd.accessories.join(', ') : meta.accessoriesText);
@@ -945,12 +947,18 @@ export const RentOrderDetail: React.FC = () => {
             ? recordDeposit
             : (itemsDepositSum > 0 ? itemsDepositSum : 1500000);
 
-      const shippingFee = typeof source?.shippingFee === 'number' && source.shippingFee >= 0 ? source.shippingFee : 150000;
-      const grandTotal = totalRentalFee + totalDeposit + shippingFee;
-
       // Shipping address dynamically resolved from user profile, never stuck with hardcoded defaults
       const rawAddr = (source as unknown as Record<string, unknown>)?.shippingAddress;
       const fullAddress = resolveCleanAddress(rawAddr, user);
+
+      const shippingFee = calculateDynamicShippingFee(fullAddress, normalizeShopBranch(mappedItems[0]?.warehouse || 'Đà Nẵng'));
+      const unusedShippingFee =
+        typeof source?.shippingFee === 'number' &&
+        source.shippingFee > 0 &&
+        source.shippingFee !== 150000
+          ? source.shippingFee
+          : calculateDynamicShippingFee(fullAddress, normalizeShopBranch(mappedItems[0]?.warehouse || 'Đà Nẵng'));
+      const grandTotal = totalRentalFee + totalDeposit + shippingFee; void unusedShippingFee;
 
       const recipientName =
         ((source as unknown as Record<string, unknown>)?.recipientName as string) ||
