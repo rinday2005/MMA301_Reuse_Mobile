@@ -1,25 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { MarketplaceList } from '../../components/marketplace/MarketplaceList';
 
-export const ThriftMarketplaceScreen: React.FC = () => {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>ThriftMarketplaceScreen</Text>
-    </View>
-  );
-};
+export const ThriftMarketplaceScreen: React.FC = () => <MarketplaceList mode="thrift" />;
 
 export default ThriftMarketplaceScreen;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-});

@@ -6,6 +6,15 @@ export interface CategoryItem {
   slug: string;
   type?: "RENT" | "THRIFT" | "BOTH" | string;
   isActive?: boolean;
+  code?: string;
+  description?: string;
+  subtitle?: string;
+  image?: string;
+  inspectionBadge?: string;
+  escrowBadge?: string;
+  rentCount?: number;
+  thriftCount?: number;
+  totalItems?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -18,8 +27,10 @@ export const getCategoriesApi = async (): Promise<CategoryItem[]> => {
       return data;
     }
     return [];
-  } catch (err) {
-    console.warn("Failed to fetch categories:", err);
+  } catch (err: any) {
+    if (err?.code !== "ERR_NETWORK") {
+      console.warn("Failed to fetch categories:", err?.message || err);
+    }
     return [];
   }
 };
