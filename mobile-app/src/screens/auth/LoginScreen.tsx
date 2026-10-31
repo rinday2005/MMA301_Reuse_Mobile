@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { isValidEmail } from '../../utils/validation';
 
@@ -100,13 +101,13 @@ export const LoginScreen: React.FC = () => {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 24) },
+          { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 28) },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {/* ========================================================= */}
-        {/* TOP SECTION: FORM ĐĂNG NHẬP (LÊN ĐẦU THEO CHUẨN MOBILE)  */}
+        {/* TOP SECTION: FORM ĐĂNG NHẬP                               */}
         {/* ========================================================= */}
         <View style={styles.formCard}>
           {/* Header Bar */}
@@ -133,18 +134,24 @@ export const LoginScreen: React.FC = () => {
           {/* Alert: API Error */}
           {!!apiError && (
             <View style={styles.errorAlert}>
-              <Text style={styles.errorAlertTitle}>Xác thực thất bại</Text>
-              <Text style={styles.errorAlertMessage}>{apiError}</Text>
+              <Feather name="alert-circle" size={18} color="#93000A" style={styles.alertIcon} />
+              <View style={styles.alertTextWrap}>
+                <Text style={styles.errorAlertTitle}>Xác thực thất bại</Text>
+                <Text style={styles.errorAlertMessage}>{apiError}</Text>
+              </View>
             </View>
           )}
 
           {/* Alert: Login Success */}
           {loginSuccess && (
             <View style={styles.successAlert}>
-              <Text style={styles.successAlertTitle}>Đăng nhập thành công</Text>
-              <Text style={styles.successAlertMessage}>
-                Đang chuyển hướng đến tài khoản của bạn...
-              </Text>
+              <Feather name="check-circle" size={18} color="#3F4A3A" style={styles.alertIcon} />
+              <View style={styles.alertTextWrap}>
+                <Text style={styles.successAlertTitle}>Đăng nhập thành công</Text>
+                <Text style={styles.successAlertMessage}>
+                  Đang chuyển hướng đến tài khoản của bạn...
+                </Text>
+              </View>
             </View>
           )}
 
@@ -155,7 +162,7 @@ export const LoginScreen: React.FC = () => {
               {!!emailError && <Text style={styles.fieldErrorText}>{emailError}</Text>}
             </View>
             <View style={[styles.inputBox, !!emailError && styles.inputBoxError]}>
-              <Text style={styles.atSignPrefix}>@</Text>
+              <Feather name="mail" size={18} color="#4A463F" style={styles.inputPrefixIcon} />
               <TextInput
                 style={styles.inputField}
                 placeholder="curator@reusehub.org"
@@ -179,7 +186,7 @@ export const LoginScreen: React.FC = () => {
               {!!passwordError && <Text style={styles.fieldErrorText}>{passwordError}</Text>}
             </View>
             <View style={[styles.inputBox, !!passwordError && styles.inputBoxError]}>
-              <Text style={styles.lockSignPrefix}>*</Text>
+              <Feather name="lock" size={18} color="#4A463F" style={styles.inputPrefixIcon} />
               <TextInput
                 style={styles.inputField}
                 placeholder="••••••••••••"
@@ -197,7 +204,11 @@ export const LoginScreen: React.FC = () => {
                 onPress={() => setShowPassword((prev) => !prev)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.passwordToggleText}>{showPassword ? 'Ẩn' : 'Hiện'}</Text>
+                <Feather
+                  name={showPassword ? 'eye-off' : 'eye'}
+                  size={18}
+                  color="#4A463F"
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -210,7 +221,7 @@ export const LoginScreen: React.FC = () => {
               activeOpacity={0.8}
             >
               <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
-                {rememberMe && <Text style={styles.checkboxCheck}>✓</Text>}
+                {rememberMe && <Feather name="check" size={13} color="#FFFFFF" />}
               </View>
               <Text style={styles.rememberText}>Ghi nhớ đăng nhập</Text>
             </TouchableOpacity>
@@ -233,7 +244,10 @@ export const LoginScreen: React.FC = () => {
                 <Text style={styles.submitButtonText}>ĐANG ĐĂNG NHẬP...</Text>
               </View>
             ) : (
-              <Text style={styles.submitButtonText}>ĐĂNG NHẬP →</Text>
+              <View style={styles.submitBtnContent}>
+                <Text style={styles.submitButtonText}>ĐĂNG NHẬP</Text>
+                <Feather name="arrow-right" size={16} color="#FFFFFF" style={styles.submitArrow} />
+              </View>
             )}
           </TouchableOpacity>
 
@@ -247,67 +261,74 @@ export const LoginScreen: React.FC = () => {
               <Text style={styles.promptLinkText}>Đăng ký ngay</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Security footnote */}
+          <View style={styles.securityFootnoteRow}>
+            <View style={styles.securityDot} />
+            <Text style={styles.securityText}>Phiên Được Mã Hóa</Text>
+          </View>
         </View>
 
         {/* ========================================================= */}
-        {/* BOTTOM SECTION: HÌNH ẢNH & THÔNG TIN TUẦN HOÀN (NHƯ WEB) */}
+        {/* BOTTOM SECTION: EDITORIAL SHOWCASE                        */}
         {/* ========================================================= */}
         <View style={styles.showcaseCard}>
-          {/* Protocol Tags */}
-          <View style={styles.showcaseHeaderRow}>
-            <View style={styles.circleTag}>
-              <View style={styles.circleDot} />
-              <Text style={styles.circleTagText}>CIRCULAR ARCHIVE № 108</Text>
+          {/* Top badges */}
+          <View style={styles.showcaseTopRow}>
+            <View style={styles.archiveBadge}>
+              <View style={styles.archiveDot} />
+              <Text style={styles.archiveBadgeText}>CIRCULAR ARCHIVE Nº 108</Text>
             </View>
-            <Text style={styles.custodyTagText}>CUSTODY PROTOCOL</Text>
+            <Text style={styles.protocolBadgeText}>QUY TRÌNH CHĂM SÓC</Text>
           </View>
 
-          {/* Title & Description */}
+          {/* Editorial Title */}
           <Text style={styles.showcaseTitle}>
-            Curated custody for timeless tools
+            A circular wardrobe for timeless style.
           </Text>
           <Text style={styles.showcaseDescription}>
-            Chuyển từ tiêu dùng nhanh sang quản lý thời trang bền vững, ReUse Hub kéo dài vòng đời trang phục thông qua các giao thức bảo quản nghiêm ngặt, giảm thiểu tác động đến môi trường.
+            Chuyển từ tiêu dùng nhanh sang quản lý thời trang bền vững, ReUse Hub kéo dài vòng
+            đời trang phục thông qua các giao thức giặt sấy, bảo quản được duy trì nghiêm ngặt.
           </Text>
 
-          {/* Showcase Image */}
-          <View style={styles.imageWrapper}>
+          {/* Hero Image with Badge */}
+          <View style={styles.imageContainer}>
             <Image
               source={require('../../../assets/images/login.jpg')}
-              style={styles.showcaseImage}
+              style={styles.heroImage}
               resizeMode="cover"
             />
-            <View style={styles.imageOverlayBadge}>
-              <View style={styles.badgeShieldDot} />
-              <Text style={styles.imageBadgeText}>PRESERVED HERITAGE ITEM #RH-7740</Text>
+            <View style={styles.imageOverlayGradient}>
+              <View style={styles.imageBadge}>
+                <Feather name="shield" size={13} color="#FFFFFF" />
+                <Text style={styles.imageBadgeText}>Phong Cách Tuần Hoàn #RH-7740</Text>
+              </View>
             </View>
           </View>
 
-          {/* Eco Impact Stats */}
+          {/* Eco Stat Box */}
           <View style={styles.ecoStatCard}>
-            <View style={styles.ecoStatIconBox}>
-              <Text style={styles.ecoStatIcon}>🌿</Text>
+            <View style={styles.ecoIconCircle}>
+              <Ionicons name="leaf" size={18} color="#3F4A3A" />
             </View>
-            <View style={styles.ecoStatContent}>
-              <Text style={styles.ecoStatTitle}>4.2 kg CO₂ Saved</Text>
+            <View style={styles.ecoStatInfo}>
+              <Text style={styles.ecoStatTitle}>Tiết kiệm 4,2 kg CO₂</Text>
               <Text style={styles.ecoStatSubtitle}>
-                Tính toán dựa trên mỗi lần thuê trang phục so với sản xuất sản phẩm mới.
+                Tính toán dựa trên mỗi lần thuê trang phục so với sản xuất sản phẩm mới
               </Text>
             </View>
           </View>
 
-          {/* Index Row */}
-          <View style={styles.indexMetaRow}>
-            <Text style={styles.indexMetaText}>CHỈ SỐ TUẦN HOÀN: 98.4%</Text>
-            <Text style={styles.indexMetaText}>AUDITED 2026</Text>
+          {/* Audit Footer */}
+          <View style={styles.auditRow}>
+            <Text style={styles.auditText}>CHỈ SỐ TUẦN HOÀN: 98,4%</Text>
+            <Text style={styles.auditText}>KIỂM TOÁN 2026</Text>
           </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 };
-
-export default LoginScreen;
 
 const styles = StyleSheet.create({
   keyboardContainer: {
@@ -316,28 +337,27 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    flexGrow: 1,
   },
 
-  /* Form Card (Top) */
+  // Form Card (TOP)
   formCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 22,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#141310',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
     borderWidth: 1,
     borderColor: '#EFEAE1',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
-    marginBottom: 20,
   },
   cardHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 18,
   },
   brandBadge: {
     flexDirection: 'row',
@@ -345,87 +365,102 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   brandIconBox: {
-    width: 26,
-    height: 26,
+    width: 28,
+    height: 28,
     borderRadius: 6,
     backgroundColor: '#141310',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   brandIconText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
-    lineHeight: 18,
+    marginTop: -2,
   },
   brandTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
     color: '#141310',
   },
   portalBadge: {
     backgroundColor: '#F7F3EC',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
   portalBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#576151',
-    letterSpacing: 0.5,
+    color: '#4A463F',
+    letterSpacing: 0.8,
   },
+
   headingSection: {
-    marginBottom: 18,
+    marginBottom: 20,
   },
   headingTitle: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#1C1C18',
-    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   headingSubtitle: {
     fontSize: 13,
-    color: '#57534E',
-    lineHeight: 19,
+    color: '#4A463F',
+    marginTop: 6,
+    lineHeight: 18,
   },
+
+  // Alerts
   errorAlert: {
+    flexDirection: 'row',
     backgroundColor: '#FFDAD6',
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#BA1A1A',
+    alignItems: 'flex-start',
+  },
+  alertIcon: {
+    marginRight: 10,
+    marginTop: 2,
+  },
+  alertTextWrap: {
+    flex: 1,
   },
   errorAlertTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: '#93000A',
-    marginBottom: 2,
   },
   errorAlertMessage: {
     fontSize: 12,
     color: '#93000A',
+    marginTop: 2,
+    lineHeight: 16,
   },
   successAlert: {
+    flexDirection: 'row',
     backgroundColor: '#D8E3CE',
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3F4A3A',
+    alignItems: 'flex-start',
   },
   successAlertTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: '#3F4A3A',
-    marginBottom: 2,
   },
   successAlertMessage: {
     fontSize: 12,
     color: '#3F4A3A',
+    marginTop: 2,
+    lineHeight: 16,
   },
+
+  // Input Fields
   fieldGroup: {
     marginBottom: 16,
   },
@@ -450,48 +485,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F7F3EC',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E6E2DB',
     paddingHorizontal: 12,
     height: 48,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   inputBoxError: {
     borderColor: '#BA1A1A',
-    backgroundColor: '#FFF8F8',
+    backgroundColor: '#FFF5F4',
   },
-  atSignPrefix: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#78716C',
-    marginRight: 8,
-  },
-  lockSignPrefix: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#78716C',
-    marginRight: 8,
+  inputPrefixIcon: {
+    marginRight: 10,
   },
   inputField: {
     flex: 1,
     fontSize: 14,
     color: '#1C1C18',
-    paddingVertical: 0,
+    height: '100%',
   },
   passwordToggleBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
+    padding: 6,
   },
-  passwordToggleText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#576151',
-  },
+
+  // Options
   optionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 2,
     marginBottom: 20,
-    marginTop: 4,
   },
   rememberOption: {
     flexDirection: 'row',
@@ -503,37 +525,33 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#78716C',
-    alignItems: 'center',
+    borderColor: '#4A463F',
     justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
   checkboxActive: {
     backgroundColor: '#141310',
     borderColor: '#141310',
   },
-  checkboxCheck: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
   rememberText: {
     fontSize: 12,
-    color: '#44403C',
+    color: '#1C1C18',
   },
   forgotPasswordText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#576151',
     textDecorationLine: 'underline',
   },
+
+  // Submit Button
   submitButton: {
     backgroundColor: '#141310',
-    height: 50,
     borderRadius: 8,
-    alignItems: 'center',
+    height: 48,
     justifyContent: 'center',
-    marginBottom: 16,
+    alignItems: 'center',
     shadowColor: '#141310',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
@@ -543,10 +561,13 @@ const styles = StyleSheet.create({
   submitButtonDisabled: {
     opacity: 0.6,
   },
-  loadingRow: {
+  submitBtnContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+  },
+  submitArrow: {
+    marginLeft: 8,
   },
   submitButtonText: {
     color: '#FFFFFF',
@@ -554,16 +575,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.8,
   },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  // Switch prompt
   registerPromptRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
+    marginTop: 18,
+    gap: 4,
   },
   promptText: {
     fontSize: 13,
-    color: '#78716C',
+    color: '#4A463F',
   },
   promptLinkText: {
     fontSize: 13,
@@ -572,141 +600,164 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
-  /* Showcase Section (Bottom) */
+  // Security Footnote
+  securityFootnoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F0ECE4',
+    gap: 6,
+  },
+  securityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#576151',
+  },
+  securityText: {
+    fontSize: 11,
+    color: '#4A463F',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+
+  // Showcase Section (BOTTOM)
   showcaseCard: {
     backgroundColor: '#F7F3EC',
     borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#EBE5D8',
+    padding: 18,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ECE6DC',
   },
-  showcaseHeaderRow: {
+  showcaseTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
   },
-  circleTag: {
+  archiveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EBE5D8',
-    paddingVertical: 3,
+    backgroundColor: '#F1EDE6',
     paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 4,
+    gap: 6,
   },
-  circleDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#576151',
+  archiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4A463F',
   },
-  circleTagText: {
+  archiveBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#44403C',
-    letterSpacing: 0.4,
+    color: '#4A463F',
+    letterSpacing: 0.6,
   },
-  custodyTagText: {
+  protocolBadgeText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#78716C',
-    textTransform: 'uppercase',
+    color: '#4A463F',
+    letterSpacing: 0.5,
   },
+
   showcaseTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#141310',
-    marginBottom: 8,
-    lineHeight: 26,
+    lineHeight: 24,
+    marginBottom: 6,
   },
   showcaseDescription: {
     fontSize: 12,
-    color: '#57534E',
+    color: '#4A463F',
     lineHeight: 18,
-    marginBottom: 14,
+    marginBottom: 16,
   },
-  imageWrapper: {
+
+  imageContainer: {
     width: '100%',
     height: 190,
     borderRadius: 10,
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: '#EBE8E1',
     marginBottom: 14,
-    backgroundColor: '#E5E0D4',
   },
-  showcaseImage: {
+  heroImage: {
     width: '100%',
     height: '100%',
   },
-  imageOverlayBadge: {
+  imageOverlayGradient: {
     position: 'absolute',
-    bottom: 8,
-    left: 8,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  imageBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(20, 19, 16, 0.75)',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-  },
-  badgeShieldDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#D8E3CE',
   },
   imageBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: 0.4,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
+
   ecoStatCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EFE9DE',
-    padding: 12,
+    backgroundColor: 'rgba(241, 237, 230, 0.85)',
     borderRadius: 10,
-    gap: 12,
-    marginBottom: 12,
-  },
-  ecoStatIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#D8E3CE',
+    padding: 12,
     alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  ecoIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#D8E3CE',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  ecoStatIcon: {
-    fontSize: 16,
-  },
-  ecoStatContent: {
+  ecoStatInfo: {
     flex: 1,
   },
   ecoStatTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: '#1C1C18',
-    marginBottom: 2,
   },
   ecoStatSubtitle: {
     fontSize: 11,
-    color: '#57534E',
+    color: '#4A463F',
+    marginTop: 2,
     lineHeight: 15,
   },
-  indexMetaRow: {
+
+  auditRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 4,
+    marginTop: 2,
   },
-  indexMetaText: {
+  auditText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#78716C',
-    letterSpacing: 0.5,
+    color: '#4A463F',
+    letterSpacing: 0.6,
   },
 });
+
+export default LoginScreen;

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { registerApi } from '../../services/auth.api';
 import { isValidEmail, isValidPhone } from '../../utils/validation';
@@ -135,7 +136,7 @@ export const RegisterScreen: React.FC = () => {
       setTimeout(() => {
         navigation.navigate('Login');
       }, 1500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         const errorCode = error.response?.data?.errorCode;
         if (errorCode === 'EMAIL_ALREADY_EXISTS') {
@@ -143,11 +144,7 @@ export const RegisterScreen: React.FC = () => {
           return;
         }
       }
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.';
-      setApiError(message);
+      setApiError('Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.');
     } finally {
       setIsSubmitting(false);
     }
@@ -161,7 +158,7 @@ export const RegisterScreen: React.FC = () => {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 24) },
+          { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 28) },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -170,22 +167,17 @@ export const RegisterScreen: React.FC = () => {
         {/* TOP SECTION: FORM ĐĂNG KÝ (LÊN ĐẦU THEO CHUẨN MOBILE)     */}
         {/* ========================================================= */}
         <View style={styles.formCard}>
-          {/* Header Row */}
-          <View style={styles.cardHeaderRow}>
-            <View style={styles.brandBadge}>
-              <View style={styles.brandIconBox}>
-                <Text style={styles.brandIconText}>∞</Text>
-              </View>
-              <Text style={styles.brandTitle}>REUSE HUB</Text>
-            </View>
-            <View style={styles.portalBadge}>
-              <Text style={styles.portalBadgeText}>MEMBERSHIP</Text>
+          {/* Header Badge */}
+          <View style={styles.headerBadgeRow}>
+            <View style={styles.membershipBadge}>
+              <View style={styles.badgeDot} />
+              <Text style={styles.badgeText}>QUYỀN TRUY CẬP THÀNH VIÊN</Text>
             </View>
           </View>
 
           {/* Heading */}
           <View style={styles.headingSection}>
-            <Text style={styles.headingTitle}>Đăng Kí Tài Khoản</Text>
+            <Text style={styles.headingTitle}>Đăng Ký Tài Khoản</Text>
             <Text style={styles.headingSubtitle}>
               Tham gia ReUse Hub để thuê trang phục cao cấp và trải nghiệm tủ đồ thời trang tuần hoàn.
             </Text>
@@ -194,18 +186,24 @@ export const RegisterScreen: React.FC = () => {
           {/* Alert: API Error */}
           {!!apiError && (
             <View style={styles.errorAlert}>
-              <Text style={styles.errorAlertTitle}>Đăng ký thất bại</Text>
-              <Text style={styles.errorAlertMessage}>{apiError}</Text>
+              <Feather name="alert-circle" size={18} color="#93000A" style={styles.alertIcon} />
+              <View style={styles.alertTextWrap}>
+                <Text style={styles.errorAlertTitle}>Đăng ký thất bại</Text>
+                <Text style={styles.errorAlertMessage}>{apiError}</Text>
+              </View>
             </View>
           )}
 
           {/* Alert: Register Success */}
           {registerSuccess && (
             <View style={styles.successAlert}>
-              <Text style={styles.successAlertTitle}>Tài khoản đã được tạo thành công</Text>
-              <Text style={styles.successAlertMessage}>
-                Đang chuyển hướng sang màn hình đăng nhập...
-              </Text>
+              <Feather name="check-circle" size={18} color="#3F4A3A" style={styles.alertIcon} />
+              <View style={styles.alertTextWrap}>
+                <Text style={styles.successAlertTitle}>Tài khoản đã được tạo thành công</Text>
+                <Text style={styles.successAlertMessage}>
+                  Đang chuyển hướng sang màn hình đăng nhập...
+                </Text>
+              </View>
             </View>
           )}
 
@@ -218,6 +216,7 @@ export const RegisterScreen: React.FC = () => {
               {!!fullNameError && <Text style={styles.fieldErrorText}>{fullNameError}</Text>}
             </View>
             <View style={[styles.inputBox, !!fullNameError && styles.inputBoxError]}>
+              <Feather name="user" size={18} color="#4A463F" style={styles.inputPrefixIcon} />
               <TextInput
                 style={styles.inputField}
                 placeholder="Nguyễn Văn A"
@@ -241,7 +240,7 @@ export const RegisterScreen: React.FC = () => {
               {!!emailError && <Text style={styles.fieldErrorText}>{emailError}</Text>}
             </View>
             <View style={[styles.inputBox, !!emailError && styles.inputBoxError]}>
-              <Text style={styles.atSignPrefix}>@</Text>
+              <Feather name="mail" size={18} color="#4A463F" style={styles.inputPrefixIcon} />
               <TextInput
                 style={styles.inputField}
                 placeholder="name@example.com"
@@ -265,6 +264,7 @@ export const RegisterScreen: React.FC = () => {
               <Text style={styles.fieldSubLabel}>(Không bắt buộc)</Text>
             </View>
             <View style={[styles.inputBox, !!phoneError && styles.inputBoxError]}>
+              <Feather name="phone" size={18} color="#4A463F" style={styles.inputPrefixIcon} />
               <TextInput
                 style={styles.inputField}
                 placeholder="0901234567"
@@ -289,6 +289,7 @@ export const RegisterScreen: React.FC = () => {
               {!!passwordError && <Text style={styles.fieldErrorText}>{passwordError}</Text>}
             </View>
             <View style={[styles.inputBox, !!passwordError && styles.inputBoxError]}>
+              <Feather name="lock" size={18} color="#4A463F" style={styles.inputPrefixIcon} />
               <TextInput
                 style={styles.inputField}
                 placeholder="Tối thiểu 6 ký tự"
@@ -306,7 +307,11 @@ export const RegisterScreen: React.FC = () => {
                 onPress={() => setShowPassword((p) => !p)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.passwordToggleText}>{showPassword ? 'Ẩn' : 'Hiện'}</Text>
+                <Feather
+                  name={showPassword ? 'eye-off' : 'eye'}
+                  size={18}
+                  color="#4A463F"
+                />
               </TouchableOpacity>
             </View>
 
@@ -357,6 +362,7 @@ export const RegisterScreen: React.FC = () => {
               )}
             </View>
             <View style={[styles.inputBox, !!confirmPasswordError && styles.inputBoxError]}>
+              <Feather name="lock" size={18} color="#4A463F" style={styles.inputPrefixIcon} />
               <TextInput
                 style={styles.inputField}
                 placeholder="Nhập lại mật khẩu"
@@ -374,7 +380,11 @@ export const RegisterScreen: React.FC = () => {
                 onPress={() => setShowConfirmPassword((p) => !p)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.passwordToggleText}>{showConfirmPassword ? 'Ẩn' : 'Hiện'}</Text>
+                <Feather
+                  name={showConfirmPassword ? 'eye-off' : 'eye'}
+                  size={18}
+                  color="#4A463F"
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -389,7 +399,7 @@ export const RegisterScreen: React.FC = () => {
             activeOpacity={0.8}
           >
             <View style={[styles.checkbox, agreement && styles.checkboxActive]}>
-              {agreement && <Text style={styles.checkboxCheck}>✓</Text>}
+              {agreement && <Feather name="check" size={13} color="#FFFFFF" />}
             </View>
             <Text style={styles.agreementText}>
               Tôi đồng ý với{' '}
@@ -412,7 +422,10 @@ export const RegisterScreen: React.FC = () => {
                 <Text style={styles.submitButtonText}>ĐANG XỬ LÝ...</Text>
               </View>
             ) : (
-              <Text style={styles.submitButtonText}>ĐĂNG KÝ TÀI KHOẢN →</Text>
+              <View style={styles.submitBtnContent}>
+                <Text style={styles.submitButtonText}>ĐĂNG KÝ TÀI KHOẢN</Text>
+                <Feather name="arrow-right" size={16} color="#FFFFFF" style={styles.submitArrow} />
+              </View>
             )}
           </TouchableOpacity>
 
@@ -420,63 +433,61 @@ export const RegisterScreen: React.FC = () => {
           <View style={styles.loginPromptRow}>
             <Text style={styles.promptText}>Đã có tài khoản?</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
-              <Text style={styles.promptLinkText}>Đăng nhập</Text>
+              <Text style={styles.promptLinkText}>Đăng nhập ngay</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* ========================================================= */}
-        {/* BOTTOM SECTION: HÌNH ẢNH & CAM KẾT CỘNG ĐỒNG (NHƯ WEB)    */}
+        {/* BOTTOM SECTION: EDITORIAL SHOWCASE (THỜI TRANG TUẦN HOÀN) */}
         {/* ========================================================= */}
         <View style={styles.showcaseCard}>
-          {/* Header Tag */}
-          <View style={styles.showcaseHeaderRow}>
-            <View style={styles.circleTag}>
-              <View style={styles.circleDot} />
-              <Text style={styles.circleTagText}>SỔ TAY THỜI TRANG TUẦN HOÀN</Text>
-            </View>
-            <Text style={styles.custodyTagText}>SERIES 18</Text>
+          {/* Badge */}
+          <View style={styles.showcaseBadgeRow}>
+            <Ionicons name="leaf" size={14} color="#576151" />
+            <Text style={styles.showcaseBadgeText}>SỔ TAY THỜI TRANG TUẦN HOÀN</Text>
           </View>
 
-          {/* Heading */}
-          <Text style={styles.showcaseTitle}>
-            Elevating style, sharing fashion.
-          </Text>
+          {/* Title & Desc */}
+          <Text style={styles.showcaseTitle}>Elevating style, sharing fashion.</Text>
           <Text style={styles.showcaseDescription}>
-            Mỗi thành viên đăng ký sẽ được tiếp cận bộ sưu tập trang phục thiết kế, phụ kiện cao cấp được bảo quản theo tiêu chuẩn chuyên nghiệp.
+            Mỗi thành viên đăng ký sẽ được tiếp cận bộ sưu tập trang phục thiết kế, phụ kiện cao
+            cấp và thời trang hàng hiệu được chăm sóc, bảo quản theo tiêu chuẩn chuyên nghiệp.
           </Text>
 
-          {/* Image */}
-          <View style={styles.imageWrapper}>
+          {/* Showcase Image */}
+          <View style={styles.imageContainer}>
             <Image
               source={require('../../../assets/images/register.jpg')}
-              style={styles.showcaseImage}
+              style={styles.heroImage}
               resizeMode="cover"
             />
-            <View style={styles.imageOverlayBadge}>
-              <Text style={styles.imageBadgeSub}>BỘ SƯU TẬP MỚI · SERIES 18</Text>
-              <Text style={styles.imageBadgeText}>Urbansheek & Xu Hướng Tuần Hoàn</Text>
+            <View style={styles.imageOverlayGradient}>
+              <Text style={styles.imageSeriesTag}>BỘ SƯU TẬP MỚI · SERIES 18</Text>
+              <Text style={styles.imageCaption}>Urbansheek & Bộ Sưu Tập Thời Trang Xu Hướng</Text>
             </View>
           </View>
 
-          {/* Community Commitment Box */}
-          <View style={styles.commitmentCard}>
+          {/* Commitments Box */}
+          <View style={styles.commitmentBox}>
             <View style={styles.commitmentHeaderRow}>
-              <Text style={styles.commitmentHeaderTitle}>CAM KẾT CỘNG ĐỒNG</Text>
-              <Text style={styles.commitmentHeaderRev}>REV 2026.11</Text>
+              <Text style={styles.commitmentTitle}>CAM KẾT CỘNG ĐỒNG</Text>
+              <Text style={styles.commitmentRevision}>REV 2026.11</Text>
             </View>
 
             <View style={styles.commitmentItem}>
-              <Text style={styles.commitmentCheck}>✓</Text>
+              <Feather name="check-circle" size={14} color="#576151" style={styles.checkIcon} />
               <Text style={styles.commitmentText}>
-                Cam kết không tăng giá đầu cơ — chi phí thuê minh bạch, chuẩn hóa và được xác thực bởi cộng đồng.
+                Cam kết không tăng giá đầu cơ — chi phí thuê minh bạch, chuẩn hóa và được xác thực
+                bởi cộng đồng.
               </Text>
             </View>
 
             <View style={styles.commitmentItem}>
-              <Text style={styles.commitmentCheck}>✓</Text>
+              <Feather name="check-circle" size={14} color="#576151" style={styles.checkIcon} />
               <Text style={styles.commitmentText}>
-                Kích hoạt tự động quyền thành viên Tầng 1 đi kèm chính sách bảo vệ trang phục toàn diện.
+                Kích hoạt tự động quyền thành viên Tầng 1 đi kèm chính sách bảo vệ trang phục toàn
+                diện.
               </Text>
             </View>
           </View>
@@ -486,8 +497,6 @@ export const RegisterScreen: React.FC = () => {
   );
 };
 
-export default RegisterScreen;
-
 const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
@@ -495,161 +504,159 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    flexGrow: 1,
   },
 
-  /* Form Card (Top) */
+  // Form Card (TOP)
   formCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 22,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#141310',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
     borderWidth: 1,
     borderColor: '#EFEAE1',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
-    marginBottom: 20,
   },
-  cardHeaderRow: {
+  headerBadgeRow: {
+    marginBottom: 12,
+  },
+  membershipBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  brandBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  brandIconBox: {
-    width: 26,
-    height: 26,
+    backgroundColor: 'rgba(216, 227, 206, 0.4)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 6,
-    backgroundColor: '#141310',
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
   },
-  brandIconText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-    lineHeight: 18,
+  badgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#576151',
   },
-  brandTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    color: '#141310',
-  },
-  portalBadge: {
-    backgroundColor: '#F7F3EC',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-  },
-  portalBadgeText: {
+  badgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#576151',
-    letterSpacing: 0.5,
+    color: '#5B6655',
+    letterSpacing: 0.8,
   },
+
   headingSection: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   headingTitle: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#1C1C18',
-    marginBottom: 6,
+    fontWeight: '600',
+    color: '#141310',
+    letterSpacing: -0.3,
   },
   headingSubtitle: {
     fontSize: 13,
-    color: '#57534E',
+    color: '#4A463F',
+    marginTop: 6,
     lineHeight: 18,
   },
+
+  // Role Selection
   roleContainer: {
-    marginBottom: 16,
-    backgroundColor: '#FAF8F4',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ECE6DA',
+    marginBottom: 18,
   },
   roleLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: '#1C1C18',
     marginBottom: 8,
   },
   roleTabs: {
     flexDirection: 'row',
-    gap: 8,
+    backgroundColor: '#F7F3EC',
+    borderRadius: 8,
+    padding: 3,
+    gap: 4,
   },
   roleTab: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingVertical: 9,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D8D3C8',
+    borderRadius: 6,
   },
   roleTabActive: {
     backgroundColor: '#141310',
-    borderColor: '#141310',
+    shadowColor: '#141310',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   roleTabText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#44403C',
+    color: '#4A463F',
   },
   roleTabTextActive: {
     color: '#FFFFFF',
   },
   roleDescription: {
     fontSize: 11,
-    color: '#576151',
-    lineHeight: 16,
-    marginTop: 8,
+    color: '#78716C',
+    marginTop: 6,
+    fontStyle: 'italic',
+    lineHeight: 15,
   },
+
+  // Alerts
   errorAlert: {
+    flexDirection: 'row',
     backgroundColor: '#FFDAD6',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 14,
-    borderLeftWidth: 4,
-    borderLeftColor: '#BA1A1A',
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  alertIcon: {
+    marginRight: 10,
+    marginTop: 2,
+  },
+  alertTextWrap: {
+    flex: 1,
   },
   errorAlertTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: '#93000A',
-    marginBottom: 2,
   },
   errorAlertMessage: {
     fontSize: 12,
     color: '#93000A',
+    marginTop: 2,
+    lineHeight: 16,
   },
   successAlert: {
+    flexDirection: 'row',
     backgroundColor: '#D8E3CE',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 14,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3F4A3A',
+    marginBottom: 16,
+    alignItems: 'flex-start',
   },
   successAlertTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: '#3F4A3A',
-    marginBottom: 2,
   },
   successAlertMessage: {
     fontSize: 12,
     color: '#3F4A3A',
+    marginTop: 2,
+    lineHeight: 16,
   },
+
+  // Input Fields
   fieldGroup: {
     marginBottom: 14,
   },
@@ -664,12 +671,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1C1C18',
   },
+  requiredStar: {
+    color: '#BA1A1A',
+  },
   fieldSubLabel: {
     fontSize: 11,
     color: '#78716C',
-  },
-  requiredStar: {
-    color: '#BA1A1A',
   },
   fieldErrorText: {
     fontSize: 11,
@@ -678,6 +685,7 @@ const styles = StyleSheet.create({
   },
   fieldErrorTextUnder: {
     fontSize: 11,
+    fontWeight: '600',
     color: '#BA1A1A',
     marginTop: 4,
   },
@@ -686,36 +694,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F7F3EC',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E6E2DB',
     paddingHorizontal: 12,
     height: 48,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   inputBoxError: {
     borderColor: '#BA1A1A',
-    backgroundColor: '#FFF8F8',
+    backgroundColor: '#FFF5F4',
   },
-  atSignPrefix: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#78716C',
-    marginRight: 8,
+  inputPrefixIcon: {
+    marginRight: 10,
   },
   inputField: {
     flex: 1,
     fontSize: 14,
     color: '#1C1C18',
-    paddingVertical: 0,
+    height: '100%',
   },
   passwordToggleBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
+    padding: 6,
   },
-  passwordToggleText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#576151',
-  },
+
+  // Strength Meter
   strengthRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -725,7 +726,7 @@ const styles = StyleSheet.create({
   },
   strengthHeading: {
     fontSize: 11,
-    color: '#78716C',
+    color: '#4A463F',
   },
   strengthLabel: {
     fontSize: 11,
@@ -736,45 +737,49 @@ const styles = StyleSheet.create({
     color: '#BA1A1A',
   },
   strengthGood: {
-    color: '#576151',
+    color: '#D97706',
   },
   strengthStrong: {
     color: '#15803D',
   },
   strengthBarContainer: {
     flexDirection: 'row',
-    height: 4,
     gap: 4,
+    height: 4,
+    marginTop: 2,
   },
   strengthSegment: {
     flex: 1,
-    backgroundColor: '#EBE5D8',
+    height: 4,
+    backgroundColor: '#E6E2DB',
     borderRadius: 2,
   },
   segmentWeak: {
     backgroundColor: '#BA1A1A',
   },
   segmentGood: {
-    backgroundColor: '#576151',
+    backgroundColor: '#D97706',
   },
   segmentStrong: {
     backgroundColor: '#15803D',
   },
+
+  // Agreement
   agreementRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    marginTop: 4,
-    marginBottom: 6,
+    marginTop: 6,
+    marginBottom: 4,
   },
   checkbox: {
     width: 18,
     height: 18,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#78716C',
-    alignItems: 'center',
+    borderColor: '#4A463F',
     justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
     marginTop: 2,
   },
@@ -782,15 +787,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#141310',
     borderColor: '#141310',
   },
-  checkboxCheck: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
   agreementText: {
-    fontSize: 12,
-    color: '#44403C',
     flex: 1,
+    fontSize: 12,
+    color: '#4A463F',
     lineHeight: 18,
   },
   agreementLink: {
@@ -800,17 +800,19 @@ const styles = StyleSheet.create({
   },
   agreementErrorText: {
     fontSize: 11,
+    fontWeight: '600',
     color: '#BA1A1A',
-    marginBottom: 8,
+    marginBottom: 10,
   },
+
+  // Submit Button
   submitButton: {
     backgroundColor: '#141310',
-    height: 50,
     borderRadius: 8,
-    alignItems: 'center',
+    height: 48,
     justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 10,
-    marginBottom: 16,
     shadowColor: '#141310',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
@@ -820,10 +822,13 @@ const styles = StyleSheet.create({
   submitButtonDisabled: {
     opacity: 0.6,
   },
-  loadingRow: {
+  submitBtnContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+  },
+  submitArrow: {
+    marginLeft: 8,
   },
   submitButtonText: {
     color: '#FFFFFF',
@@ -831,15 +836,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.8,
   },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
   loginPromptRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
+    marginTop: 18,
+    gap: 4,
   },
   promptText: {
     fontSize: 13,
-    color: '#78716C',
+    color: '#4A463F',
   },
   promptLinkText: {
     fontSize: 13,
@@ -848,134 +860,114 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
-  /* Showcase Section (Bottom) */
+  // Showcase Section (BOTTOM)
   showcaseCard: {
     backgroundColor: '#F7F3EC',
     borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#EBE5D8',
+    padding: 18,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ECE6DC',
   },
-  showcaseHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  circleTag: {
+  showcaseBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#EBE5D8',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 4,
+    marginBottom: 10,
   },
-  circleDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#576151',
-  },
-  circleTagText: {
+  showcaseBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#44403C',
-    letterSpacing: 0.4,
-  },
-  custodyTagText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#78716C',
-    textTransform: 'uppercase',
+    color: '#576151',
+    letterSpacing: 0.8,
   },
   showcaseTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#141310',
+    lineHeight: 24,
     marginBottom: 6,
-    lineHeight: 26,
   },
   showcaseDescription: {
     fontSize: 12,
-    color: '#57534E',
+    color: '#4A463F',
     lineHeight: 18,
-    marginBottom: 14,
+    marginBottom: 16,
   },
-  imageWrapper: {
+
+  imageContainer: {
     width: '100%',
     height: 190,
     borderRadius: 10,
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: '#EBE8E1',
     marginBottom: 14,
-    backgroundColor: '#E5E0D4',
   },
-  showcaseImage: {
+  heroImage: {
     width: '100%',
     height: '100%',
   },
-  imageOverlayBadge: {
+  imageOverlayGradient: {
     position: 'absolute',
-    bottom: 8,
-    left: 8,
-    right: 8,
-    backgroundColor: 'rgba(20, 19, 16, 0.75)',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  imageBadgeSub: {
-    fontSize: 9,
+  imageSeriesTag: {
+    fontSize: 10,
     fontWeight: '600',
-    color: '#D8E3CE',
+    color: 'rgba(255, 255, 255, 0.75)',
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 2,
   },
-  imageBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
+  imageCaption: {
+    fontSize: 13,
+    fontWeight: '600',
     color: '#FFFFFF',
+    marginTop: 2,
   },
-  commitmentCard: {
-    backgroundColor: '#EFE9DE',
-    borderRadius: 10,
+
+  commitmentBox: {
+    backgroundColor: 'rgba(235, 232, 225, 0.6)',
+    borderRadius: 8,
     padding: 12,
   },
   commitmentHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  commitmentHeaderTitle: {
-    fontSize: 10,
+  commitmentTitle: {
+    fontSize: 11,
     fontWeight: '700',
-    color: '#1C1C18',
-    letterSpacing: 0.5,
+    color: '#141310',
+    letterSpacing: 0.6,
   },
-  commitmentHeaderRev: {
-    fontSize: 10,
-    fontWeight: '700',
+  commitmentRevision: {
+    fontSize: 11,
+    fontWeight: '600',
     color: '#576151',
   },
   commitmentItem: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  commitmentCheck: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#576151',
-    marginTop: 1,
+  checkIcon: {
+    marginTop: 2,
   },
   commitmentText: {
-    fontSize: 11,
-    color: '#44403C',
-    lineHeight: 16,
     flex: 1,
+    fontSize: 11,
+    color: '#4A463F',
+    lineHeight: 16,
   },
 });
+
+export default RegisterScreen;
