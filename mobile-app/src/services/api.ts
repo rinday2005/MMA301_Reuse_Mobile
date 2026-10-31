@@ -1,19 +1,59 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import { storage } from '../utils/storage';
 
-// Smart Base API configuration for Mobile App
+const DEFAULT_DEV_IP = '192.168.1.23';
+const BE_PORT = 5000;
+
+/**
+ * Nhận diện Android Emulator (Android Studio AVD).
+ * Emulator luôn truy cập máy host qua 10.0.2.2, không phụ thuộc Wi-Fi/IP/firewall.
+ */
+const isAndroidEmulator = (): boolean => {
+  if (Platform.OS !== 'android') return false;
+  const c: any = (Platform as any).constants || {};
+  const text = `${c.Fingerprint || ''} ${c.Model || ''} ${c.Brand || ''} ${c.Manufacturer || ''}`.toLowerCase();
+  return /generic|emulator|sdk_gphone|android sdk|ranchu|goldfish/.test(text);
+};
+
+/**
+ * Thứ tự ưu tiên:
+ * 1. Android Emulator  -> http://10.0.2.2:5000/api
+ * 2. Điện thoại thật   -> IP máy tính lấy từ URL bundle của Metro
+ * 3. EXPO_PUBLIC_API_URL (.env)
+ * 4. IP Wi-Fi mặc định
+ */
 export const getBaseApiUrl = (): string => {
+  if (isAndroidEmulator()) {
+    return `http://10.0.2.2:${BE_PORT}/api`;
+  }
+
+  try {
+    const scriptURL = NativeModules?.SourceCode?.scriptURL;
+    if (scriptURL && typeof scriptURL === 'string') {
+      const match = scriptURL.match(/(?:https?|exp|exps):\/\/([^:/]+)/i);
+      if (match && match[1] && match[1] !== 'localhost' && match[1] !== '127.0.0.1') {
+        return `http://${match[1]}:${BE_PORT}/api`;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
     return envUrl;
   }
-  // Mobile physical devices / emulators cannot connect to phone's "localhost"
-  // Default to developer machine's Wi-Fi LAN IP on port 5000
-  return 'http://192.168.100.22:5000/api';
+
+  return `http://${DEFAULT_DEV_IP}:${BE_PORT}/api`;
 };
 
 export const API_BASE_URL = getBaseApiUrl();
+
+if (__DEV__) {
+  // Giúp chẩn đoán nhanh: xem app đang gọi tới địa chỉ nào
+  console.log(`[API] Base URL = ${API_BASE_URL}`);
+}
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -40,9 +80,11 @@ export const getAuthToken = (): string | null => {
   return inMemoryToken || storage.getSync('token');
 };
 
-// Request Interceptor: Auto-attach Bearer token
+// Request Interceptor: Dynamic host check + auto-attach Bearer token
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    // Luôn dùng cùng một logic chọn địa chỉ BE (emulator -> 10.0.2.2, máy thật -> IP Metro)
+    config.baseURL = getBaseApiUrl();
     let token = inMemoryToken;
     if (!token) {
       token = (await storage.getItem('token')) || (await storage.getItem('accessToken'));
