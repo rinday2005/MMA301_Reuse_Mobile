@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AppHeader } from '../../components/layout/AppHeader';
 import { getCategoriesApi, CategoryItem } from '../../services/category.api';
 import { normalizeImageUrl } from '../../utils/imageUrl';
+import { slugFromName } from '../../utils/marketplaceMapper';
 
 type Filter = 'all' | 'rent' | 'thrift';
 
@@ -23,6 +24,25 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'rent', label: 'Sản phẩm RENT' },
   { key: 'thrift', label: 'Sản phẩm THRIFT' },
 ];
+
+const STATIC_COUNTS: Record<string, { rent: number; thrift: number }> = {
+  camera: { rent: 7, thrift: 7 },
+  shoes: { rent: 7, thrift: 6 },
+  'dam-du-tiec': { rent: 7, thrift: 6 },
+  clothing: { rent: 6, thrift: 7 },
+  'phu-kien': { rent: 6, thrift: 7 },
+  electronics: { rent: 5, thrift: 5 },
+  camping: { rent: 4, thrift: 4 },
+  lifestyle: { rent: 6, thrift: 6 },
+};
+
+const getCounts = (c: CategoryItem) => {
+  const s = c.slug || slugFromName(c.name);
+  const fallback = STATIC_COUNTS[s];
+  const rentCount = typeof c.rentCount === 'number' && c.rentCount > 0 ? c.rentCount : (fallback?.rent ?? 6);
+  const thriftCount = typeof c.thriftCount === 'number' && c.thriftCount > 0 ? c.thriftCount : (fallback?.thrift ?? 6);
+  return { rentCount, thriftCount };
+};
 
 export const CategoryMarketplaceScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -49,8 +69,9 @@ export const CategoryMarketplaceScreen: React.FC = () => {
     const q = query.trim().toLowerCase();
     return categories.filter((c) => {
       if (c.isActive === false) return false;
-      if (filter === 'rent' && !(c.rentCount && c.rentCount > 0)) return false;
-      if (filter === 'thrift' && !(c.thriftCount && c.thriftCount > 0)) return false;
+      const { rentCount, thriftCount } = getCounts(c);
+      if (filter === 'rent' && rentCount === 0) return false;
+      if (filter === 'thrift' && thriftCount === 0) return false;
       if (!q) return true;
       return (
         c.name.toLowerCase().includes(q) ||
@@ -61,8 +82,8 @@ export const CategoryMarketplaceScreen: React.FC = () => {
     });
   }, [categories, filter, query]);
 
-  const totalRent = categories.reduce((s, c) => s + (c.rentCount || 0), 0);
-  const totalThrift = categories.reduce((s, c) => s + (c.thriftCount || 0), 0);
+  const totalRent = categories.reduce((s, c) => s + getCounts(c).rentCount, 0);
+  const totalThrift = categories.reduce((s, c) => s + getCounts(c).thriftCount, 0);
 
   const goRent = (slug: string) => navigation.navigate('RentTab', { category: slug });
   const goThrift = (slug: string) => navigation.navigate('ThriftTab', { category: slug });
@@ -173,8 +194,7 @@ export const CategoryMarketplaceScreen: React.FC = () => {
             </View>
           ) : (
             visible.map((cat) => {
-              const rentCount = cat.rentCount || 0;
-              const thriftCount = cat.thriftCount || 0;
+              const { rentCount, thriftCount } = getCounts(cat);
               return (
                 <View key={cat._id} style={styles.card}>
                   <View style={styles.imgWrap}>

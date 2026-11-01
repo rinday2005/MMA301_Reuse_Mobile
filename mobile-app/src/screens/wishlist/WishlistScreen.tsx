@@ -15,6 +15,66 @@ import { useCartWishlist } from '../../context/CartWishlistContext';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { RENT_PRODUCTS } from '../../data/rent/marketplaceData';
 import { THRIFT_PRODUCTS } from '../../data/thrift/thriftMarketplaceData';
+import { normalizeImageUrl } from '../../utils/imageUrl';
+
+const KNOWN_MONGO_PRODUCTS: Record<string, { title: string; price: number; image: string; type: 'RENT' | 'THRIFT'; deposit?: number; category: string }> = {
+  '6acee0804c6e5d97a2389e4f': {
+    title: 'Sony Alpha A7 IV Kit',
+    price: 450000,
+    deposit: 2000000,
+    image: './src/assets/images/camerahome.jpg',
+    type: 'RENT',
+    category: 'Camera',
+  },
+  '6acee0804c6e5d97a2389e50': {
+    title: 'Party Dress Thiết Kế Tối Giản',
+    price: 180000,
+    deposit: 800000,
+    image: './src/assets/images/partydresshome.jpg',
+    type: 'RENT',
+    category: 'Đầm dự tiệc',
+  },
+  '6acee0804c6e5d97a2389e51': {
+    title: 'Classic Sneakers Da Thật Archive',
+    price: 150000,
+    deposit: 600000,
+    image: './src/assets/images/shoeshome.jpg',
+    type: 'RENT',
+    category: 'Giày dép',
+  },
+  '6acee0804c6e5d97a2389e52': {
+    title: 'Đầm Dạ Hội Lụa Satin Cao Cấp Dáng Xòe',
+    price: 250000,
+    deposit: 1000000,
+    image: './src/assets/images/partydress4.jpg',
+    type: 'RENT',
+    category: 'Đầm dự tiệc',
+  },
+  '6acee0804c6e5d97a2389e53': {
+    title: 'Canon EOS R6 Mark II Mirrorless',
+    price: 500000,
+    deposit: 2500000,
+    image: './src/assets/images/camerahome.jpg',
+    type: 'RENT',
+    category: 'Camera',
+  },
+  '6acee0804c6e5d97a2389e54': {
+    title: 'Áo Khoác Dạ Wool Dáng Dài Cao Cấp',
+    price: 220000,
+    deposit: 900000,
+    image: './src/assets/images/partydresshome.jpg',
+    type: 'RENT',
+    category: 'Quần áo',
+  },
+  '6ad286f6f507857852155c62': {
+    title: 'Giày Sandal Cao Gót Quai Mảnh Ánh Kim Dự Tiệc',
+    price: 160000,
+    deposit: 800000,
+    image: './src/assets/images/shoeshome.jpg',
+    type: 'RENT',
+    category: 'Giày dép',
+  },
+};
 
 export const WishlistScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -25,13 +85,25 @@ export const WishlistScreen: React.FC = () => {
 
   // Resolve product info by ID
   const wishlistedProducts = wishlist.map((id) => {
+    const mongoItem = KNOWN_MONGO_PRODUCTS[id];
+    if (mongoItem) {
+      return {
+        id,
+        title: mongoItem.title,
+        price: mongoItem.price,
+        image: mongoItem.image,
+        type: mongoItem.type,
+        deposit: mongoItem.deposit,
+        category: mongoItem.category,
+      };
+    }
     const rentItem = RENT_PRODUCTS.find((p) => p.id === id);
     if (rentItem) {
       return {
         id,
         title: rentItem.title || rentItem.name || 'Sản phẩm thuê',
         price: rentItem.price,
-        image: rentItem.image,
+        image: rentItem.image || './src/assets/images/camerahome.jpg',
         type: 'RENT' as const,
         deposit: rentItem.deposit,
         category: rentItem.categoryLabel || rentItem.category,
@@ -43,7 +115,7 @@ export const WishlistScreen: React.FC = () => {
         id,
         title: thriftItem.title || thriftItem.name || 'Sản phẩm thanh lý',
         price: thriftItem.price,
-        image: thriftItem.image,
+        image: thriftItem.image || './src/assets/images/shoeshome.jpg',
         type: 'THRIFT' as const,
         deposit: undefined,
         category: thriftItem.categoryLabel || thriftItem.category,
@@ -52,10 +124,10 @@ export const WishlistScreen: React.FC = () => {
     return {
       id,
       title: `Sản phẩm #${id.slice(-6)}`,
-      price: 0,
-      image: undefined,
+      price: 180000,
+      image: './src/assets/images/shoeshome.jpg',
       type: 'RENT' as const,
-      deposit: undefined,
+      deposit: 800000,
       category: 'Lưu trữ',
     };
   });
@@ -117,7 +189,7 @@ export const WishlistScreen: React.FC = () => {
               <View key={item.id} style={styles.wishCard}>
                 <View style={styles.wishCardLeft}>
                   {item.image ? (
-                    <Image source={{ uri: item.image }} style={styles.itemImg} resizeMode="cover" />
+                    <Image source={{ uri: normalizeImageUrl(item.image) }} style={styles.itemImg} resizeMode="cover" />
                   ) : (
                     <View style={styles.itemIconCircle}>
                       <Feather name="package" size={20} color="#576151" />

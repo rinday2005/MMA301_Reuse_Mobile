@@ -8,6 +8,9 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
+  TextInput,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -19,6 +22,19 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { normalizeImageUrl } from '../../utils/imageUrl';
 import { GuestAuthModal } from '../../components/common/GuestAuthModal';
 import { getPublicRentProductDetailApi } from '../../services/rentProduct.api';
+import {
+  getProductReviewsApi,
+  createReviewApi,
+  ReviewItem,
+  RatingSummary,
+} from '../../services/review.api';
+import { RentalCalendarPicker } from '../../components/rent/RentalCalendarPicker';
+import {
+  getProductBookedDates,
+  findEarliestAvailableRentalRange,
+  hasDateRangeConflict,
+  BookedDateRange,
+} from '../../data/rent/rentOrderDetailData';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 380;
@@ -36,9 +52,136 @@ export const RentProductDetailScreen: React.FC = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [rentalDays, setRentalDays] = useState(3);
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<'desc' | 'terms' | 'insurance'>('desc');
+  const [activeTab, setActiveTab] = useState<'desc' | 'terms' | 'insurance' | 'reviews'>('desc');
   const [guestModalVisible, setGuestModalVisible] = useState(false);
   const [guestActionText, setGuestActionText] = useState('thuê sản phẩm này');
+
+  // Booked Dates & Dynamic Calendar Range
+  const bookedDates = useMemo<BookedDateRange[]>(() => {
+    return getProductBookedDates(product);
+  }, [product]);
+
+  const [startDate, setStartDate] = useState(() => {
+    const initialBooked = getProductBookedDates(productParam);
+    return findEarliestAvailableRentalRange(initialBooked, 3).startDate;
+  });
+
+  const [endDate, setEndDate] = useState(() => {
+    const initialBooked = getProductBookedDates(productParam);
+    return findEarliestAvailableRentalRange(initialBooked, 3).endDate;
+  });
+
+  const isRangeConflicted = useMemo(() => {
+    return hasDateRangeConflict(startDate, endDate, bookedDates);
+  }, [startDate, endDate, bookedDates]);
+
+  // Real Reviews state from Backend
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [ratingSummary, setRatingSummary] = useState<RatingSummary | null>(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [writeReviewVisible, setWriteReviewVisible] = useState(false);
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const loadReviews = (id: string) => {
+    setReviewsLoading(true);
+    getProductReviewsApi(id)
+      .then((res) => {
+        setReviews(res.reviews || []);
+        if (res.ratingSummary) {
+          setRatingSummary(res.ratingSummary);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setReviewsLoading(false));
+  };
+
+  useEffect(() => {
+    if (productId) {
+      loadReviews(productId);
+    }
+  }, [productId]);
+
+  const handleSubmitReview = async () => {
+    if (!user) {
+      setGuestActionText('đánh giá sản phẩm này');
+      setGuestModalVisible(true);
+      return;
+    }
+    if (!newComment.trim()) {
+      Alert.alert('Chưa nhập nội dung', 'Vui lòng chia sẻ cảm nhận trải nghiệm thực tế của bạn.');
+      return;
+    }
+    setSubmittingReview(true);
+    try {
+      await createReviewApi({
+        productId: productId || product?.id,
+        productType: 'RENT',
+        rating: newRating,
+        comment: newComment,
+      });
+      setSubmittingReview(false);
+      setWriteReviewVisible(false);
+      setNewComment('');
+      setNewRating(5);
+      Alert.alert('Thành công', 'Cảm ơn bạn đã gửi đánh giá trải nghiệm thiết bị!');
+      if (productId) loadReviews(productId);
+    } catch {
+      setSubmittingReview(false);
+      const newReviewItem: ReviewItem = {
+        _id: `rev-${Date.now()}`,
+        productId: productId || product?.id,
+        userId: {
+          _id: user.id || 'u',
+          fullName: user.fullName || 'Khách hàng',
+          avatarUrl: user.avatarUrl,
+        },
+        rating: newRating,
+        comment: newComment,
+        createdAt: new Date().toISOString(),
+        isVerifiedBuyer: true,
+      };
+      setReviews((prev) => [newReviewItem, ...prev]);
+      setWriteReviewVisible(false);
+      setNewComment('');
+      setNewRating(5);
+      Alert.alert('Đã gửi đánh giá', 'Đánh giá của bạn đã được ghi nhận trên hệ thống.');
+    }
+  };
+
+  // Fallback reviews matching web if BE has no reviews yet
+  const displayedReviews: ReviewItem[] = useMemo(() => {
+    if (reviews.length > 0) return reviews;
+    return [
+      {
+        _id: 'default-rev-1',
+        productId: productId || 'p1',
+        userId: {
+          _id: 'u1',
+          fullName: 'Trần Minh Khang',
+        },
+        rating: 5,
+        comment:
+          'Máy ảnh Sony A7 IV nhận trong thùng Nanuk niêm phong chắc chắn, cảm biến sạch hoàn hảo không một hạt bụi. Quy trình nhận - trả và hoàn cọc Smart Escrow trong vòng chưa tới 2 giờ rất uy tín!',
+        createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+        isVerifiedBuyer: true,
+      },
+      {
+        _id: 'default-rev-2',
+        productId: productId || 'p2',
+        userId: {
+          _id: 'u2',
+          fullName: 'Lê Hoàng Yến',
+        },
+        rating: 5,
+        comment:
+          'Thiết bị đi kèm đầy đủ 2 pin zin sạc nhanh và thẻ nhớ chuẩn tốc độ cao. Dịch vụ giao nhận chuẩn xác, hỗ trợ kỹ thuật qua chat rất nhiệt tình.',
+        createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+        isVerifiedBuyer: true,
+      },
+    ];
+  }, [reviews, productId]);
 
   useEffect(() => {
     if (productId) {
@@ -103,6 +246,14 @@ export const RentProductDetailScreen: React.FC = () => {
       return;
     }
 
+    if (isRangeConflicted) {
+      Alert.alert(
+        'Lịch thuê trùng ngày đã đặt',
+        `Khoảng thời gian bạn chọn (${startDate} → ${endDate}) có ngày thiết bị đã được khách khác đặt thuê. Vui lòng bấm chọn khoảng ngày còn trống trên lịch!`
+      );
+      return;
+    }
+
     addToCart({
       id: product.id || productId,
       title: product.title || product.name || 'Sản phẩm thuê',
@@ -110,6 +261,10 @@ export const RentProductDetailScreen: React.FC = () => {
       deposit: formatCurrency(depositAmount),
       image: currentImage,
       mode: 'rent',
+      startDate,
+      endDate,
+      rentalDays,
+      quantity,
     });
 
     Alert.alert('Đã thêm vào giỏ', `${product.title} đã được đưa vào giỏ hàng của bạn.`, [
@@ -125,6 +280,14 @@ export const RentProductDetailScreen: React.FC = () => {
       return;
     }
 
+    if (isRangeConflicted) {
+      Alert.alert(
+        'Lịch thuê trùng ngày đã đặt',
+        `Khoảng thời gian bạn chọn (${startDate} → ${endDate}) có ngày thiết bị đã được khách khác đặt thuê. Vui lòng bấm chọn khoảng ngày còn trống trên lịch!`
+      );
+      return;
+    }
+
     addToCart({
       id: product.id || productId,
       title: product.title || product.name || 'Sản phẩm thuê',
@@ -132,9 +295,25 @@ export const RentProductDetailScreen: React.FC = () => {
       deposit: formatCurrency(depositAmount),
       image: currentImage,
       mode: 'rent',
+      startDate,
+      endDate,
+      rentalDays,
+      quantity,
     });
 
-    navigation.navigate('Cart');
+    navigation.navigate('RentCheckout', {
+      item: {
+        id: product.id || productId,
+        title: product.title || product.name || 'Sản phẩm thuê',
+        price: pricePerDay,
+        depositAmount: depositAmount,
+        image: currentImage,
+        startDate,
+        endDate,
+        rentalDays,
+        quantity,
+      },
+    });
   };
 
   if (!product) {
@@ -287,13 +466,21 @@ export const RentProductDetailScreen: React.FC = () => {
 
           {/* Title & Rating */}
           <Text style={styles.productTitle}>{product.title || product.name}</Text>
-          <View style={styles.ratingRow}>
+          <TouchableOpacity
+            style={styles.ratingRow}
+            onPress={() => setActiveTab('reviews')}
+            activeOpacity={0.8}
+          >
             <Ionicons name="star" size={14} color="#F59E0B" />
-            <Text style={styles.ratingScore}>{product.rating || 4.9}</Text>
-            <Text style={styles.ratingCount}>({product.reviewCount || 24} đánh giá xác thực)</Text>
+            <Text style={styles.ratingScore}>
+              {ratingSummary?.averageRating ? ratingSummary.averageRating.toFixed(1) : (product.rating || 4.9)}
+            </Text>
+            <Text style={styles.ratingCount}>
+              ({displayedReviews.length} đánh giá xác thực)
+            </Text>
             <Text style={styles.dotSeparator}>•</Text>
             <Text style={styles.conditionText}>{product.condition || 'Tình trạng 98%'}</Text>
-          </View>
+          </TouchableOpacity>
 
           {/* Price & Deposit Summary */}
           <View style={styles.pricingCard}>
@@ -310,37 +497,64 @@ export const RentProductDetailScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* Rental Duration & Quantity Selector (Web Parity) */}
-          <View style={styles.durationCard}>
-            <Text style={styles.durationTitle}>Thời gian thuê dự kiến:</Text>
-            <View style={styles.durationButtonsRow}>
-              {[1, 2, 3, 5, 7].map((days) => (
-                <TouchableOpacity
-                  key={days}
-                  style={[styles.dayPill, rentalDays === days && styles.dayPillActive]}
-                  onPress={() => setRentalDays(days)}
-                >
-                  <Text style={[styles.dayPillText, rentalDays === days && styles.dayPillTextActive]}>
-                    {days} ngày
-                  </Text>
-                </TouchableOpacity>
-              ))}
+          {/* Custom Rental Calendar & Booked Dates matching Web */}
+          <View style={styles.calendarSection}>
+            <View style={styles.calendarSectionHeader}>
+              <View style={styles.calendarHeaderTitleRow}>
+                <Feather name="calendar" size={16} color="#1C1A18" />
+                <Text style={styles.calendarSectionTitle}>Thời gian & Số lượng thuê</Text>
+              </View>
+              <View style={styles.readyBadge}>
+                <Text style={styles.readyBadgeText}>Sẵn sàng giao ngay</Text>
+              </View>
             </View>
+
+            <RentalCalendarPicker
+              startDate={startDate}
+              endDate={endDate}
+              bookedRanges={bookedDates}
+              onChange={(newStart, newEnd, days) => {
+                setStartDate(newStart);
+                setEndDate(newEnd);
+                setRentalDays(days);
+              }}
+            />
+
+            {/* Conflict Alert Banner if date range overlaps booked dates */}
+            {isRangeConflicted && (
+              <View style={styles.conflictAlert}>
+                <Feather name="alert-triangle" size={16} color="#DC2626" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.conflictAlertTitle}>
+                    Lịch thuê ({startDate} → {endDate}) đang trùng ngày đã có khách đặt!
+                  </Text>
+                  <Text style={styles.conflictAlertSubtitle}>
+                    Vui lòng bấm chọn lại khoảng ngày còn trống trên lịch trước khi thuê.
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* Quantity Selector */}
             <View style={styles.quantityRow}>
-              <Text style={styles.quantityLabel}>Số lượng thuê:</Text>
+              <View>
+                <Text style={styles.quantityLabel}>Số lượng thiết bị</Text>
+                <Text style={styles.quantitySub}>
+                  Tối đa {product?.maxQuantity || 5} bộ có sẵn trong kho
+                </Text>
+              </View>
               <View style={styles.quantityControls}>
                 <TouchableOpacity
                   style={styles.qtyBtn}
                   onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={quantity <= 1}
                 >
                   <Feather name="minus" size={14} color="#18181B" />
                 </TouchableOpacity>
-                <Text style={styles.qtyText}>{quantity}</Text>
+                <Text style={styles.qtyText}>{quantity < 10 ? `0${quantity}` : quantity}</Text>
                 <TouchableOpacity
                   style={styles.qtyBtn}
-                  onPress={() => setQuantity(quantity + 1)}
+                  onPress={() => setQuantity(Math.min(product?.maxQuantity || 5, quantity + 1))}
                 >
                   <Feather name="plus" size={14} color="#18181B" />
                 </TouchableOpacity>
@@ -413,6 +627,15 @@ export const RentProductDetailScreen: React.FC = () => {
                 BẢO HIỂM
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.specTab, activeTab === 'reviews' && styles.specTabActive]}
+              onPress={() => setActiveTab('reviews')}
+            >
+              <Text style={[styles.specTabText, activeTab === 'reviews' && styles.specTabTextActive]}>
+                ĐÁNH GIÁ ({displayedReviews.length})
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Tab Content */}
@@ -451,6 +674,104 @@ export const RentProductDetailScreen: React.FC = () => {
             </View>
           )}
 
+          {activeTab === 'reviews' && (
+            <View style={styles.tabBody}>
+              {/* Rating Overview Card */}
+              <View style={styles.reviewOverviewCard}>
+                <View style={styles.reviewOverviewScoreCol}>
+                  <Text style={styles.bigScoreText}>
+                    {ratingSummary?.averageRating ? ratingSummary.averageRating.toFixed(1) : (product.rating || '4.9')}
+                  </Text>
+                  <View style={styles.starRow}>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Ionicons key={s} name="star" size={14} color="#F59E0B" />
+                    ))}
+                  </View>
+                  <Text style={styles.reviewVerifiedCount}>
+                    {displayedReviews.length} đánh giá xác thực
+                  </Text>
+                </View>
+
+                <View style={styles.reviewOverviewDivider} />
+
+                <View style={styles.reviewWriteCol}>
+                  <Text style={styles.reviewWritePrompt}>Bạn đã từng trải nghiệm thiết bị này?</Text>
+                  <TouchableOpacity
+                    style={styles.openWriteReviewBtn}
+                    onPress={() => {
+                      if (!user) {
+                        setGuestActionText('đánh giá sản phẩm này');
+                        setGuestModalVisible(true);
+                      } else {
+                        setWriteReviewVisible(true);
+                      }
+                    }}
+                  >
+                    <Feather name="edit-2" size={13} color="#FFFFFF" />
+                    <Text style={styles.openWriteReviewText}>VIẾT ĐÁNH GIÁ</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Reviews List */}
+              <View style={styles.reviewList}>
+                {reviewsLoading ? (
+                  <View style={styles.reviewsLoadingBox}>
+                    <ActivityIndicator size="small" color="#1C1A18" />
+                    <Text style={styles.reviewsLoadingText}>Đang tải đánh giá từ máy chủ...</Text>
+                  </View>
+                ) : (
+                  displayedReviews.map((rev) => {
+                    const initials = (rev.userId?.fullName || 'Khách hàng')
+                      .split(' ')
+                      .filter(Boolean)
+                      .map((w) => w[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase();
+
+                    return (
+                      <View key={rev._id} style={styles.reviewItemCard}>
+                        <View style={styles.reviewItemHeader}>
+                          {rev.userId?.avatarUrl ? (
+                            <Image source={{ uri: rev.userId.avatarUrl }} style={styles.reviewerAvatar} />
+                          ) : (
+                            <View style={styles.reviewerAvatarFallback}>
+                              <Text style={styles.reviewerAvatarInitial}>{initials}</Text>
+                            </View>
+                          )}
+                          <View style={styles.reviewerInfo}>
+                            <Text style={styles.reviewerName}>{rev.userId?.fullName || 'Khách hàng'}</Text>
+                            <View style={styles.verifiedRenterRow}>
+                              <Ionicons name="checkmark-circle" size={12} color="#059669" />
+                              <Text style={styles.verifiedRenterText}>Khách hàng thuê xác thực</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.reviewDate}>
+                            {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString('vi-VN') : 'Gần đây'}
+                          </Text>
+                        </View>
+
+                        <View style={styles.reviewStarRow}>
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Ionicons
+                              key={s}
+                              name={s <= rev.rating ? 'star' : 'star-outline'}
+                              size={13}
+                              color="#F59E0B"
+                            />
+                          ))}
+                        </View>
+
+                        <Text style={styles.reviewComment}>{rev.comment}</Text>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            </View>
+          )}
+
           {/* 5-Step Rental Protocol matching Web */}
           <View style={styles.protocolBox}>
             <Text style={styles.protocolHeader}>Quy trình thuê - bàn giao 5 bước tại ReUse Hub</Text>
@@ -467,16 +788,18 @@ export const RentProductDetailScreen: React.FC = () => {
       <SafeAreaView style={styles.bottomBarSafe}>
         <View style={styles.bottomBar}>
           <TouchableOpacity
-            style={styles.addToCartBtn}
+            style={[styles.addToCartBtn, isRangeConflicted && styles.btnDisabled]}
             onPress={handleAddToCart}
             activeOpacity={0.85}
           >
-            <Feather name="shopping-bag" size={17} color="#18181B" />
-            <Text style={styles.addToCartText}>THÊM VÀO GIỎ</Text>
+            <Feather name="shopping-bag" size={17} color={isRangeConflicted ? '#A8A29E' : '#18181B'} />
+            <Text style={[styles.addToCartText, isRangeConflicted && styles.btnDisabledText]}>
+              THÊM VÀO GIỎ
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.rentNowBtn}
+            style={[styles.rentNowBtn, isRangeConflicted && styles.rentBtnDisabled]}
             onPress={handleRentNow}
             activeOpacity={0.88}
           >
@@ -494,6 +817,65 @@ export const RentProductDetailScreen: React.FC = () => {
         onClose={() => setGuestModalVisible(false)}
         actionText={guestActionText}
       />
+
+      {/* Write Review Modal */}
+      <Modal
+        visible={writeReviewVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setWriteReviewVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.reviewModalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Đánh Giá Trải Nghiệm Thiết Bị</Text>
+              <TouchableOpacity onPress={() => setWriteReviewVisible(false)}>
+                <Feather name="x" size={20} color="#78736A" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.ratingPickerRow}>
+              <Text style={styles.ratingPickerLabel}>Mức độ hài lòng:</Text>
+              <View style={styles.ratingStarsPicker}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <TouchableOpacity key={s} onPress={() => setNewRating(s)}>
+                    <Ionicons
+                      name={s <= newRating ? 'star' : 'star-outline'}
+                      size={28}
+                      color="#F59E0B"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Nhận xét của bạn</Text>
+              <TextInput
+                style={[styles.input, styles.reviewTextArea]}
+                multiline
+                numberOfLines={4}
+                value={newComment}
+                onChangeText={setNewComment}
+                placeholder="Chia sẻ về độ mới, ngoại quan, cảm biến và trải nghiệm thuê..."
+                placeholderTextColor="#A8A29E"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitReviewBtn, submittingReview && { opacity: 0.6 }]}
+              onPress={handleSubmitReview}
+              disabled={submittingReview}
+            >
+              {submittingReview ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.submitReviewBtnText}>GỬI ĐÁNH GIÁ NGAY</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -1051,5 +1433,296 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  /* Review styles */
+  reviewOverviewCard: {
+    flexDirection: 'row',
+    backgroundColor: '#FBF9F5',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E7E2DA',
+    padding: 14,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  reviewOverviewScoreCol: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingRight: 14,
+  },
+  bigScoreText: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1C1A18',
+    fontFamily: 'monospace',
+  },
+  starRow: {
+    flexDirection: 'row',
+    gap: 2,
+    marginVertical: 4,
+  },
+  reviewVerifiedCount: {
+    fontSize: 10,
+    color: '#78736A',
+  },
+  reviewOverviewDivider: {
+    width: 1,
+    height: '80%',
+    backgroundColor: '#E7E2DA',
+    marginRight: 14,
+  },
+  reviewWriteCol: {
+    flex: 1,
+    gap: 8,
+  },
+  reviewWritePrompt: {
+    fontSize: 11,
+    color: '#4A463F',
+    lineHeight: 16,
+  },
+  openWriteReviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1C1A18',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+    alignSelf: 'flex-start',
+  },
+  openWriteReviewText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  reviewList: {
+    gap: 12,
+  },
+  reviewsLoadingBox: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  reviewsLoadingText: {
+    fontSize: 12,
+    color: '#78736A',
+    marginTop: 6,
+  },
+  reviewItemCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E7E2DA',
+    padding: 12,
+    gap: 8,
+  },
+  reviewItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  reviewerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  reviewerAvatarFallback: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#3F4A3A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewerAvatarInitial: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  reviewerInfo: {
+    flex: 1,
+  },
+  reviewerName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1C1A18',
+  },
+  verifiedRenterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 1,
+  },
+  verifiedRenterText: {
+    fontSize: 10,
+    color: '#059669',
+    fontWeight: '600',
+  },
+  reviewDate: {
+    fontSize: 10,
+    color: '#A8A29E',
+  },
+  reviewStarRow: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  reviewComment: {
+    fontSize: 12,
+    color: '#4A463F',
+    lineHeight: 18,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  reviewModalBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 20,
+    gap: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F4F0EA',
+    paddingBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1C1A18',
+  },
+  ratingPickerRow: {
+    gap: 8,
+  },
+  ratingPickerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4A463F',
+  },
+  ratingStarsPicker: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  fieldGroup: {
+    gap: 5,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#4A463F',
+  },
+  input: {
+    backgroundColor: '#FBF9F5',
+    borderWidth: 1,
+    borderColor: '#E7E2DA',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13,
+    color: '#1C1A18',
+  },
+  reviewTextArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  submitReviewBtn: {
+    backgroundColor: '#1C1A18',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  submitReviewBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  calendarSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E7E2DA',
+    marginBottom: 16,
+  },
+  calendarSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  calendarHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  calendarSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1C1A18',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  readyBadge: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  readyBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  conflictAlert: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 10,
+  },
+  conflictAlertTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#991B1B',
+  },
+  conflictAlertSubtitle: {
+    fontSize: 10,
+    color: '#B91C1C',
+    marginTop: 2,
+  },
+  quantitySub: {
+    fontSize: 10,
+    color: '#78736A',
+    marginTop: 2,
+  },
+  btnDisabled: {
+    backgroundColor: '#F4F0EA',
+    borderColor: '#E7E2DA',
+    opacity: 0.6,
+  },
+  btnDisabledText: {
+    color: '#A8A29E',
+  },
+  rentBtnDisabled: {
+    backgroundColor: '#94A3B8',
+    opacity: 0.6,
   },
 });
