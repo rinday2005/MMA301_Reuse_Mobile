@@ -458,7 +458,11 @@ const CartWishlistProviderInner: React.FC<{
         productId: item.id,
         quantity: qty,
       }).catch((err) => {
-        console.warn('Could not save item to MongoDB Cart collection:', err);
+        // Non-blocking sync with backend cart
+        if (err?.response?.status === 400 || err?.response?.status === 404) {
+          return;
+        }
+        console.warn('Could not save item to MongoDB Cart collection:', err?.response?.data?.message || err?.message);
       });
     }
   };

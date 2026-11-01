@@ -196,22 +196,37 @@ export const CartScreen: React.FC = () => {
                 <Text style={styles.grandVal}>{formatCurrency(grandTotal)}</Text>
               </View>
 
-              {/* Checkout Button */}
-              <TouchableOpacity
-                style={styles.checkoutBtn}
-                onPress={() => {
-                  if (isGuest) {
-                    navigation.navigate('Auth', { screen: 'Login' });
-                  } else {
-                    alert('Chuyển sang bước chọn địa chỉ giao nhận và thanh toán VNPay!');
-                  }
-                }}
-                activeOpacity={0.88}
-              >
-                <Text style={styles.checkoutBtnText}>
-                  {isGuest ? 'ĐĂNG NHẬP ĐỂ THANH TOÁN' : 'TIẾN HÀNH ĐẶT HÀNG →'}
-                </Text>
-              </TouchableOpacity>
+              {/* Checkout Buttons */}
+              {isGuest ? (
+                <TouchableOpacity
+                  style={styles.checkoutBtn}
+                  onPress={() => navigation.navigate('Auth', { screen: 'Login' })}
+                  activeOpacity={0.88}
+                >
+                  <Text style={styles.checkoutBtnText}>ĐĂNG NHẬP ĐỂ THANH TOÁN</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={{ gap: 8, marginTop: 6 }}>
+                  {rentItems.length > 0 && (
+                    <TouchableOpacity
+                      style={styles.checkoutBtn}
+                      onPress={() => navigation.navigate('RentCheckout')}
+                      activeOpacity={0.88}
+                    >
+                      <Text style={styles.checkoutBtnText}>TIẾN HÀNH THUÊ (RENT) →</Text>
+                    </TouchableOpacity>
+                  )}
+                  {thriftItems.length > 0 && (
+                    <TouchableOpacity
+                      style={[styles.checkoutBtn, { backgroundColor: '#31302C' }]}
+                      onPress={() => navigation.navigate('ThriftCheckout')}
+                      activeOpacity={0.88}
+                    >
+                      <Text style={styles.checkoutBtnText}>TIẾN HÀNH MUA (THRIFT) →</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
             </View>
           </>
         )}

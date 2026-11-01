@@ -20,7 +20,7 @@ import { useCartWishlist } from '../../context/CartWishlistContext';
 import { getPublicRentProductsApi } from '../../services/rentProduct.api';
 import { getPublicThriftListingsApi } from '../../services/thrift.api';
 import { getCategoriesApi, CategoryItem } from '../../services/category.api';
-import { mapRentItem, mapThriftItem, MarketItem } from '../../utils/marketplaceMapper';
+import { mapRentItem, mapThriftItem, MarketItem, slugFromName } from '../../utils/marketplaceMapper';
 
 type SortKey = 'new' | 'price-asc' | 'price-desc';
 
@@ -29,6 +29,124 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: 'price-asc', label: 'Giá tăng dần' },
   { key: 'price-desc', label: 'Giá giảm dần' },
 ];
+
+export const matchItemCategory = (it: MarketItem, targetSlug: string): boolean => {
+  if (!targetSlug || targetSlug === 'all') return true;
+  const target = targetSlug.toLowerCase().trim();
+  const itSlug = (it.categorySlug || '').toLowerCase().trim();
+  const itCat = (it.category || '').toLowerCase().trim();
+  const itTitle = (it.title || '').toLowerCase().trim();
+
+  if (itSlug === target) return true;
+  if (itCat === target) return true;
+
+  if (target === 'camera') {
+    return (
+      itSlug === 'camera' ||
+      itCat.includes('camera') ||
+      itCat.includes('máy ảnh') ||
+      itTitle.includes('camera') ||
+      itTitle.includes('máy ảnh') ||
+      itTitle.includes('leica') ||
+      itTitle.includes('fujifilm') ||
+      itTitle.includes('canon') ||
+      itTitle.includes('sony a') ||
+      itTitle.includes('lens')
+    );
+  }
+
+  if (target === 'shoes' || target.includes('giay') || target.includes('giày')) {
+    return (
+      itSlug === 'shoes' ||
+      itCat.includes('shoe') ||
+      itCat.includes('giày') ||
+      itTitle.includes('giày') ||
+      itTitle.includes('sneaker') ||
+      itTitle.includes('sandal') ||
+      itTitle.includes('derby') ||
+      itTitle.includes('boot') ||
+      itTitle.includes('loafer')
+    );
+  }
+
+  if (target === 'dam-du-tiec' || target.includes('dam') || target.includes('đầm')) {
+    return (
+      itSlug === 'dam-du-tiec' ||
+      itCat.includes('dam') ||
+      itCat.includes('đầm') ||
+      itTitle.includes('đầm') ||
+      itTitle.includes('dạ hội') ||
+      itTitle.includes('sequin') ||
+      itTitle.includes('váy tiệc') ||
+      itTitle.includes('tiệc')
+    );
+  }
+
+  if (
+    target === 'clothing' ||
+    target === 'fashion' ||
+    target.includes('quan-ao') ||
+    target.includes('áo') ||
+    target.includes('quần')
+  ) {
+    return (
+      itSlug === 'clothing' ||
+      itCat.includes('cloth') ||
+      itCat.includes('quần') ||
+      itCat.includes('áo') ||
+      itTitle.includes('áo') ||
+      itTitle.includes('quần') ||
+      itTitle.includes('trench coat') ||
+      itTitle.includes('blazer') ||
+      itTitle.includes('jacket') ||
+      itTitle.includes('tweed') ||
+      itTitle.includes('chân váy')
+    );
+  }
+
+  if (target === 'phu-kien' || target.includes('phu-kien') || target.includes('phụ kiện')) {
+    return (
+      itSlug === 'phu-kien' ||
+      itCat.includes('phu-kien') ||
+      itCat.includes('phụ kiện') ||
+      itTitle.includes('túi') ||
+      itTitle.includes('balo') ||
+      itTitle.includes('dây chuyền') ||
+      itTitle.includes('bông tai') ||
+      itTitle.includes('kính') ||
+      itTitle.includes('quạt') ||
+      itTitle.includes('vòng')
+    );
+  }
+
+  if (target === 'electronics' || target.includes('dien-tu') || target.includes('điện tử')) {
+    return (
+      itSlug === 'electronics' ||
+      itCat.includes('elect') ||
+      itCat.includes('điện tử') ||
+      itTitle.includes('loa') ||
+      itTitle.includes('tai nghe') ||
+      itTitle.includes('synthesizer') ||
+      itTitle.includes('bose')
+    );
+  }
+
+  if (target === 'camping' || target.includes('da-ngoai') || target.includes('dã ngoại')) {
+    return (
+      itSlug === 'camping' ||
+      itCat.includes('camp') ||
+      itCat.includes('dã ngoại') ||
+      itTitle.includes('lều') ||
+      itTitle.includes('camping')
+    );
+  }
+
+  if (target === 'lifestyle') {
+    return itSlug === 'lifestyle' || itCat.includes('lifestyle');
+  }
+
+  return false;
+};
 
 interface Props {
   mode: 'rent' | 'thrift';
@@ -77,27 +195,55 @@ export const MarketplaceList: React.FC<Props> = ({ mode }) => {
     if (route.params?.category) setSelectedSlug(route.params.category);
   }, [route.params?.category]);
 
-  // Chip danh mục lấy từ DB, chỉ giữ danh mục thuộc loại hiện tại và đếm theo dữ liệu thật
+  // Chip danh mục: tổng hợp các danh mục chuẩn tuần hoàn (Camera, Giày dép, Quần áo, Đầm dự tiệc, Phụ kiện, ...)
+  // và merge với danh mục trong MongoDB, đếm đúng số lượng cho cả Rent và Thrift
   const chips = useMemo(() => {
-    const wantType = isRent ? 'RENT' : 'THRIFT';
-    const base = categories
-      .filter((c) => !c.type || c.type === 'BOTH' || c.type === wantType)
-      .map((c) => ({
-        slug: c.slug,
-        label: c.name,
-        count: items.filter((it) => it.categoryId === c._id || it.category === c.name).length,
-      }))
+    const baseCats: { slug: string; label: string; id?: string }[] = [
+      { slug: 'camera', label: 'Camera' },
+      { slug: 'shoes', label: 'Giày dép' },
+      { slug: 'clothing', label: 'Quần áo' },
+      { slug: 'dam-du-tiec', label: 'Đầm dự tiệc' },
+      { slug: 'phu-kien', label: 'Phụ kiện' },
+      { slug: 'electronics', label: 'Thiết bị điện tử' },
+      { slug: 'camping', label: 'Dã ngoại & Cắm trại' },
+      { slug: 'lifestyle', label: 'Đồ phong cách sống' },
+    ];
+
+    categories.forEach((c) => {
+      if (c.isActive === false) return;
+      const s = c.slug || slugFromName(c.name);
+      const existing = baseCats.find(
+        (b) => b.slug === s || b.label.toLowerCase() === c.name.toLowerCase()
+      );
+      if (existing) {
+        existing.id = c._id;
+        existing.label = c.name;
+      } else {
+        baseCats.push({ slug: s, label: c.name, id: c._id });
+      }
+    });
+
+    const resultChips = baseCats
+      .map((c) => {
+        const count = items.filter((it) => {
+          if (c.id && it.categoryId === c.id) return true;
+          return matchItemCategory(it, c.slug);
+        }).length;
+        return { slug: c.slug, label: c.label, count };
+      })
       .filter((c) => c.count > 0);
-    return [{ slug: 'all', label: 'Tất cả', count: items.length }, ...base];
-  }, [categories, items, isRent]);
+
+    return [{ slug: 'all', label: 'Tất cả', count: items.length }, ...resultChips];
+  }, [categories, items]);
 
   const visible = useMemo(() => {
     let list = [...items];
     if (selectedSlug !== 'all') {
-      const cat = categories.find((c) => c.slug === selectedSlug);
-      list = list.filter((it) =>
-        cat ? it.categoryId === cat._id || it.category === cat.name : it.categorySlug === selectedSlug
-      );
+      const cat = categories.find((c) => c.slug === selectedSlug || c._id === selectedSlug);
+      list = list.filter((it) => {
+        if (cat && (it.categoryId === cat._id || it.category === cat.name)) return true;
+        return matchItemCategory(it, selectedSlug);
+      });
     }
     const q = query.trim().toLowerCase();
     if (q) {

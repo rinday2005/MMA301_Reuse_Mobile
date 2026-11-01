@@ -1,3 +1,4 @@
+import { storage } from '../../utils/storage';
 import { THRIFT_PRODUCTS } from './thriftMarketplaceData';
 import { resolveWishlistProduct } from '../../services/wishlistProductResolver';
 import {
@@ -394,7 +395,7 @@ export function getThriftProductDetail(slugOrId?: string): ThriftProductDetail {
 
   // 4. Kiểm tra trong custom_thrift_products từ localStorage
   try {
-    const customRaw = localStorage.getItem('custom_thrift_products');
+    const customRaw = storage.getSync('custom_thrift_products');
     if (customRaw) {
       const customList = JSON.parse(customRaw);
       if (Array.isArray(customList)) {

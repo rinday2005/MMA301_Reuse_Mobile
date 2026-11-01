@@ -1,3 +1,4 @@
+import { storage } from '../../utils/storage';
 import { RENT_PRODUCTS } from './marketplaceData';
 import { normalizeImageUrl } from '../../utils/imageUrl';
 import {
@@ -599,7 +600,7 @@ export function getProductBookedDates(product?: RentProductDetailData | { id?: s
 
   try {
     // 1. Kiểm tra bộ lưu trữ ngày đã đặt chung (reuse_shared_booked_dates)
-    const sharedRaw = localStorage.getItem('reuse_shared_booked_dates');
+    const sharedRaw = storage.getSync('reuse_shared_booked_dates');
     if (sharedRaw) {
       interface SharedBookingCheck {
         productId?: string;
@@ -640,15 +641,15 @@ export function getProductBookedDates(product?: RentProductDetailData | { id?: s
 
     // 2. Quét qua TẤT CẢ các keys trong localStorage liên quan đến user_rental_orders
     const rentalStorageKeys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
+    const allKeys = storage.getAllKeysSync();
+    allKeys.forEach((key) => {
       if (key && key.startsWith('user_rental_orders')) {
         rentalStorageKeys.push(key);
       }
-    }
+    });
 
     rentalStorageKeys.forEach((sKey) => {
-      const raw = localStorage.getItem(sKey);
+      const raw = storage.getSync(sKey);
       if (!raw) return;
 
       interface StoredItemCheck {
@@ -723,7 +724,7 @@ export function getProductBookedDates(product?: RentProductDetailData | { id?: s
 // Helper để ghi nhận ngày đã đặt cho thiết bị khi tạo đơn
 export function recordBookedDates(productId: string, startDate: string, endDate: string, note?: string) {
   try {
-    const sharedRaw = localStorage.getItem('reuse_shared_booked_dates') || '[]';
+    const sharedRaw = storage.getSync('reuse_shared_booked_dates') || '[]';
     const list = JSON.parse(sharedRaw);
     list.push({
       productId,
@@ -732,7 +733,7 @@ export function recordBookedDates(productId: string, startDate: string, endDate:
       note: note || 'Đã có khách đặt thuê (Bảo chứng Smart Escrow)',
       customerName: 'Khách hàng ReUse Hub',
     });
-    localStorage.setItem('reuse_shared_booked_dates', JSON.stringify(list));
+    storage.setSync('reuse_shared_booked_dates', JSON.stringify(list));
   } catch (e) {
     console.error('Lỗi lưu ngày đã thuê:', e);
   }
@@ -877,7 +878,7 @@ export function getRentProductDetail(idOrSlug?: string): RentProductDetailData {
   const lower = clean.toLowerCase();
   // 0. Kiểm tra bộ nhớ đệm sản phẩm thực tế từ MongoDB (nếu đã tải từ API)
   try {
-    const rawCache = localStorage.getItem('cached_rent_products_db');
+    const rawCache = storage.getSync('cached_rent_products_db');
     if (rawCache) {
       const dbList = JSON.parse(rawCache);
       if (Array.isArray(dbList) && dbList.length > 0) {
@@ -1016,7 +1017,7 @@ export function getRentProductDetail(idOrSlug?: string): RentProductDetailData {
 
   // 5. Kiểm tra trong custom_rent_products từ localStorage
   try {
-    const customRentRaw = localStorage.getItem('custom_rent_products');
+    const customRentRaw = storage.getSync('custom_rent_products');
     if (customRentRaw) {
       const customList = JSON.parse(customRentRaw);
       if (Array.isArray(customList)) {

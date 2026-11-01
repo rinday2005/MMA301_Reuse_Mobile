@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../services/api';
+import { getServerHost } from '../services/api';
 
 const DEFAULT_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80';
@@ -17,8 +17,8 @@ export function normalizeImageUrl(url?: string): string {
     return trimmed;
   }
 
-  // Get server root host from API_BASE_URL (strip trailing /api)
-  const serverHost = API_BASE_URL.replace(/\/api\/?$/, '');
+  // Get server root host dynamically (matches current working emulator or physical phone host)
+  const serverHost = getServerHost();
 
   // If path contains src/assets/images/ (e.g. ./src/assets/images/foo.jpg or /src/assets/images/foo.jpg)
   if (trimmed.includes('src/assets/images/')) {

@@ -1,3 +1,4 @@
+import './src/utils/storage';
 import { registerRootComponent } from 'expo';
 
 import App from './App';
