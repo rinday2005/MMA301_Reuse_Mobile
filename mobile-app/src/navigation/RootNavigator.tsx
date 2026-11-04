@@ -33,18 +33,28 @@ import MyThriftOrdersScreen from '../screens/thrift/MyThriftOrdersScreen';
 import ThriftOrderDetailScreen from '../screens/thrift/ThriftOrderDetailScreen';
 import ChatScreen from '../screens/chat/ChatScreen';
 import NotificationCenterScreen from '../screens/notification/NotificationCenterScreen';
+import PaymentReturnScreen from '../screens/payment/PaymentReturnScreen';
+import PaymentSuccessScreen from '../screens/payment/PaymentSuccessScreen';
+import PaymentFailedScreen from '../screens/payment/PaymentFailedScreen';
 
 // Mobile Sidebar Drawer
 import { DrawerProvider } from '../context/DrawerContext';
 import { AppSidebarDrawer } from '../components/layout/AppSidebarDrawer';
+import { useAuth } from '../hooks/useAuth';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const RootNavigator: React.FC = () => {
+  const { user } = useAuth();
+  const isShopOwner = user?.role === 'SHOP_OWNER';
+
   return (
     <DrawerProvider>
       <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Main">
+        <Stack.Navigator
+          screenOptions={{ headerShown: false }}
+          initialRouteName={isShopOwner ? 'Shop' : 'Main'}
+        >
           <Stack.Screen name="Main" component={MainTabNavigator} />
           <Stack.Screen name="Auth" component={AuthNavigator} />
           <Stack.Screen name="Shop" component={ShopNavigator} />
@@ -78,6 +88,9 @@ export const RootNavigator: React.FC = () => {
           <Stack.Screen name="ThriftOrderDetail" component={ThriftOrderDetailScreen} />
           <Stack.Screen name="Chat" component={ChatScreen} />
           <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} />
+          <Stack.Screen name="PaymentReturn" component={PaymentReturnScreen} />
+          <Stack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
+          <Stack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
         </Stack.Navigator>
 
         {/* Global Slide-out Drawer (UserSidebarDrawer when logged in / GuestSidebarDrawer when guest) */}

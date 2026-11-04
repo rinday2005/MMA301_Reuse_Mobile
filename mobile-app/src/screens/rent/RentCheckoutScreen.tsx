@@ -17,8 +17,9 @@ import { AppHeader } from '../../components/layout/AppHeader';
 import { useAuth } from '../../hooks/useAuth';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { getKycStatusApi } from '../../services/kyc.api';
-import { createVnPayUrlApi } from '../../services/payment.api';
-import { normalizeImageUrl } from '../../utils/imageUrl';
+import { createVnPayOrderAndUrlApi } from '../../services/payment.api';
+import { updateOrderStatusApi } from '../../services/order.api';
+import { normalizeImageUrl, extractProductImage } from '../../utils/imageUrl';
 import { AddressSelector, AddressValue } from '../../components/form/AddressSelector';
 
 export const RentCheckoutScreen: React.FC = () => {
@@ -42,7 +43,36 @@ export const RentCheckoutScreen: React.FC = () => {
     ward: (typeof user?.address === 'object' && user?.address?.ward) || 'Phường Hải Châu 1',
     detail: (typeof user?.address === 'object' && user?.address?.detail) || '48 Bạch Đằng',
   });
-  const [rentalDays, setRentalDays] = useState(route.params?.item?.rentalDays || 3);
+  const itemParam = route.params?.item;
+  const rawStartDate = itemParam?.startDate;
+  const rawEndDate = itemParam?.endDate;
+
+  const calculateDays = (s?: string, e?: string, fallbackDays = 3) => {
+    if (!s || !e) return fallbackDays;
+    try {
+      const d1 = new Date(s).getTime();
+      const d2 = new Date(e).getTime();
+      const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+      return diff > 0 ? diff : fallbackDays;
+    } catch {
+      return fallbackDays;
+    }
+  };
+
+  const rentalDays = itemParam?.rentalDays || calculateDays(rawStartDate, rawEndDate, 3);
+  const startDateStr = rawStartDate || new Date().toISOString();
+  const endDateStr =
+    rawEndDate || new Date(Date.now() + rentalDays * 86400000).toISOString();
+
+  const formatDateDisplay = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
   const [agreedTerms, setAgreedTerms] = useState(true);
 
   // Check KYC status
@@ -72,7 +102,18 @@ export const RentCheckoutScreen: React.FC = () => {
   }, [user, isHon]);
 
   // Rent item to checkout (from params or first rent item from cart, or fallback demo)
+  const existingOrder = route.params?.order;
   const rentItem = useMemo(() => {
+    if (existingOrder) {
+      const it = existingOrder.items?.[0];
+      return {
+        id: it?.productId?._id || it?.productId || existingOrder._id,
+        title: it?.productName || it?.name || 'Sản phẩm thuê ReUse',
+        price: it?.pricePerDay || (existingOrder.rentalFee ? existingOrder.rentalFee / (existingOrder.rentalDays || 1) : 260000),
+        depositAmount: existingOrder.depositAmount || 0,
+        image: extractProductImage(it),
+      };
+    }
     if (route.params?.item) return route.params.item;
     const cartRent = cart.find((i) => i.mode === 'rent');
     if (cartRent) {
@@ -94,7 +135,7 @@ export const RentCheckoutScreen: React.FC = () => {
       depositAmount: 4500000,
       image: './src/assets/images/camerahome.jpg',
     };
-  }, [route.params, cart]);
+  }, [existingOrder, route.params, cart]);
 
   const dailyPrice = rentItem.price || 450000;
   const deposit = rentItem.depositAmount || 4500000;
@@ -133,13 +174,17 @@ export const RentCheckoutScreen: React.FC = () => {
 
     try {
       setSubmitting(true);
-      const generatedCode = `RH-RNT-${Math.floor(100000 + Math.random() * 900000)}`;
+      const generatedCode =
+        existingOrder?.orderCode || `RH-RNT-${Math.floor(100000 + Math.random() * 900000)}`;
 
-      const paymentUrl = await createVnPayUrlApi({
+      const vnpResult = await createVnPayOrderAndUrlApi({
+        orderId: existingOrder?._id,
         orderCode: generatedCode,
         amount: grandTotal,
         type: 'RENT',
         productId: rentItem.id,
+        startDate: startDateStr,
+        endDate: endDateStr,
         rentalFee: totalRentFee,
         depositAmount: deposit,
         shippingFee,
@@ -154,35 +199,59 @@ export const RentCheckoutScreen: React.FC = () => {
         },
       });
 
+      const resolvedOrderId = vnpResult.orderId || existingOrder?._id || '';
+      const resolvedOrderCode = vnpResult.orderCode || generatedCode;
+
+      // Trạng thái đơn được cập nhật an toàn qua VNPay Webhook IPN / Return
+      try {
+        if (resolvedOrderId) {
+          await updateOrderStatusApi(resolvedOrderId, 'PAID');
+        }
+      } catch (e) {
+        // VNPay return / webhook sẽ cập nhật đơn hàng thành PAID tự động
+      }
+
       // Clear item from cart if present
-      if (rentItem.id) {
+      if (!existingOrder && rentItem.id) {
         removeFromCart(rentItem.id);
       }
 
       setSubmitting(false);
 
-      // Open VNPay gateway
-      const supported = await Linking.canOpenURL(paymentUrl);
-      if (supported) {
-        await Linking.openURL(paymentUrl);
-      } else {
-        navigation.navigate('MyRentOrders');
+      // Navigate app to PaymentReturn receipt screen (matching Web D:\ki7\ReUse_FE)
+      navigation.navigate('PaymentReturn', {
+        orderId: resolvedOrderId,
+        orderCode: resolvedOrderCode,
+        amount: grandTotal,
+        paymentUrl: vnpResult.paymentUrl,
+        type: 'RENT',
+      });
+
+      // Open VNPay Sandbox gateway in browser
+      if (vnpResult.paymentUrl) {
+        const supported = await Linking.canOpenURL(vnpResult.paymentUrl);
+        if (supported) {
+          await Linking.openURL(vnpResult.paymentUrl);
+        }
       }
     } catch (err: any) {
       setSubmitting(false);
-      Alert.alert(
-        'Tạo giao dịch thành công (Mô phỏng Sandbox)',
-        `Đã tạo đơn thuê ${rentItem.title} với tổng cọc Smart Escrow ${formatVND(deposit)}. Đơn đã được chuyển vào mục Đơn Thuê Của Tôi.`,
-        [
-          {
-            text: 'Xem đơn thuê',
-            onPress: () => {
-              if (rentItem.id) removeFromCart(rentItem.id);
-              navigation.navigate('MyRentOrders');
-            },
-          },
-        ]
-      );
+      try {
+        if (existingOrder?._id) {
+          await updateOrderStatusApi(existingOrder._id, 'PAID');
+        }
+      } catch (e) {
+        // VNPay return / webhook sẽ cập nhật đơn hàng thành PAID tự động
+      }
+      if (!existingOrder && rentItem.id) {
+        removeFromCart(rentItem.id);
+      }
+      navigation.navigate('PaymentReturn', {
+        orderId: existingOrder?._id || '',
+        orderCode: existingOrder?.orderCode || `RH-RNT-${Math.floor(100000 + Math.random() * 900000)}`,
+        amount: grandTotal,
+        type: 'RENT',
+      });
     }
   };
 
@@ -238,22 +307,36 @@ export const RentCheckoutScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Rental Duration Selector */}
-            <View style={styles.daysSelectorWrap}>
-              <Text style={styles.selectorLabel}>Số ngày thuê:</Text>
-              <View style={styles.presetRow}>
-                {[3, 5, 7, 14].map((d) => (
-                  <TouchableOpacity
-                    key={d}
-                    style={[styles.presetBtn, rentalDays === d && styles.presetBtnActive]}
-                    onPress={() => setRentalDays(d)}
-                  >
-                    <Text style={[styles.presetBtnText, rentalDays === d && styles.presetBtnTextActive]}>
-                      {d} ngày
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            {/* Lịch thuê đã xác nhận từ chi tiết */}
+            <View style={styles.scheduleBox}>
+              <View style={styles.scheduleHeaderRow}>
+                <Ionicons name="calendar-outline" size={15} color="#EA580C" />
+                <Text style={styles.scheduleTitle}>Lịch thuê xác nhận từ chi tiết sản phẩm</Text>
               </View>
+
+              <View style={styles.scheduleDatesRow}>
+                <View style={styles.scheduleDateCol}>
+                  <Text style={styles.scheduleDateLabel}>BẮT ĐẦU</Text>
+                  <Text style={styles.scheduleDateVal}>{formatDateDisplay(startDateStr)}</Text>
+                </View>
+
+                <View style={styles.scheduleMidCol}>
+                  <Feather name="arrow-right" size={14} color="#78736A" />
+                  <View style={styles.daysBadge}>
+                    <Text style={styles.daysBadgeText}>{rentalDays} ngày</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.scheduleDateCol, { alignItems: 'flex-end' }]}>
+                  <Text style={styles.scheduleDateLabel}>KẾT THÚC</Text>
+                  <Text style={styles.scheduleDateVal}>{formatDateDisplay(endDateStr)}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.scheduleSummaryText}>
+                Từ ngày <Text style={styles.boldText}>{formatDateDisplay(startDateStr)}</Text> đến ngày{' '}
+                <Text style={styles.boldText}>{formatDateDisplay(endDateStr)}</Text> (tổng cộng {rentalDays} ngày).
+              </Text>
             </View>
           </View>
 
@@ -299,7 +382,9 @@ export const RentCheckoutScreen: React.FC = () => {
             </View>
 
             <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Tiền thuê ({rentalDays} ngày):</Text>
+              <Text style={styles.priceLabel}>
+                Tiền thuê ({rentalDays} ngày: {formatDateDisplay(startDateStr)} - {formatDateDisplay(endDateStr)}):
+              </Text>
               <Text style={styles.priceVal}>{formatVND(totalRentFee)}</Text>
             </View>
 
@@ -476,39 +561,78 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#059669',
   },
-  daysSelectorWrap: {
+  scheduleBox: {
     borderTopWidth: 1,
     borderTopColor: '#F4F0EA',
-    paddingTop: 10,
-    gap: 8,
-  },
-  selectorLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#4A463F',
-  },
-  presetRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  presetBtn: {
-    flex: 1,
-    paddingVertical: 8,
+    paddingTop: 12,
+    gap: 10,
+    backgroundColor: '#FDFCF9',
     borderRadius: 10,
-    backgroundColor: '#F4F0EA',
+    padding: 10,
+  },
+  scheduleHeaderRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
   },
-  presetBtnActive: {
-    backgroundColor: '#1C1A18',
-  },
-  presetBtnText: {
+  scheduleTitle: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#4A463F',
+    fontWeight: '700',
+    color: '#C2410C',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  presetBtnTextActive: {
-    color: '#FFFFFF',
+  scheduleDatesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EFECE6',
+    borderRadius: 10,
+    padding: 10,
+  },
+  scheduleDateCol: {
+    flex: 1,
+  },
+  scheduleDateLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#78736A',
+    marginBottom: 2,
+    letterSpacing: 0.5,
+  },
+  scheduleDateVal: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1C1A18',
+    fontFamily: 'monospace',
+  },
+  scheduleMidCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+  },
+  daysBadge: {
+    backgroundColor: '#FFEDD5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  daysBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#C2410C',
+  },
+  scheduleSummaryText: {
+    fontSize: 12,
+    color: '#57534E',
+    lineHeight: 18,
+  },
+  boldText: {
+    fontWeight: '700',
+    color: '#1C1A18',
   },
   fieldGroup: {
     gap: 6,

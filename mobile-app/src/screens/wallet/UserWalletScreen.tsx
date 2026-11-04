@@ -12,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AppHeader } from '../../components/layout/AppHeader';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyRentalOrdersApi, RentalOrderApi } from '../../services/order.api';
@@ -67,17 +67,38 @@ export const UserWalletScreen: React.FC = () => {
     loadOrders();
   }, [loadOrders]);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadOrders();
+    }, [loadOrders])
+  );
+
   // Derive transactions from real rental orders
   const transactions: WalletTx[] = useMemo(() => {
     const list: WalletTx[] = [];
     orders.forEach((o) => {
       const deposit = o.depositAmount || 0;
+      const refundAmt =
+        o.inspectionResult?.refundAmount !== undefined
+          ? Number(o.inspectionResult.refundAmount)
+          : deposit;
       const code = o.orderCode || `#${o._id?.slice(-6)}`;
       const title = (o.items?.[0] as any)?.productName || (o.items?.[0] as any)?.title || 'Thiết bị thuê';
       const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleDateString('vi-VN') : 'Gần đây';
+      const rawStatus = (o.status || '').toUpperCase();
 
-      const isCompleted = ['COMPLETED', 'RETURNED', 'REFUNDED'].includes(o.status || '');
-      const isLocked = ['PAID', 'RENTING', 'SHIPPING', 'DELIVERED', 'READY_FOR_HANDOVER'].includes(o.status || '');
+      const isCompleted = ['COMPLETED', 'REFUNDED'].includes(rawStatus);
+      const isLocked = [
+        'PAID',
+        'READY_FOR_HANDOVER',
+        'HANDED_OVER',
+        'SHIPPING',
+        'DELIVERED',
+        'RENTING',
+        'RETURN_REQUESTED',
+        'RETURNING',
+        'RETURNED',
+      ].includes(rawStatus);
 
       if (deposit > 0) {
         if (isCompleted) {
@@ -86,10 +107,12 @@ export const UserWalletScreen: React.FC = () => {
             orderCode: code,
             productTitle: title,
             type: 'ESCROW_REFUND',
-            amount: deposit,
+            amount: refundAmt,
             date: dateStr,
             status: 'REFUNDED',
-            note: 'Đã hoàn cọc 100% sau đối kiểm kỹ thuật đạt chuẩn',
+            note:
+              o.inspectionResult?.reason ||
+              'Đã hoàn cọc về ví User sau khi Shop Owner nghiệm thu thành công',
           });
         }
         if (isLocked) {
@@ -101,7 +124,7 @@ export const UserWalletScreen: React.FC = () => {
             amount: deposit,
             date: dateStr,
             status: 'LOCKED',
-            note: 'Tiền cọc lưu ký bảo chứng Smart Escrow',
+            note: 'Tiền cọc lưu ký bảo chứng Smart Escrow (chờ hoàn tất nghiệm thu trả đồ)',
           });
         }
       }

@@ -13,14 +13,20 @@ import {
   Alert,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import { AppHeader } from '../../components/layout/AppHeader';
-import { getMyRentalOrdersApi, RentalOrderApi } from '../../services/order.api';
-import { normalizeImageUrl } from '../../utils/imageUrl';
+import {
+  getMyRentalOrdersApi,
+  updateOrderStatusApi,
+  confirmReceivedOrderApi,
+  RentalOrderApi,
+} from '../../services/order.api';
+import { normalizeImageUrl, extractProductImage, uploadImageToCloudinary } from '../../utils/imageUrl';
 import { storage } from '../../utils/storage';
 import { useAuth } from '../../hooks/useAuth';
 
-const SAMPLE_HON_ORDER: any = {
+export const SAMPLE_HON_ORDER: any = {
   _id: '6acee0804c6e5d97a2389e99',
   orderCode: 'RH-RNT-2026-6519',
   userId: 'hon-id',
@@ -60,12 +66,18 @@ export const MyRentOrdersScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState<RentalOrderApi[]>([]);
-  const [activeTab, setActiveTab] = useState<'ALL' | 'DELIVERED' | 'RENTING' | 'PAID' | 'COMPLETED' | 'CANCELLED'>('ALL');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING_WAITING' | 'DELIVERED' | 'RENTING' | 'PAID' | 'RETURNING' | 'COMPLETED' | 'CANCELLED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // CLA Sign Modal
+  // CLA Sign Modal State
   const [signingOrder, setSigningOrder] = useState<RentalOrderApi | null>(null);
   const [claSignedSuccess, setClaSignedSuccess] = useState<Record<string, boolean>>({});
+  const [claSlot1, setClaSlot1] = useState<string>('');
+  const [claSlot2, setClaSlot2] = useState<string>('');
+  const [claSlot3, setClaSlot3] = useState<string>('');
+  const [claNote, setClaNote] = useState<string>('');
+  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
+  const [submittingCla, setSubmittingCla] = useState(false);
 
   const formatVND = (num: number) => {
     return (num || 0).toLocaleString('vi-VN') + '₫';
@@ -73,8 +85,15 @@ export const MyRentOrdersScreen: React.FC = () => {
 
   const isClaSignedForOrder = useCallback((order: RentalOrderApi) => {
     const key = order._id || order.orderCode;
+    const rawStatus = (order.status || '').toUpperCase();
+    if (['RENTING', 'RETURN_REQUESTED', 'RETURNING', 'RETURNED', 'COMPLETED'].includes(rawStatus)) {
+      return true;
+    }
     if (claSignedSuccess[key]) return true;
     if ((order as any).claSigned || (order as any).claProof?.isSigned) return true;
+    if (['HANDED_OVER', 'SHIPPING', 'READY_FOR_HANDOVER', 'DELIVERED'].includes(rawStatus) && order.claProof?.isSigned === false) {
+      return false;
+    }
     const stored = storage.getSync(`cla_signed_${key}`);
     return Boolean(stored);
   }, [claSignedSuccess]);
@@ -101,53 +120,180 @@ export const MyRentOrdersScreen: React.FC = () => {
     loadOrders();
   }, [loadOrders]);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadOrders();
+    }, [loadOrders])
+  );
+
   const handleOpenClaModal = (order: RentalOrderApi) => {
     setSigningOrder(order);
+    setClaSlot1(order.claProof?.photos?.slot1 || '');
+    setClaSlot2(order.claProof?.photos?.slot2 || '');
+    setClaSlot3(order.claProof?.photos?.slot3 || '');
+    setClaNote(order.claProof?.note || 'Kiện hàng nguyên vẹn tem seal Nanuk, trang phục đạt chuẩn Grade A+');
   };
 
-  const handleConfirmClaSign = (order: RentalOrderApi) => {
+  const handlePickClaPhoto = async (slotNum: 1 | 2 | 3) => {
+    Alert.alert(
+      `Chụp ảnh đối kiểm góc ${slotNum}`,
+      slotNum === 1
+        ? 'Chụp mặt trước & tổng thể kiện hàng nhận được'
+        : slotNum === 2
+        ? 'Chụp góc cạnh & chi tiết phụ kiện bên trong thùng'
+        : 'Chụp tem niêm phong Nanuk vật lý',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Chụp ảnh (Camera)',
+          onPress: async () => {
+            try {
+              const perm = await ImagePicker.requestCameraPermissionsAsync();
+              if (!perm.granted) {
+                Alert.alert('Quyền truy cập', 'Vui lòng cấp quyền máy ảnh để chụp ảnh đối kiểm.');
+                return;
+              }
+              const res = await ImagePicker.launchCameraAsync({
+                quality: 0.8,
+                allowsEditing: true,
+              });
+              if (!res.canceled && res.assets[0]?.uri) {
+                await processUploadedPhoto(slotNum, res.assets[0].uri);
+              }
+            } catch {
+              Alert.alert('Thông báo', 'Không thể mở máy ảnh trên thiết bị này.');
+            }
+          },
+        },
+        {
+          text: 'Chọn từ Thư viện ảnh',
+          onPress: async () => {
+            try {
+              const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (!perm.granted) {
+                Alert.alert('Quyền truy cập', 'Vui lòng cấp quyền thư viện để chọn ảnh đối kiểm.');
+                return;
+              }
+              const res = await ImagePicker.launchImageLibraryAsync({
+                quality: 0.8,
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+              });
+              if (!res.canceled && res.assets[0]?.uri) {
+                await processUploadedPhoto(slotNum, res.assets[0].uri);
+              }
+            } catch {
+              Alert.alert('Thông báo', 'Không thể mở thư viện ảnh.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const processUploadedPhoto = async (slotNum: 1 | 2 | 3, localUri: string) => {
+    setUploadingSlot(slotNum);
+    try {
+      const cloudUrl = await uploadImageToCloudinary({ uri: localUri });
+      const finalUrl = cloudUrl || localUri;
+      if (slotNum === 1) setClaSlot1(finalUrl);
+      if (slotNum === 2) setClaSlot2(finalUrl);
+      if (slotNum === 3) setClaSlot3(finalUrl);
+    } catch {
+      if (slotNum === 1) setClaSlot1(localUri);
+      if (slotNum === 2) setClaSlot2(localUri);
+      if (slotNum === 3) setClaSlot3(localUri);
+    } finally {
+      setUploadingSlot(null);
+    }
+  };
+
+  const handleConfirmClaSign = async (order: RentalOrderApi) => {
     const key = order._id || order.orderCode;
+    setSubmittingCla(true);
+
+    const itemImg = extractProductImage(order.items?.[0]);
+    const s1 = claSlot1 || itemImg || 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800';
+    const s2 = claSlot2 || 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=800';
+    const s3 = claSlot3 || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800';
+
+    let updatedFromApi: RentalOrderApi | null = null;
+    try {
+      updatedFromApi = await confirmReceivedOrderApi(order._id, {
+        photos: { slot1: s1, slot2: s2, slot3: s3 },
+        images: [s1, s2, s3],
+        note: claNote.trim() || 'Khách hàng đã mở kiện kiểm tra 3 góc và ký nhận biên bản CLA.',
+        signerName: user?.fullName || order.shippingAddress?.recipientName || 'Khách hàng ReUse',
+        signerPhone: user?.phoneNumber || order.shippingAddress?.recipientPhone || '',
+      });
+    } catch (e) {
+      console.warn('API confirm received fallback:', e);
+    }
+
     storage.setSync(`cla_signed_${key}`, 'true');
     setClaSignedSuccess((prev) => ({ ...prev, [key]: true }));
 
-    // Update order status in state to RENTING
+    // Cập nhật trạng thái đơn thành RENTING (Đang thuê) và lưu 3 ảnh CLA
     setOrders((prev) =>
       prev.map((o) => {
         if ((o._id || o.orderCode) === key) {
           return {
             ...o,
+            ...(updatedFromApi || {}),
             status: 'RENTING',
             claSigned: true,
-          };
+            claProof: {
+              isSigned: true,
+              signedAt: new Date().toISOString(),
+              signerName: user?.fullName || order.shippingAddress?.recipientName || 'Khách hàng ReUse',
+              photos: { slot1: s1, slot2: s2, slot3: s3 },
+              images: [s1, s2, s3],
+              note: claNote,
+            },
+            returnRequest: null,
+          } as any;
         }
         return o;
       })
     );
 
+    setSubmittingCla(false);
     setSigningOrder(null);
+    loadOrders();
     Alert.alert(
-      'Ký biên bản thành công! 🎉',
-      'Bạn đã ký biên bản CLA đối kiểm bàn giao. Đơn hàng chính thức chuyển sang Bước 6: Đang thuê.'
+      'Ký biên bản CLA thành công! 🎉',
+      'Bạn đã chụp 3 góc đối kiểm và ký biên bản CLA bàn giao. Đơn hàng đã chuyển sang trạng thái Đang thuê — nút Báo Trả đồ / Hoàn cọc Escrow đã sẵn sàng!'
     );
+  };
+
+  const handlePayOrder = (order: RentalOrderApi) => {
+    navigation.navigate('RentCheckout', {
+      orderId: order._id,
+      order: order,
+    });
   };
 
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
       const hasSigned = isClaSignedForOrder(o);
       const rawStatus = (o.status || '').toUpperCase();
-      const isDeliveredWaitingSign = (rawStatus === 'SHIPPING' || rawStatus === 'READY_FOR_HANDOVER' || rawStatus === 'DELIVERED') && !hasSigned;
-      const isRentingActual = rawStatus === 'RENTING' || (['SHIPPING', 'DELIVERED'].includes(rawStatus) && hasSigned);
+      const isDeliveredWaitingSign = ['HANDED_OVER', 'SHIPPING', 'READY_FOR_HANDOVER', 'DELIVERED'].includes(rawStatus) && !hasSigned;
+      const isRentingActual = rawStatus === 'RENTING' || (['HANDED_OVER', 'SHIPPING', 'READY_FOR_HANDOVER', 'DELIVERED'].includes(rawStatus) && hasSigned);
 
-      if (activeTab === 'DELIVERED') {
+      if (activeTab === 'PENDING_WAITING') {
+        if (!['PENDING', 'WAITING_PAYMENT', 'PENDING_PAYMENT'].includes(rawStatus)) return false;
+      } else if (activeTab === 'DELIVERED') {
         if (!isDeliveredWaitingSign) return false;
       } else if (activeTab === 'RENTING') {
         if (!isRentingActual) return false;
       } else if (activeTab === 'PAID') {
         if (rawStatus !== 'PAID') return false;
+      } else if (activeTab === 'RETURNING') {
+        if (!['RETURN_REQUESTED', 'RETURNING', 'RETURNED'].includes(rawStatus)) return false;
       } else if (activeTab === 'COMPLETED') {
-        if (!['COMPLETED', 'RETURNED', 'REFUNDED'].includes(rawStatus)) return false;
+        if (!['COMPLETED', 'REFUNDED'].includes(rawStatus)) return false;
       } else if (activeTab === 'CANCELLED') {
-        if (rawStatus !== 'CANCELLED') return false;
+        if (!['CANCELLED', 'REJECTED'].includes(rawStatus)) return false;
       }
 
       if (searchQuery.trim()) {
@@ -199,11 +345,36 @@ export const MyRentOrdersScreen: React.FC = () => {
           >
             {[
               { key: 'ALL', label: `Tất cả (${orders.length})` },
-              { key: 'DELIVERED', label: 'Chờ ký CLA (Bước 5)' },
-              { key: 'RENTING', label: 'Đang thuê (Bước 6)' },
-              { key: 'PAID', label: 'Đã thanh toán' },
-              { key: 'COMPLETED', label: 'Đã hoàn tất' },
-              { key: 'CANCELLED', label: 'Đã hủy' },
+              {
+                key: 'PENDING_WAITING',
+                label: `Chờ duyệt & cọc (${orders.filter((o) => ['PENDING', 'WAITING_PAYMENT', 'PENDING_PAYMENT'].includes((o.status || '').toUpperCase())).length})`,
+              },
+              {
+                key: 'DELIVERED',
+                label: `Ký CLA (${orders.filter((o) => {
+                  const s = (o.status || '').toUpperCase();
+                  return ['HANDED_OVER', 'SHIPPING', 'READY_FOR_HANDOVER', 'DELIVERED'].includes(s) && !isClaSignedForOrder(o);
+                }).length})`,
+              },
+              {
+                key: 'RENTING',
+                label: `Đang thuê (${orders.filter((o) => {
+                  const s = (o.status || '').toUpperCase();
+                  return s === 'RENTING' || (['HANDED_OVER', 'SHIPPING', 'READY_FOR_HANDOVER', 'DELIVERED'].includes(s) && isClaSignedForOrder(o));
+                }).length})`,
+              },
+              {
+                key: 'RETURNING',
+                label: `Hoàn trả & Lab (${orders.filter((o) => ['RETURN_REQUESTED', 'RETURNING', 'RETURNED'].includes((o.status || '').toUpperCase())).length})`,
+              },
+              {
+                key: 'COMPLETED',
+                label: `Đã hoàn tất (${orders.filter((o) => ['COMPLETED', 'REFUNDED'].includes((o.status || '').toUpperCase())).length})`,
+              },
+              {
+                key: 'CANCELLED',
+                label: `Đã hủy (${orders.filter((o) => ['CANCELLED', 'REJECTED'].includes((o.status || '').toUpperCase())).length})`,
+              },
             ].map((tab) => {
               const active = activeTab === tab.key;
               return (
@@ -251,19 +422,38 @@ export const MyRentOrdersScreen: React.FC = () => {
             ) : (
               filteredOrders.map((order) => {
                 const item = (order.items?.[0] as any) || {};
-                const itemTitle = item.productName || item.title || 'Giày Sandal Cao Gót Quai Mảnh Ánh Kim Dự Tiệc';
-                const itemImg = normalizeImageUrl(item.imageUrl || item.image || './src/assets/images/shoeshome.jpg');
-                const grade = item.grade || 'GRADE A+';
-                const archiveCode = item.archiveCode || 'Lưu ký #6519-1';
+                const itemTitle =
+                  item.productName ||
+                  item.name ||
+                  item.title ||
+                  (item.productId && typeof item.productId === 'object' && (item.productId.name || item.productId.productName || item.productId.title)) ||
+                  'Thiết bị cho thuê';
+                const itemImg = extractProductImage(item);
+                const grade = item.grade || (item.productId && item.productId.condition) || 'GRADE A+';
+                const archiveCode = item.archiveCode || (order.orderCode ? `#${order.orderCode.slice(-6)}` : '#6519-1');
                 const provider = item.provider || 'Cung cấp bởi: ReUse Partner Vault · Kiểm định chất lượng 8 bước ReUse Standard';
 
                 const days = order.rentalDays || 3;
                 const startDate = order.startDate || '30/10/2026';
                 const endDate = order.endDate || '02/11/2026';
 
-                const customerName = (order as any).customerName || (user?.fullName || 'Nguyễn Văn Hơn');
-                const customerPhone = (order as any).customerPhone || (user?.phoneNumber || '0708091060');
-                const customerAddress = (order as any).customerAddress || '48 Bạch Đằng, Phường Hải Châu 1, Quận Hải Châu, Thành phố Đà Nẵng';
+                const customerName =
+                  order.shippingAddress?.recipientName ||
+                  (order as any).customerName ||
+                  user?.fullName ||
+                  'Nguyễn Văn Hơn';
+                const customerPhone =
+                  order.shippingAddress?.recipientPhone ||
+                  (order as any).customerPhone ||
+                  user?.phoneNumber ||
+                  '0708091060';
+                const customerAddress =
+                  (order.shippingAddress as any)?.address ||
+                  (order.shippingAddress?.detail
+                    ? [order.shippingAddress.detail, order.shippingAddress.ward, order.shippingAddress.district, order.shippingAddress.province]
+                        .filter(Boolean)
+                        .join(', ')
+                    : (order as any).customerAddress || '48 Bạch Đằng, Phường Hải Châu 1, Quận Hải Châu, Thành phố Đà Nẵng');
 
                 const dailyPrice = item.price || 160000;
                 const rentalFee = order.rentalFee || dailyPrice * days;
@@ -273,8 +463,8 @@ export const MyRentOrdersScreen: React.FC = () => {
 
                 const hasSigned = isClaSignedForOrder(order);
                 const rawStatus = (order.status || '').toUpperCase();
-                const isDeliveredWaitingSign = (rawStatus === 'SHIPPING' || rawStatus === 'READY_FOR_HANDOVER' || rawStatus === 'DELIVERED') && !hasSigned;
-                const isRentingActual = rawStatus === 'RENTING' || (['SHIPPING', 'DELIVERED'].includes(rawStatus) && hasSigned);
+                const isDeliveredWaitingSign = ['HANDED_OVER', 'SHIPPING', 'READY_FOR_HANDOVER', 'DELIVERED'].includes(rawStatus) && !hasSigned;
+                const isRentingActual = rawStatus === 'RENTING' || (['HANDED_OVER', 'SHIPPING', 'READY_FOR_HANDOVER', 'DELIVERED'].includes(rawStatus) && hasSigned);
 
                 return (
                   <View key={order._id || order.orderCode} style={styles.orderCard}>
@@ -288,16 +478,44 @@ export const MyRentOrdersScreen: React.FC = () => {
                       </View>
 
                       {isDeliveredWaitingSign ? (
-                        <View style={styles.badgeShippingWait}>
-                          <Ionicons name="hourglass-outline" size={12} color="#4A463F" />
-                          <Text style={styles.badgeShippingWaitText}>
-                            Bưu tá đang chuyển phát · Vui lòng mở kiện đối kiểm & ký CLA khi nhận
+                        <View style={[styles.badgeShippingWait, { backgroundColor: '#FFF7ED', borderColor: '#FDBA74' }]}>
+                          <Feather name="edit-3" size={12} color="#EA580C" />
+                          <Text style={[styles.badgeShippingWaitText, { color: '#C2410C', fontWeight: '800' }]}>
+                            KÝ CLA · BƯU TÁ ĐÃ BÀN GIAO (CHỤP 3 GÓC)
                           </Text>
                         </View>
                       ) : isRentingActual ? (
                         <View style={styles.badgeRenting}>
                           <Ionicons name="checkmark-circle" size={12} color="#059669" />
                           <Text style={styles.badgeRentingText}>ĐANG THUÊ (BƯỚC 6)</Text>
+                        </View>
+                      ) : rawStatus === 'PENDING' ? (
+                        <View style={[styles.badgeDefault, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+                          <Ionicons name="time-outline" size={12} color="#B45309" />
+                          <Text style={[styles.badgeDefaultText, { color: '#B45309' }]}>
+                            ĐỢI SHOP OWNER DUYỆT ĐƠN
+                          </Text>
+                        </View>
+                      ) : rawStatus === 'WAITING_PAYMENT' ? (
+                        <View style={[styles.badgeDefault, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD' }]}>
+                          <Ionicons name="card-outline" size={12} color="#0284C7" />
+                          <Text style={[styles.badgeDefaultText, { color: '#0284C7' }]}>
+                            SHOP ĐÃ DUYỆT · CHỜ BẠN THANH TOÁN
+                          </Text>
+                        </View>
+                      ) : rawStatus === 'PAID' ? (
+                        <View style={[styles.badgeDefault, { backgroundColor: '#DCFCE7', borderColor: '#BBF7D0' }]}>
+                          <Ionicons name="checkmark-done-circle" size={12} color="#15803D" />
+                          <Text style={[styles.badgeDefaultText, { color: '#15803D' }]}>
+                            ĐÃ THANH TOÁN · CHỜ SHOP GIAO HÀNG
+                          </Text>
+                        </View>
+                      ) : rawStatus === 'RETURNING' || rawStatus === 'RETURN_REQUESTED' ? (
+                        <View style={[styles.badgeDefault, { backgroundColor: '#F3E8FF', borderColor: '#E9D5FF' }]}>
+                          <Ionicons name="reload-outline" size={12} color="#7E22CE" />
+                          <Text style={[styles.badgeDefaultText, { color: '#7E22CE' }]}>
+                            ĐANG TRẢ ĐỒ · CHỜ SHOP NGHIỆM THU
+                          </Text>
                         </View>
                       ) : (
                         <View style={styles.badgeDefault}>
@@ -487,6 +705,39 @@ export const MyRentOrdersScreen: React.FC = () => {
                               </TouchableOpacity>
                             </View>
                           </>
+                        ) : rawStatus === 'WAITING_PAYMENT' ? (
+                          <>
+                            <TouchableOpacity
+                              style={[styles.primaryOrangeBtn, { backgroundColor: '#0284C7' }]}
+                              onPress={() => handlePayOrder(order)}
+                              activeOpacity={0.88}
+                            >
+                              <Feather name="credit-card" size={15} color="#FFFFFF" />
+                              <Text style={styles.primaryOrangeBtnText}>Thanh toán ngay</Text>
+                            </TouchableOpacity>
+
+                            <View style={styles.subActionRow}>
+                              <TouchableOpacity
+                                style={styles.darkDetailBtn}
+                                onPress={() =>
+                                  navigation.navigate('RentOrderDetail', {
+                                    id: order._id || order.orderCode,
+                                    order,
+                                  })
+                                }
+                              >
+                                <Text style={styles.darkDetailBtnText}>Xem chi tiết</Text>
+                              </TouchableOpacity>
+
+                              <TouchableOpacity
+                                style={styles.chatShopBtn}
+                                onPress={() => navigation.navigate('Chat')}
+                              >
+                                <Feather name="message-square" size={13} color="#1C1A18" />
+                                <Text style={styles.chatShopBtnText}>Nhắn Shop</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </>
                         ) : (
                           <View style={styles.subActionRow}>
                             <TouchableOpacity
@@ -505,6 +756,7 @@ export const MyRentOrdersScreen: React.FC = () => {
                               style={styles.chatShopBtn}
                               onPress={() => navigation.navigate('Chat')}
                             >
+                              <Feather name="message-square" size={13} color="#1C1A18" />
                               <Text style={styles.chatShopBtnText}>Nhắn Shop</Text>
                             </TouchableOpacity>
                           </View>
@@ -540,29 +792,190 @@ export const MyRentOrdersScreen: React.FC = () => {
               </View>
 
               <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-                <View style={styles.modalAlertBox}>
-                  <Text style={styles.modalAlertTitle}>Quy trình kích hoạt thuê (Bước 5 → Bước 6):</Text>
-                  <Text style={styles.modalAlertDesc}>
-                    Bưu tá đã giao kiện hàng đến tay bạn. Vui lòng mở thùng niêm phong Nanuk, kiểm tra tình trạng ngoại quan khớp với chứng thư Grade A+ trước khi xác nhận ký nhận CLA điện tử.
+                {/* 1. Order Summary Header */}
+                <View style={styles.claOrderSummary}>
+                  <View style={styles.claSummaryRow}>
+                    <Text style={styles.claSummaryLabel}>Mã đơn:</Text>
+                    <Text style={styles.claSummaryCode}>#{signingOrder.orderCode || signingOrder._id?.slice(-8)}</Text>
+                  </View>
+                  <View style={styles.claSummaryRow}>
+                    <Text style={styles.claSummaryLabel}>Sản phẩm:</Text>
+                    <Text style={styles.claSummaryVal} numberOfLines={1}>
+                      {signingOrder.items?.[0]?.productName || 'Thiết bị cho thuê'}
+                    </Text>
+                  </View>
+                  <View style={styles.claSummaryRow}>
+                    <Text style={styles.claSummaryLabel}>Kỳ hạn thuê:</Text>
+                    <Text style={styles.claSummaryVal}>
+                      {signingOrder.startDate} → {signingOrder.endDate} ({signingOrder.rentalDays || 3} ngày)
+                    </Text>
+                  </View>
+                  <View style={styles.claSummaryRow}>
+                    <Text style={styles.claSummaryLabel}>Địa chỉ nhận:</Text>
+                    <Text style={styles.claSummaryVal} numberOfLines={2}>
+                      {signingOrder.shippingAddress?.detail || '48 Bạch Đằng, Hải Châu 1, Hải Châu, Đà Nẵng'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* 2. Shop Owner Handover Photos (Đối chứng xuất kho) */}
+                <View style={styles.shopHandoverBox}>
+                  <View style={styles.secHeaderRow}>
+                    <Feather name="package" size={14} color="#15803D" />
+                    <Text style={styles.shopHandoverTitle}>ẢNH BIÊN BẢN BÀN GIAO XUẤT KHO TỪ SHOP OWNER</Text>
+                  </View>
+                  <Text style={styles.shopHandoverSub}>
+                    3 góc chụp đối chứng tình trạng trước khi shipper nhận kiện:
                   </Text>
+                  <View style={styles.threePhotosGrid}>
+                    <View style={styles.photoThumbCol}>
+                      <Image
+                        source={{
+                          uri: normalizeImageUrl(
+                            signingOrder.claProof?.photos?.slot1 ||
+                            signingOrder.shippingDetails?.trackingCode ||
+                            'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800'
+                          ),
+                        }}
+                        style={styles.photoThumbImg}
+                        resizeMode="cover"
+                      />
+                      <Text style={styles.photoThumbLabel}>Góc 1: Mặt trước</Text>
+                    </View>
+                    <View style={styles.photoThumbCol}>
+                      <Image
+                        source={{
+                          uri: normalizeImageUrl(
+                            signingOrder.claProof?.photos?.slot2 ||
+                            'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=800'
+                          ),
+                        }}
+                        style={styles.photoThumbImg}
+                        resizeMode="cover"
+                      />
+                      <Text style={styles.photoThumbLabel}>Góc 2: Phụ kiện</Text>
+                    </View>
+                    <View style={styles.photoThumbCol}>
+                      <Image
+                        source={{
+                          uri: normalizeImageUrl(
+                            signingOrder.claProof?.photos?.slot3 ||
+                            'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800'
+                          ),
+                        }}
+                        style={styles.photoThumbImg}
+                        resizeMode="cover"
+                      />
+                      <Text style={styles.photoThumbLabel}>Góc 3: Tem seal</Text>
+                    </View>
+                  </View>
                 </View>
 
-                <View style={styles.checklistBox}>
-                  <Text style={styles.checklistTitle}>3 TIÊU CHÍ BÀN GIAO & ĐỐI KIỂM:</Text>
-                  <View style={styles.checkItemRow}>
-                    <Ionicons name="checkmark-circle" size={16} color="#059669" />
-                    <Text style={styles.checkItemText}>Tem niêm phong ReUse Hub nguyên vẹn không rách vỡ</Text>
+                {/* 3. User Camera/Photo Capture (Chụp ảnh 3 góc từ điện thoại để match) */}
+                <View style={styles.userCaptureBox}>
+                  <View style={styles.secHeaderRow}>
+                    <Feather name="camera" size={14} color="#EA580C" />
+                    <Text style={styles.userCaptureTitle}>CHỤP ẢNH 3 GÓC TỪ ĐIỆN THOẠI ĐỂ ĐỐI KIỂM</Text>
                   </View>
-                  <View style={styles.checkItemRow}>
-                    <Ionicons name="checkmark-circle" size={16} color="#059669" />
-                    <Text style={styles.checkItemText}>Ngoại quan sản phẩm nguyên trạng, đạt chuẩn Grade A+</Text>
-                  </View>
-                  <View style={styles.checkItemRow}>
-                    <Ionicons name="checkmark-circle" size={16} color="#059669" />
-                    <Text style={styles.checkItemText}>Khớp số serial & phụ kiện theo danh mục bàn giao</Text>
+                  <Text style={styles.userCaptureSub}>
+                    Mở kiện trước mặt bưu tá và chụp 3 góc ảnh để lưu ký vào Smart Escrow:
+                  </Text>
+
+                  <View style={styles.captureSlotsRow}>
+                    {/* Slot 1 */}
+                    <TouchableOpacity
+                      style={styles.captureSlot}
+                      onPress={() => handlePickClaPhoto(1)}
+                      disabled={uploadingSlot === 1}
+                      activeOpacity={0.8}
+                    >
+                      {uploadingSlot === 1 ? (
+                        <ActivityIndicator size="small" color="#EA580C" />
+                      ) : claSlot1 ? (
+                        <>
+                          <Image source={{ uri: claSlot1 }} style={styles.capturedImg} resizeMode="cover" />
+                          <View style={styles.rePickOverlay}>
+                            <Feather name="camera" size={12} color="#fff" />
+                            <Text style={styles.rePickText}>Đổi</Text>
+                          </View>
+                        </>
+                      ) : (
+                        <View style={styles.emptySlotContent}>
+                          <Feather name="camera" size={22} color="#EA580C" />
+                          <Text style={styles.slotBtnTitle}>Góc 1: Mặt trước</Text>
+                          <Text style={styles.slotBtnSub}>Chụp kiện</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* Slot 2 */}
+                    <TouchableOpacity
+                      style={styles.captureSlot}
+                      onPress={() => handlePickClaPhoto(2)}
+                      disabled={uploadingSlot === 2}
+                      activeOpacity={0.8}
+                    >
+                      {uploadingSlot === 2 ? (
+                        <ActivityIndicator size="small" color="#EA580C" />
+                      ) : claSlot2 ? (
+                        <>
+                          <Image source={{ uri: claSlot2 }} style={styles.capturedImg} resizeMode="cover" />
+                          <View style={styles.rePickOverlay}>
+                            <Feather name="camera" size={12} color="#fff" />
+                            <Text style={styles.rePickText}>Đổi</Text>
+                          </View>
+                        </>
+                      ) : (
+                        <View style={styles.emptySlotContent}>
+                          <Feather name="camera" size={22} color="#EA580C" />
+                          <Text style={styles.slotBtnTitle}>Góc 2: Phụ kiện</Text>
+                          <Text style={styles.slotBtnSub}>Góc cạnh</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* Slot 3 */}
+                    <TouchableOpacity
+                      style={styles.captureSlot}
+                      onPress={() => handlePickClaPhoto(3)}
+                      disabled={uploadingSlot === 3}
+                      activeOpacity={0.8}
+                    >
+                      {uploadingSlot === 3 ? (
+                        <ActivityIndicator size="small" color="#EA580C" />
+                      ) : claSlot3 ? (
+                        <>
+                          <Image source={{ uri: claSlot3 }} style={styles.capturedImg} resizeMode="cover" />
+                          <View style={styles.rePickOverlay}>
+                            <Feather name="camera" size={12} color="#fff" />
+                            <Text style={styles.rePickText}>Đổi</Text>
+                          </View>
+                        </>
+                      ) : (
+                        <View style={styles.emptySlotContent}>
+                          <Feather name="camera" size={22} color="#EA580C" />
+                          <Text style={styles.slotBtnTitle}>Góc 3: Tem seal</Text>
+                          <Text style={styles.slotBtnSub}>Niêm phong</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
                   </View>
                 </View>
 
+                {/* 4. Inspection Note Input */}
+                <View style={styles.noteInputBox}>
+                  <Text style={styles.noteInputLabel}>GHI CHÚ ĐỐI KIỂM NGOẠI QUAN</Text>
+                  <TextInput
+                    style={styles.noteTextInput}
+                    placeholder="VD: Kiện hàng nguyên vẹn tem seal, trang phục không tì vết..."
+                    placeholderTextColor="#A8A29E"
+                    value={claNote}
+                    onChangeText={setClaNote}
+                    multiline
+                  />
+                </View>
+
+                {/* 5. Signature Pad */}
                 <View style={styles.claSignBox}>
                   <Text style={styles.claSignLabel}>Chữ ký điện tử xác nhận:</Text>
                   <View style={styles.signaturePad}>
@@ -583,11 +996,18 @@ export const MyRentOrdersScreen: React.FC = () => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.modalSubmitBtn}
+                  style={[styles.modalSubmitBtn, submittingCla && { opacity: 0.7 }]}
+                  disabled={submittingCla}
                   onPress={() => handleConfirmClaSign(signingOrder)}
                 >
-                  <Feather name="check" size={16} color="#FFFFFF" />
-                  <Text style={styles.modalSubmitText}>Xác nhận & Ký biên bản điện tử</Text>
+                  {submittingCla ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Feather name="check" size={16} color="#FFFFFF" />
+                      <Text style={styles.modalSubmitText}>Ký CLA & Bắt đầu thuê</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -1141,6 +1561,178 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#C2410C',
     lineHeight: 16,
+  },
+  claOrderSummary: {
+    backgroundColor: '#FAF7F2',
+    borderWidth: 1,
+    borderColor: '#EFECE6',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+    gap: 4,
+  },
+  claSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  claSummaryLabel: {
+    fontSize: 11,
+    color: '#78736A',
+  },
+  claSummaryCode: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1C1A18',
+    fontFamily: 'monospace',
+  },
+  claSummaryVal: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1C1A18',
+    maxWidth: '70%',
+    textAlign: 'right',
+  },
+  shopHandoverBox: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  secHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  shopHandoverTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#166534',
+    letterSpacing: 0.3,
+  },
+  shopHandoverSub: {
+    fontSize: 11,
+    color: '#15803D',
+    marginBottom: 8,
+  },
+  threePhotosGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  photoThumbCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  photoThumbImg: {
+    width: '100%',
+    height: 72,
+    borderRadius: 8,
+    backgroundColor: '#DCFCE7',
+  },
+  photoThumbLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#166534',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  userCaptureBox: {
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  userCaptureTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#9A3412',
+    letterSpacing: 0.3,
+  },
+  userCaptureSub: {
+    fontSize: 11,
+    color: '#C2410C',
+    marginBottom: 10,
+  },
+  captureSlotsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  captureSlot: {
+    flex: 1,
+    height: 84,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#FDBA74',
+    borderStyle: 'dashed',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  emptySlotContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  slotBtnTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#C2410C',
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  slotBtnSub: {
+    fontSize: 9,
+    color: '#EA580C',
+  },
+  capturedImg: {
+    width: '100%',
+    height: '100%',
+  },
+  rePickOverlay: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  rePickText: {
+    fontSize: 9,
+    color: '#fff',
+    fontWeight: '700',
+  },
+  noteInputBox: {
+    marginBottom: 12,
+  },
+  noteInputLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#4A463F',
+    marginBottom: 6,
+    letterSpacing: 0.3,
+  },
+  noteTextInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D6D3D1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 12,
+    color: '#1C1A18',
+    minHeight: 52,
+    textAlignVertical: 'top',
   },
   checklistBox: {
     backgroundColor: '#F8F6F1',

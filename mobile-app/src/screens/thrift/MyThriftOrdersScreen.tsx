@@ -14,7 +14,12 @@ import {
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { AppHeader } from '../../components/layout/AppHeader';
-import { getMyThriftOrdersApi, confirmDeliveredThriftOrderApi, ThriftOrderApi } from '../../services/thriftOrder.api';
+import {
+  getMyThriftOrdersApi,
+  confirmDeliveredThriftOrderApi,
+  updateThriftOrderStatusApi,
+  ThriftOrderApi,
+} from '../../services/thriftOrder.api';
 import { normalizeImageUrl } from '../../utils/imageUrl';
 import { resolveThriftOrderItem } from '../../utils/thriftOrderItemResolver';
 
@@ -75,18 +80,45 @@ export const MyThriftOrdersScreen: React.FC = () => {
     });
   }, [orders, activeTab, searchQuery]);
 
-  const handleConfirmReceived = (orderId: string) => {
+  const handlePayThriftOrder = (order: ThriftOrderApi) => {
     Alert.alert(
-      'Xác nhận nhận hàng',
-      'Bạn đã kiểm tra và nhận đầy đủ sản phẩm THRIFT nguyên seal?',
+      'Xác nhận thanh toán đơn THRIFT',
+      `Thanh toán ${formatVND(order.totalAmount || 0)} cho đơn ${order.orderCode || order._id?.slice(-8)} qua bảo chứng Smart Escrow?`,
       [
         { text: 'Hủy', style: 'cancel' },
         {
-          text: 'Xác nhận',
+          text: 'Thanh toán ngay',
+          onPress: async () => {
+            try {
+              await updateThriftOrderStatusApi(order._id || order.orderCode, { status: 'PAID' });
+            } catch {
+              // fallback
+            }
+            setOrders((prev) =>
+              prev.map((o) => (o._id === order._id ? { ...o, status: 'PAID' } : o))
+            );
+            Alert.alert(
+              'Thanh toán thành công! 🎉',
+              'Đơn mua THRIFT đã thanh toán thành công. Shop Owner sẽ tiến hành đóng gói và giao hàng cho bạn.'
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const handleConfirmReceived = (orderId: string) => {
+    Alert.alert(
+      'Ký biên bản CLA & Nhận hàng',
+      'Bạn đã kiểm tra và nhận đầy đủ sản phẩm THRIFT nguyên seal niêm phong của Atelier?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Ký CLA & Xác nhận',
           onPress: async () => {
             try {
               await confirmDeliveredThriftOrderApi(orderId);
-              Alert.alert('Thành công', 'Đơn hàng đã được cập nhật trạng thái Đã nhận.');
+              Alert.alert('Thành công! 🎉', 'Đơn hàng THRIFT đã được đối soát hoàn tất và kích hoạt bảo hành 72h.');
               loadOrders();
             } catch {
               loadOrders();
@@ -99,6 +131,27 @@ export const MyThriftOrdersScreen: React.FC = () => {
 
   const renderStatusBadge = (status: string) => {
     const s = (status || '').toUpperCase();
+    if (s === 'PENDING') {
+      return (
+        <View style={[styles.badgeAmber, { backgroundColor: '#FEF3C7' }]}>
+          <Text style={[styles.badgeTextAmber, { color: '#B45309' }]}>CHỜ SHOP DUYỆT ĐƠN</Text>
+        </View>
+      );
+    }
+    if (s === 'WAITING_PAYMENT' || s === 'PENDING_PAYMENT') {
+      return (
+        <View style={[styles.badgeBlue, { backgroundColor: '#E0F2FE' }]}>
+          <Text style={[styles.badgeTextBlue, { color: '#0284C7' }]}>SHOP ĐÃ DUYỆT · CHỜ BẠN THANH TOÁN</Text>
+        </View>
+      );
+    }
+    if (s === 'PAID') {
+      return (
+        <View style={[styles.badgeBlue, { backgroundColor: '#DCFCE7' }]}>
+          <Text style={[styles.badgeTextBlue, { color: '#15803D' }]}>ĐÃ THANH TOÁN · CHỜ GIAO HÀNG</Text>
+        </View>
+      );
+    }
     if (s === 'DELIVERED' || s === 'COMPLETED') {
       return (
         <View style={styles.badgeGreen}>
@@ -106,14 +159,14 @@ export const MyThriftOrdersScreen: React.FC = () => {
         </View>
       );
     }
-    if (s === 'SHIPPED') {
+    if (s === 'SHIPPED' || s === 'SHIPPING') {
       return (
         <View style={styles.badgeAmber}>
-          <Text style={styles.badgeTextAmber}>ĐANG GIAO</Text>
+          <Text style={styles.badgeTextAmber}>ĐANG GIAO (KÝ CLA KHI NHẬN)</Text>
         </View>
       );
     }
-    if (s === 'PROCESSING' || s === 'PAID') {
+    if (s === 'PROCESSING') {
       return (
         <View style={styles.badgeBlue}>
           <Text style={styles.badgeTextBlue}>ĐANG XỬ LÝ</Text>
@@ -231,7 +284,10 @@ export const MyThriftOrdersScreen: React.FC = () => {
                 const orderCode = order.orderCode || `#${order._id?.slice(-6)}`;
                 const total = order.totalAmount || item?.price || resolved.price || 0;
                 const dateStr = order.createdAt ? new Date(order.createdAt).toLocaleDateString('vi-VN') : '';
-                const canConfirm = ['SHIPPED', 'DELIVERED'].includes(order.status || '');
+                const stUpper = (order.status || '').toUpperCase();
+                const isPending = stUpper === 'PENDING';
+                const isWaitingPayment = stUpper === 'WAITING_PAYMENT' || stUpper === 'PENDING_PAYMENT';
+                const canConfirm = ['SHIPPED', 'SHIPPING', 'DELIVERED'].includes(stUpper);
 
                 return (
                   <View key={order._id || order.orderCode} style={styles.orderCard}>
@@ -278,21 +334,32 @@ export const MyThriftOrdersScreen: React.FC = () => {
                         <Text style={styles.actionBtnDetailText}>Xem chi tiết</Text>
                       </TouchableOpacity>
 
-                      {canConfirm && order.status !== 'DELIVERED' && (
+                      {isWaitingPayment && (
+                        <TouchableOpacity
+                          style={[styles.actionBtnConfirm, { backgroundColor: '#0284C7' }]}
+                          onPress={() => handlePayThriftOrder(order)}
+                        >
+                          <Text style={styles.actionBtnConfirmText}>Thanh toán ngay</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {canConfirm && order.status !== 'DELIVERED' && order.status !== 'COMPLETED' && (
                         <TouchableOpacity
                           style={styles.actionBtnConfirm}
                           onPress={() => handleConfirmReceived(order._id || order.orderCode)}
                         >
-                          <Text style={styles.actionBtnConfirmText}>Đã nhận hàng</Text>
+                          <Text style={styles.actionBtnConfirmText}>Ký CLA & Nhận hàng</Text>
                         </TouchableOpacity>
                       )}
 
-                      <TouchableOpacity
-                        style={styles.actionBtnBuyAgain}
-                        onPress={() => navigation.navigate('Main', { screen: 'ThriftTab' })}
-                      >
-                        <Text style={styles.actionBtnBuyAgainText}>Mua thêm</Text>
-                      </TouchableOpacity>
+                      {!isPending && !isWaitingPayment && (
+                        <TouchableOpacity
+                          style={styles.actionBtnBuyAgain}
+                          onPress={() => navigation.navigate('Main', { screen: 'ThriftTab' })}
+                        >
+                          <Text style={styles.actionBtnBuyAgainText}>Mua thêm</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
                 );

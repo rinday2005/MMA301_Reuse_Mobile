@@ -1,6 +1,5 @@
 import { Linking } from 'react-native';
-import api from './api';
-import { storage } from '../utils/storage';
+import api, { getServerHost } from './api';
 
 export interface CreateVnPayUrlRequest {
   orderId?: string;
@@ -15,17 +14,30 @@ export interface CreateVnPayUrlRequest {
   rentalFee?: number;
   depositAmount?: number;
   shippingFee?: number;
+  returnUrl?: string;
+}
+
+export interface CreateVnPayUrlResult {
+  paymentUrl: string;
+  vnpUrl: string;
+  orderId?: string;
+  orderCode?: string;
+  totalAmount?: number;
+  txnRef?: string;
 }
 
 /**
- * Calls backend /payments/create-vnpay-url and returns the generated payment URL.
+ * Calls backend /payments/create-vnpay-url and returns full result including orderId, orderCode, and paymentUrl.
  */
-export const createVnPayUrlApi = async (
+export const createVnPayOrderAndUrlApi = async (
   request: CreateVnPayUrlRequest | string,
   type: 'RENT' | 'THRIFT' = 'RENT'
-): Promise<string> => {
+): Promise<CreateVnPayUrlResult> => {
   const reqObj: CreateVnPayUrlRequest =
     typeof request === 'string' ? { orderId: request, type } : request;
+
+  const mobileReturnUrl =
+    reqObj.returnUrl || `${getServerHost()}/api/payments/vnpay-return?mobile=1`;
 
   const res = await api.post('/payments/create-vnpay-url', {
     orderId: reqObj.orderId,
@@ -40,20 +52,40 @@ export const createVnPayUrlApi = async (
     rentalFee: reqObj.rentalFee,
     depositAmount: reqObj.depositAmount,
     shippingFee: reqObj.shippingFee,
+    returnUrl: mobileReturnUrl,
   });
 
+  const payload = res.data?.data || res.data || {};
   const vnpUrl =
     res.data?.vnpUrl ||
-    res.data?.data?.vnpUrl ||
+    payload?.vnpUrl ||
     res.data?.paymentUrl ||
-    res.data?.data?.paymentUrl ||
+    payload?.paymentUrl ||
     '';
 
   if (!vnpUrl) {
     throw new Error('Không nhận được đường dẫn thanh toán từ máy chủ.');
   }
 
-  return vnpUrl;
+  return {
+    paymentUrl: vnpUrl,
+    vnpUrl,
+    orderId: payload.orderId ? String(payload.orderId) : reqObj.orderId,
+    orderCode: payload.orderCode || reqObj.orderCode,
+    totalAmount: payload.totalAmount || reqObj.amount,
+    txnRef: payload.txnRef,
+  };
+};
+
+/**
+ * Calls backend /payments/create-vnpay-url and returns the generated payment URL.
+ */
+export const createVnPayUrlApi = async (
+  request: CreateVnPayUrlRequest | string,
+  type: 'RENT' | 'THRIFT' = 'RENT'
+): Promise<string> => {
+  const result = await createVnPayOrderAndUrlApi(request, type);
+  return result.paymentUrl;
 };
 
 /**
@@ -78,6 +110,7 @@ export const redirectToVnPayGateway = async (
 };
 
 export default {
+  createVnPayOrderAndUrlApi,
   createVnPayUrlApi,
   handleVNPayPayment,
   redirectToVnPayGateway,

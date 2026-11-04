@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { getImageSource } from '../../utils/imageUrl';
 import type { MarketItem } from '../../utils/marketplaceMapper';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -23,7 +24,7 @@ export const MarketplaceCard: React.FC<Props> = ({ item, wished, onPress, onTogg
     <View style={styles.card}>
       <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
         <View style={styles.imageWrap}>
-          <Image source={{ uri: item.image }} style={styles.image} resizeMode="cover" />
+          <Image source={getImageSource(item.image)} style={styles.image} resizeMode="cover" />
           <View style={[styles.tag, isRent ? styles.tagRent : styles.tagThrift, sold && styles.tagSold]}>
             <Text style={styles.tagText}>{item.badge}</Text>
           </View>
