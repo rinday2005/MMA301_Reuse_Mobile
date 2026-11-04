@@ -1,6 +1,7 @@
 /**
  * Cross-platform storage for React Native / Expo
  * Safely wraps AsyncStorage with an in-memory fallback cache
+ * and provides a globalThis.localStorage polyfill so code ported from web works smoothly.
  */
 
 let AsyncStorageModule: any = null;
@@ -28,10 +29,10 @@ export const storage = {
   },
 
   async setItem(key: string, value: string): Promise<void> {
-    memoryStore[key] = value;
+    memoryStore[key] = String(value);
     if (AsyncStorageModule) {
       try {
-        await AsyncStorageModule.setItem(key, value);
+        await AsyncStorageModule.setItem(key, String(value));
       } catch {
         // ignore error
       }
@@ -65,12 +66,57 @@ export const storage = {
   },
 
   setSync(key: string, value: string): void {
-    memoryStore[key] = value;
+    memoryStore[key] = String(value);
+    if (AsyncStorageModule) {
+      AsyncStorageModule.setItem(key, String(value)).catch(() => {});
+    }
   },
 
   removeSync(key: string): void {
     delete memoryStore[key];
+    if (AsyncStorageModule) {
+      AsyncStorageModule.removeItem(key).catch(() => {});
+    }
+  },
+
+  getAllKeysSync(): string[] {
+    return Object.keys(memoryStore);
   },
 };
+
+// Global polyfill for code expecting window.localStorage
+if (typeof (globalThis as any).localStorage === 'undefined') {
+  (globalThis as any).localStorage = {
+    getItem: (key: string): string | null => storage.getSync(key),
+    setItem: (key: string, value: string): void => storage.setSync(key, value),
+    removeItem: (key: string): void => storage.removeSync(key),
+    clear: (): void => {
+      Object.keys(memoryStore).forEach((k) => delete memoryStore[k]);
+      if (AsyncStorageModule) {
+        AsyncStorageModule.clear().catch(() => {});
+      }
+    },
+    get length(): number {
+      return Object.keys(memoryStore).length;
+    },
+    key: (index: number): string | null => {
+      const keys = Object.keys(memoryStore);
+      return keys[index] ?? null;
+    },
+  };
+}
+
+// Polyfill global and window as well to prevent ReferenceError in Hermes / strict mode
+try {
+  const g: any = typeof globalThis !== 'undefined' ? globalThis : {};
+  if (typeof g.global !== 'undefined') {
+    g.global.localStorage = g.localStorage;
+  }
+  if (typeof g.window !== 'undefined') {
+    g.window.localStorage = g.localStorage;
+  }
+} catch {
+  // Ignore in environments where global/window are read-only
+}
 
 export default storage;

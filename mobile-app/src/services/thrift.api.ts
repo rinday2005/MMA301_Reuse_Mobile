@@ -7,6 +7,7 @@ export interface ThriftListingItemApi {
   title?: string;
   description?: string;
   price: number;
+  originalPrice?: number;
   condition: string;
   images: string[];
   location?: string;
@@ -59,8 +60,9 @@ export const getShopThriftListingsApi = async (): Promise<ThriftListingItemApi[]
     if (Array.isArray(payload)) return payload;
     if (Array.isArray(payload?.listings)) return payload.listings;
     return [];
-  } catch (error) {
-    console.warn('Could not load shop thrift listings from API:', error);
+  } catch (error: any) {
+    const st = error?.response?.status;
+    if (st !== 403 && st !== 401 && error?.code !== 'ERR_NETWORK') console.warn('Could not load shop thrift listings from API:', error?.message || error);
     return [];
   }
 };
@@ -79,4 +81,3 @@ export const deleteThriftListingApi = async (id: string): Promise<{ success: boo
   const res = await api.delete(`/thrift/listings/${id}`);
   return res.data;
 };
-

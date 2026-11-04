@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   Dimensions,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { AppHeader } from '../../components/layout/AppHeader';
@@ -24,15 +26,15 @@ import { getPublicThriftListingsApi } from '../../services/thrift.api';
 import { getCategoriesApi, CategoryItem } from '../../services/category.api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const HERO_IMG = normalizeImageUrl('./src/assets/images/dashboard.jpg');
+const HERO_DASHBOARD_URL = normalizeImageUrl('/images/dashboard.jpg');
 
-// Ảnh danh mục ở trang chủ web (cùng bộ ảnh), số lượng lấy từ DB
-const HOME_CATEGORY_IMAGES: Record<string, string> = {
-  camera: 'camerahome.jpg',
-  shoes: 'shoeshome.jpg',
-  'dam-du-tiec': 'partydresshome.jpg',
-  clothing: 'clotheshome.jpg',
-  'phu-kien': 'accessoryhome.jpg',
+// Hình ảnh danh mục mặc định chuẩn hóa theo MongoDB Category Collection
+const DEFAULT_CATEGORY_FALLBACK_IMAGES: Record<string, string> = {
+  camera: '/images/cameracategory.jpg',
+  shoes: '/images/shoescategory.jpg',
+  'dam-du-tiec': '/images/dresscategory.jpg',
+  clothing: '/images/clothescategory.jpg',
+  'phu-kien': '/images/accessorycategory.jpg',
 };
 
 const LOOP_STEPS = [
@@ -70,6 +72,7 @@ const USE_STEPS = [
 ];
 
 export const HomeScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const { toggleWishlist, isWishlisted } = useCartWishlist();
@@ -142,15 +145,17 @@ export const HomeScreen: React.FC = () => {
     </View>
   );
 
+  const topInset = Math.max(insets.top, Platform.OS === 'ios' ? 44 : 28);
+
   return (
     <View style={styles.container}>
-      <View style={styles.announce}>
+      <View style={[styles.announce, { paddingTop: topInset, paddingBottom: 8 }]}>
         <Ionicons name="shield-checkmark" size={13} color="#fff" />
         <Text style={styles.announceText} numberOfLines={1}>
           Thuê an tâm với Smart Escrow: ký quỹ an toàn, hoàn cọc tự động
         </Text>
       </View>
-      <AppHeader />
+      <AppHeader skipTopInset />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -205,7 +210,11 @@ export const HomeScreen: React.FC = () => {
           </View>
 
           <View style={styles.heroImgWrap}>
-            <Image source={{ uri: HERO_IMG }} style={styles.heroImg} resizeMode="cover" />
+            <Image
+              source={{ uri: HERO_DASHBOARD_URL }}
+              style={styles.heroImg}
+              resizeMode="cover"
+            />
             <View style={styles.heroTags}>
               <View style={styles.tagDark}>
                 <Text style={styles.tagDarkText}>RENT</Text>
@@ -234,10 +243,9 @@ export const HomeScreen: React.FC = () => {
           ) : (
             <View style={styles.catGrid}>
               {categories.slice(0, 6).map((c) => {
-                const homeImg = HOME_CATEGORY_IMAGES[c.slug];
-                const uri = homeImg
-                  ? normalizeImageUrl(`./src/assets/images/${homeImg}`)
-                  : normalizeImageUrl(c.image);
+                const categoryImgUri = normalizeImageUrl(
+                  c.image || DEFAULT_CATEGORY_FALLBACK_IMAGES[c.slug] || '/images/clothescategory.jpg'
+                );
                 const total = (c.rentCount || 0) + (c.thriftCount || 0);
                 return (
                   <TouchableOpacity
@@ -252,7 +260,11 @@ export const HomeScreen: React.FC = () => {
                     }
                   >
                     <View style={styles.catImgWrap}>
-                      <Image source={{ uri }} style={styles.catImg} resizeMode="cover" />
+                      <Image
+                        source={{ uri: categoryImgUri }}
+                        style={styles.catImg}
+                        resizeMode="cover"
+                      />
                     </View>
                     <Text style={styles.catName} numberOfLines={1}>
                       {c.name}

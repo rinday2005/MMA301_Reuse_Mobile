@@ -92,7 +92,7 @@ export const getShopRentProductsApi = async (): Promise<RentalProductApi[]> => {
     }
     return [];
   } catch (error: any) {
-    if (error?.code !== "ERR_NETWORK") { console.warn("Could not fetch shop rent products from backend:", error?.message || error); }
+    if (error?.code !== "ERR_NETWORK" && error?.response?.status !== 403 && error?.response?.status !== 401) { console.warn("Could not fetch shop rent products from backend:", error?.message || error); }
     return [];
   }
 };

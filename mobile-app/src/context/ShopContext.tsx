@@ -38,6 +38,7 @@ export interface RentProductItem {
   maxDays?: number;
   location?: string;
   condition?: string;
+  rentalRules?: string;
 }
 
 export interface ShopProductItem extends RentProductItem {

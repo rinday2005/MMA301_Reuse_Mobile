@@ -13,11 +13,26 @@ export interface ReviewItem {
   comment?: string;
   images?: string[];
   createdAt: string;
+  isVerifiedBuyer?: boolean;
+}
+
+export interface RatingSummary {
+  averageRating: number;
+  totalReviews: number;
+  verifiedReviewsCount: number;
+  distribution?: Record<number, number>;
+}
+
+export interface ProductReviewsResponse {
+  reviews: ReviewItem[];
+  ratingSummary?: RatingSummary;
 }
 
 export interface CreateReviewPayload {
-  orderId: string;
+  orderId?: string;
+  orderType?: 'RENT' | 'THRIFT';
   productId: string;
+  productType?: 'RENT' | 'THRIFT';
   rating: number;
   comment?: string;
   images?: string[];
@@ -27,14 +42,18 @@ export interface CreateReviewPayload {
  * Lấy danh sách review theo sản phẩm
  * GET /api/reviews/product/:productId
  */
-export const getProductReviewsApi = async (productId: string): Promise<ReviewItem[]> => {
+export const getProductReviewsApi = async (
+  productId: string
+): Promise<{ reviews: ReviewItem[]; ratingSummary?: RatingSummary }> => {
   try {
     const res = await api.get(`/reviews/product/${productId}`);
     const data = res.data?.data || res.data;
-    return Array.isArray(data) ? data : [];
+    const reviews = Array.isArray(data) ? data : [];
+    const ratingSummary = res.data?.ratingSummary || undefined;
+    return { reviews, ratingSummary };
   } catch (error) {
     console.warn('Could not fetch product reviews:', error);
-    return [];
+    return { reviews: [] };
   }
 };
 

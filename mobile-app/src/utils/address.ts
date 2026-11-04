@@ -1,3 +1,4 @@
+import { storage } from './storage';
 /**
  * Utility functions for resolving, formatting, and deduplicating customer delivery addresses,
  * and calculating dynamic 2-way Nanuk shipping fees based on Shop location vs User Profile location.
@@ -267,7 +268,7 @@ export function getUserProfileAddress(user?: UserLike | null): {
   try {
     let effectiveUser = user;
     if (!effectiveUser || !effectiveUser.address) {
-      const savedUserRaw = localStorage.getItem('user');
+      const savedUserRaw = storage.getSync('user');
       if (savedUserRaw) {
         const parsedUser = JSON.parse(savedUserRaw);
         if (parsedUser && (!effectiveUser || parsedUser._id === effectiveUser._id || parsedUser.id === effectiveUser.id)) {
@@ -278,7 +279,7 @@ export function getUserProfileAddress(user?: UserLike | null): {
 
     const uId = effectiveUser?._id || effectiveUser?.id;
     if (uId) {
-      const rawProfile = localStorage.getItem(`user_profile_${uId}`);
+      const rawProfile = storage.getSync(`user_profile_${uId}`);
       if (rawProfile) {
         const p = JSON.parse(rawProfile);
         if (p?.address) {

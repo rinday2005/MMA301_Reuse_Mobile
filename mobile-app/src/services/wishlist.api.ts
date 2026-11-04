@@ -18,7 +18,10 @@ export const getWishlistApi = async (): Promise<WishlistResponseApi | null> => {
   try {
     const res = await api.get("/wishlist");
     return res.data?.data || res.data || null;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      return null;
+    }
     console.warn("Could not fetch wishlist from backend:", error);
     return null;
   }
@@ -31,7 +34,10 @@ export const toggleWishlistApi = async (
   try {
     const res = await api.post("/wishlist/toggle", { productId, ...(productType ? { productType } : {}) });
     return res.data?.data || res.data || null;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      return null;
+    }
     console.warn("Could not toggle wishlist on backend:", error);
     return null;
   }
@@ -44,7 +50,10 @@ export const addToWishlistApi = async (
   try {
     const res = await api.post("/wishlist", { productId, ...(productType ? { productType } : {}) });
     return res.data?.data || res.data || null;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      return null;
+    }
     console.warn("Could not add to wishlist on backend:", error);
     return null;
   }
@@ -56,7 +65,10 @@ export const removeFromWishlistApi = async (
   try {
     const res = await api.delete(`/wishlist/${productId}`);
     return res.data?.data || res.data || null;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      return null;
+    }
     console.warn("Could not remove from wishlist on backend:", error);
     return null;
   }
@@ -66,7 +78,10 @@ export const clearWishlistApi = async (): Promise<boolean> => {
   try {
     await api.delete("/wishlist");
     return true;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      return false;
+    }
     console.warn("Could not clear wishlist on backend:", error);
     return false;
   }

@@ -64,6 +64,12 @@ export interface RentalOrderApi {
   rejectionReason?: string;
   receivedAt?: string | null;
   claProof?: ClaProofApi | null;
+  returnRequest?: {
+    images?: string[];
+    note?: string;
+    requestedAt?: string;
+  } | null;
+  handoverPhotos?: string[];
   inspectionResult?: {
     isApproved?: boolean;
     refundAmount?: number;
@@ -187,7 +193,7 @@ export const getShopRentalOrdersApi = async (params?: {
     }
     return [];
   } catch (error: any) {
-    if (error?.code !== "ERR_NETWORK") { console.warn("Could not fetch shop rental orders from backend API:", error?.message || error); }
+    if (error?.code !== "ERR_NETWORK" && error?.response?.status !== 403 && error?.response?.status !== 401) { console.warn("Could not fetch shop rental orders from backend API:", error?.message || error); }
     return [];
   }
 };
@@ -312,8 +318,8 @@ export const updateOrderStatusApi = async (
     const res = await api.patch(`/rent/orders/${orderId}/status`, { status });
     return res.data?.data || res.data || null;
   } catch (error: any) {
-    console.error(`Lỗi khi cập nhật trạng thái đơn thuê sang ${status}:`, error);
-    throw error;
+    console.warn(`Không thể cập nhật trạng thái đơn thuê sang ${status}:`, error?.message || error);
+    return null;
   }
 };
 

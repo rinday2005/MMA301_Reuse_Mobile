@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -10,17 +10,26 @@ import { useDrawer } from '../../context/DrawerContext';
 interface AppHeaderProps {
   title?: string;
   showBack?: boolean;
+  skipTopInset?: boolean;
 }
 
-export const AppHeader: React.FC<AppHeaderProps> = ({ title, showBack = false }) => {
+export const AppHeader: React.FC<AppHeaderProps> = ({
+  title,
+  showBack = false,
+  skipTopInset = false,
+}) => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const { cartCount, wishlistCount } = useCartWishlist();
   const { openDrawer } = useDrawer();
 
+  const topPadding = skipTopInset
+    ? 0
+    : Math.max(insets.top, Platform.OS === 'ios' ? 44 : 28);
+
   return (
-    <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 12) }]}>
+    <View style={[styles.headerContainer, { paddingTop: topPadding }]}>
       <View style={styles.headerContent}>
         {/* Left Action: Hamburger Menu (dấu 3 gạch) or Back button */}
         <View style={styles.leftContainer}>

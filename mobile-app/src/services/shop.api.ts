@@ -1,46 +1,6 @@
 import api from "./api";
 
-export interface ShopProfileData {
-  shopId: string;
-  shopName: string;
-  ownerName: string;
-  email: string;
-  secondaryEmail?: string;
-  phoneNumber?: string;
-  address?: string;
-  cityRegion?: string;
-  avatarUrl?: string;
-  coverUrl?: string;
-  description?: string;
-  specialization?: string;
-  roleTitle?: string;
-  rating?: number;
-  establishedYear?: number;
-  walletBalance?: number;
-  kycStatus?: string;
-  role?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface UpdateShopProfilePayload {
-  shopName?: string;
-  ownerName?: string;
-  fullName?: string;
-  phoneNumber?: string;
-  address?: string;
-  businessAddress?: string;
-  addressLine?: string;
-  cityRegion?: string;
-  avatarUrl?: string;
-  coverUrl?: string;
-  description?: string;
-  specialization?: string;
-  roleTitle?: string;
-  secondaryEmail?: string;
-}
-
-export interface RevenueSummary {
+export interface ShopRevenueSummary {
   totalRevenue: number;
   rentRevenue: number;
   thriftRevenue: number;
@@ -52,9 +12,11 @@ export interface RevenueSummary {
   avgRentOrderValue: number;
   avgThriftOrderValue: number;
   walletBalance: number;
+  totalRefunds?: number;
+  escrowDepositsHeld?: number;
 }
 
-export interface RevenueTimelineItem {
+export interface MonthlyRevenueItem {
   month: string;
   rentRevenue: number;
   thriftRevenue: number;
@@ -82,17 +44,74 @@ export interface RecentTransactionItem {
   totalPaid: number;
   status: string;
   completedAt: string;
-  items?: {
-    name: string;
-    quantity: number;
+  items?: Array<{
+    name?: string;
+    quantity?: number;
     price?: number;
     pricePerDay?: number;
-  }[];
+  }>;
+}
+
+export interface ShopProfileData {
+  shopId: string;
+  shopName: string;
+  ownerName: string;
+  email: string;
+  secondaryEmail?: string;
+  phoneNumber?: string;
+  address?: string;
+  cityRegion?: string;
+  avatarUrl?: string;
+  coverUrl?: string;
+  description?: string;
+  specialization?: string;
+  roleTitle?: string;
+  addressObject?: {
+    province?: string;
+    district?: string;
+    ward?: string;
+    detail?: string;
+  } | null;
+  slogan?: string;
+  hotline?: string;
+  operatingHours?: string;
+  website?: string;
+  returnPolicy?: string;
+  shippingCommitment?: string;
+  rating?: number;
+  establishedYear?: number;
+  walletBalance?: number;
+  kycStatus?: string;
+  kyc?: any;
+  role?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UpdateShopProfilePayload {
+  shopName?: string;
+  ownerName?: string;
+  roleTitle?: string;
+  phoneNumber?: string;
+  secondaryEmail?: string;
+  slogan?: string;
+  description?: string;
+  specialization?: string;
+  hotline?: string;
+  operatingHours?: string;
+  website?: string;
+  returnPolicy?: string;
+  shippingCommitment?: string;
+  establishedYear?: number;
+  address?: string;
+  cityRegion?: string;
+  avatarUrl?: string;
+  coverUrl?: string;
 }
 
 export interface ShopRevenueData {
-  summary: RevenueSummary;
-  timelineBreakdown: RevenueTimelineItem[];
+  summary: ShopRevenueSummary;
+  timelineBreakdown: MonthlyRevenueItem[];
   topProducts: {
     rent: TopProductSummaryItem[];
     thrift: TopProductSummaryItem[];
@@ -105,7 +124,7 @@ export interface ShopRevenueData {
  * Lấy thông tin Shop Profile thực tế từ MongoDB
  */
 export const getShopProfileApi = async (): Promise<ShopProfileData> => {
-  const response = await api.get<{ success: boolean; data: ShopProfileData }>("/api/shop/profile");
+  const response = await api.get<{ success: boolean; data: ShopProfileData }>("/shop/profile");
   return response.data.data;
 };
 
@@ -117,7 +136,7 @@ export const updateShopProfileApi = async (
   payload: UpdateShopProfilePayload
 ): Promise<ShopProfileData> => {
   const response = await api.put<{ success: boolean; data: ShopProfileData }>(
-    "/api/shop/profile",
+    "/shop/profile",
     payload
   );
   return response.data.data;
@@ -127,12 +146,18 @@ export const updateShopProfileApi = async (
  * GET /api/shop/revenue
  * Lấy thống kê doanh thu thực tế tính toán từ MongoDB Aggregation Pipeline
  */
-export const getShopRevenueApi = async (params?: {
-  startDate?: string;
-  endDate?: string;
-}): Promise<ShopRevenueData> => {
-  const response = await api.get<{ success: boolean; data: ShopRevenueData }>("/api/shop/revenue", {
-    params,
+export const getShopRevenueApi = async (
+  params?:
+    | string
+    | {
+        startDate?: string;
+        endDate?: string;
+        timeline?: string;
+      }
+): Promise<ShopRevenueData> => {
+  const queryParams = typeof params === "string" ? { timeline: params } : params;
+  const response = await api.get<{ success: boolean; data: ShopRevenueData }>("/shop/revenue", {
+    params: queryParams,
   });
   return response.data.data;
 };

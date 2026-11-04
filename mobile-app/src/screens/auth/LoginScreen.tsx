@@ -74,12 +74,16 @@ export const LoginScreen: React.FC = () => {
       setLoginSuccess(true);
 
       setTimeout(() => {
+        const rootNav = (navigation.getParent() || navigation) as any;
         if (user.role === 'ADMIN') {
-          navigation.replace('Admin');
+          rootNav.reset({ index: 0, routes: [{ name: 'Admin' }] });
         } else if (user.role === 'SHOP_OWNER') {
-          navigation.replace('Shop');
+          rootNav.reset({
+            index: 0,
+            routes: [{ name: 'Shop', params: { screen: 'ShopDashboard' } }],
+          });
         } else {
-          navigation.replace('Main');
+          rootNav.reset({ index: 0, routes: [{ name: 'Main' }] });
         }
       }, 600);
     } catch (err: any) {

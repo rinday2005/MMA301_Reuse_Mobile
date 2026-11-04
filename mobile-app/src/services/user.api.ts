@@ -34,25 +34,24 @@ export const uploadAvatarApi = async (file: MobileUploadFile | any): Promise<str
   }
 
   try {
-    const response = await api.post('/users/avatar', formData, {
+    const response = await api.post('/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
 
     return (
-      response.data?.data?.avatarUrl ||
-      response.data?.data?.url ||
-      response.data?.avatarUrl ||
       response.data?.url ||
+      response.data?.avatarUrl ||
+      response.data?.data?.url ||
+      response.data?.data?.avatarUrl ||
       response.data?.data?.secure_url ||
       response.data?.secure_url ||
       ''
     );
   } catch (err: unknown) {
-    const axiosErr = err as { response?: { status?: number } };
-    if (axiosErr.response?.status === 404) {
-      const altResponse = await api.post('/upload/avatar', formData, {
+    try {
+      const altResponse = await api.post('/users/avatar', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -67,8 +66,9 @@ export const uploadAvatarApi = async (file: MobileUploadFile | any): Promise<str
         altResponse.data?.secure_url ||
         ''
       );
+    } catch {
+      throw err;
     }
-    throw err;
   }
 };
 
