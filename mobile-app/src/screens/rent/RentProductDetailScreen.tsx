@@ -56,6 +56,8 @@ export const RentProductDetailScreen: React.FC = () => {
   const [guestModalVisible, setGuestModalVisible] = useState(false);
   const [guestActionText, setGuestActionText] = useState('thuê sản phẩm này');
 
+  const isHidden = product?.status === 'HIDDEN';
+
   // Booked Dates & Dynamic Calendar Range
   const bookedDates = useMemo<BookedDateRange[]>(() => {
     return getProductBookedDates(product);
@@ -235,7 +237,18 @@ export const RentProductDetailScreen: React.FC = () => {
       return;
     }
     if (product?.id) {
-      toggleWishlist(product.id, 'RENT');
+      toggleWishlist(product.id, 'RENT', {
+        id: product.id,
+        title: product.name || product.title,
+        price: pricePerDay,
+        deposit: depositAmount,
+        image: currentImage || images[0],
+        mode: 'rent',
+        category: product.category,
+        categoryLabel: product.categoryLabel,
+        location: product.location,
+        gradeBadge: product.condition || 'Grade A',
+      });
     }
   };
 
@@ -786,27 +799,34 @@ export const RentProductDetailScreen: React.FC = () => {
 
       {/* Dual Sticky Action Buttons matching Web */}
       <SafeAreaView style={styles.bottomBarSafe}>
+        {isHidden && (
+          <View style={{ backgroundColor: '#FEF3C7', paddingVertical: 6, paddingHorizontal: 16, alignItems: 'center' }}>
+            <Text style={{ fontSize: 12, color: '#B45309', fontWeight: '600' }}>Sản phẩm này hiện đang tạm ẩn bởi Shop Owner</Text>
+          </View>
+        )}
         <View style={styles.bottomBar}>
           <TouchableOpacity
-            style={[styles.addToCartBtn, isRangeConflicted && styles.btnDisabled]}
+            style={[styles.addToCartBtn, (isRangeConflicted || isHidden) && styles.btnDisabled]}
             onPress={handleAddToCart}
+            disabled={isHidden}
             activeOpacity={0.85}
           >
-            <Feather name="shopping-bag" size={17} color={isRangeConflicted ? '#A8A29E' : '#18181B'} />
-            <Text style={[styles.addToCartText, isRangeConflicted && styles.btnDisabledText]}>
+            <Feather name="shopping-bag" size={17} color={(isRangeConflicted || isHidden) ? '#A8A29E' : '#18181B'} />
+            <Text style={[styles.addToCartText, (isRangeConflicted || isHidden) && styles.btnDisabledText]}>
               THÊM VÀO GIỎ
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.rentNowBtn, isRangeConflicted && styles.rentBtnDisabled]}
+            style={[styles.rentNowBtn, (isRangeConflicted || isHidden) && styles.rentBtnDisabled]}
             onPress={handleRentNow}
+            disabled={isHidden}
             activeOpacity={0.88}
           >
             <Text style={styles.rentNowText}>
-              {user ? 'THUÊ NGAY' : 'THUÊ NGAY (KHÁCH)'}
+              {isHidden ? 'TẠM ẨN BỞI SHOP' : user ? 'THUÊ NGAY' : 'THUÊ NGAY (KHÁCH)'}
             </Text>
-            <Feather name="arrow-right" size={16} color="#FFFFFF" />
+            {!isHidden && <Feather name="arrow-right" size={16} color="#FFFFFF" />}
           </TouchableOpacity>
         </View>
       </SafeAreaView>

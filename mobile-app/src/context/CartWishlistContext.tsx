@@ -6,7 +6,12 @@ import {
   removeCartItemApi,
 } from '../services/cart.api';
 import { AuthContext } from './auth-context';
-import { resolveWishlistProduct } from '../services/wishlistProductResolver';
+import {
+  resolveWishlistProduct,
+  registerWishlistProduct,
+  registerWishlistProducts,
+  type ResolvedWishlistProduct,
+} from '../services/wishlistProductResolver';
 import {
   getWishlistApi,
   toggleWishlistApi,
@@ -51,8 +56,16 @@ export interface CartWishlistContextType {
   wishlist: string[];
   wishlistCount: number;
   isWishlisted: (id: string) => boolean;
-  toggleWishlist: (id: string, type?: 'RENT' | 'THRIFT') => boolean;
-  addToWishlist: (id: string, type?: 'RENT' | 'THRIFT') => void;
+  toggleWishlist: (
+    id: string,
+    type?: 'RENT' | 'THRIFT',
+    productMeta?: Partial<ResolvedWishlistProduct>
+  ) => boolean;
+  addToWishlist: (
+    id: string,
+    type?: 'RENT' | 'THRIFT',
+    productMeta?: Partial<ResolvedWishlistProduct>
+  ) => void;
   removeFromWishlist: (id: string) => void;
   clearWishlist: () => void;
 
@@ -162,14 +175,41 @@ const CartWishlistProviderInner: React.FC<{
         .then((serverWishlist) => {
           if (!isMounted || !serverWishlist) return;
           if (Array.isArray(serverWishlist.items)) {
-            const ids = serverWishlist.items
-              .map((item) => {
-                const p = item.productId;
-                return typeof p === 'object' && (p as any)?._id
-                  ? String((p as any)._id)
-                  : String(p || '');
-              })
-              .filter(Boolean);
+            const ids: string[] = [];
+            for (const item of serverWishlist.items) {
+              const p = (item as any).item || (item as any).product || item.productId;
+              const pId =
+                typeof p === 'object' && p?._id
+                  ? String(p._id)
+                  : typeof item.productId === 'object' && (item.productId as any)?._id
+                  ? String((item.productId as any)._id)
+                  : String(item.productId || (item as any).itemId || '');
+              if (pId) {
+                ids.push(pId);
+                if (typeof p === 'object' && p) {
+                  const pImages = Array.isArray(p.images) ? p.images : [];
+                  const pPrice =
+                    typeof p.pricePerDay === 'number'
+                      ? p.pricePerDay
+                      : typeof p.price === 'number'
+                      ? p.price
+                      : 0;
+                  const isThrift =
+                    item.productType === 'THRIFT' || (item as any).itemType === 'THRIFT';
+                  registerWishlistProduct({
+                    id: pId,
+                    title: p.name || p.title,
+                    price: pPrice,
+                    deposit: typeof p.depositAmount === 'number' ? p.depositAmount : 0,
+                    image: pImages[0] || (typeof p.image === 'string' ? p.image : ''),
+                    mode: isThrift ? 'thrift' : 'rent',
+                    category:
+                      (typeof p.categoryId === 'object' && p.categoryId?.name) || p.category,
+                    location: p.location || 'Toàn quốc',
+                  });
+                }
+              }
+            }
             setWishlist(ids);
           }
         })
@@ -357,7 +397,14 @@ const CartWishlistProviderInner: React.FC<{
     [wishlist]
   );
 
-  const toggleWishlist = (id: string, type?: 'RENT' | 'THRIFT'): boolean => {
+  const toggleWishlist = (
+    id: string,
+    type?: 'RENT' | 'THRIFT',
+    productMeta?: Partial<ResolvedWishlistProduct>
+  ): boolean => {
+    if (productMeta) {
+      registerWishlistProduct({ id, ...productMeta });
+    }
     let nextState = false;
     setWishlist((prev) => {
       if (prev.includes(id)) {
@@ -375,7 +422,14 @@ const CartWishlistProviderInner: React.FC<{
     return nextState;
   };
 
-  const addToWishlist = (id: string, type?: 'RENT' | 'THRIFT') => {
+  const addToWishlist = (
+    id: string,
+    type?: 'RENT' | 'THRIFT',
+    productMeta?: Partial<ResolvedWishlistProduct>
+  ) => {
+    if (productMeta) {
+      registerWishlistProduct({ id, ...productMeta });
+    }
     setWishlist((prev) => (prev.includes(id) ? prev : [...prev, id]));
     addToWishlistApi(id, type).catch((err) => {
       console.warn('Could not add to wishlist on backend:', err);
@@ -534,10 +588,7 @@ const CartWishlistProviderInner: React.FC<{
     setCart([]);
   };
 
-  const validWishlist = useMemo(() => {
-    return wishlist.filter((id) => resolveWishlistProduct(id) !== null);
-  }, [wishlist]);
-  const wishlistCount = validWishlist.length;
+  const wishlistCount = wishlist.length;
   const cartCount = useMemo(() => {
     return cart.reduce((total, item) => total + (item.quantity || 1), 0);
   }, [cart]);

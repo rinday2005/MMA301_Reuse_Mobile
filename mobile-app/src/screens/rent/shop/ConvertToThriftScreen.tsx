@@ -14,14 +14,14 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { AppHeader } from '../../../components/layout/AppHeader';
 import { useShop } from '../../../context/ShopContext';
-import { createThriftListingApi } from '../../../services/thrift.api';
+import { createThriftListingApi, convertRentalToThriftApi } from '../../../services/thrift.api';
 import { formatCurrency } from '../../../utils/formatCurrency';
 import { normalizeImageUrl } from '../../../utils/imageUrl';
 
 export const ConvertToThriftScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { products } = useShop();
+  const { products, toggleVisibility } = useShop();
 
   const id = route.params?.id;
   const serial = route.params?.serial;
@@ -61,24 +61,63 @@ export const ConvertToThriftScreen: React.FC = () => {
       return;
     }
 
+    const rentalProductId = (product as any)?._id || product?.sku || id;
+    const catId = (product as any)?.categoryId || (product as any)?.category?._id;
+
     setSubmitting(true);
     try {
-      await createThriftListingApi({
-        name: title.trim(),
-        title: title.trim(),
-        price: priceNum,
-        originalPrice: parseInt(originalPrice.replace(/\D/g, ''), 10) || Math.round(priceNum * 1.4),
-        condition,
-        conditionLevel: '98',
-        sourceType: 'FROM_RENTAL',
-        source: 'rent',
-        sourceLabel: 'Từ sản phẩm RENT',
-        location: product?.location || 'Đà Nẵng',
-        description: description.trim(),
-        images: product?.coverImage ? [product.coverImage] : ['https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop&q=80'],
-        quantity: 1,
-        status: 'APPROVED',
-      });
+      let success = false;
+      if (rentalProductId && rentalProductId.length === 24 && /^[0-9a-fA-F]{24}$/.test(rentalProductId)) {
+        try {
+          await convertRentalToThriftApi({
+            rentalProductId,
+            name: title.trim(),
+            sellingPrice: priceNum,
+            price: priceNum,
+            condition,
+            conditionDescription: description.trim(),
+            description: description.trim(),
+            categoryId: catId,
+            location: product?.location || 'Đà Nẵng',
+            images: product?.inspectionImages?.length
+              ? product.inspectionImages
+              : product?.coverImage
+              ? [product.coverImage]
+              : ['https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop&q=80'],
+          });
+          success = true;
+        } catch (convertErr: any) {
+          console.warn('convertRentalToThriftApi error, falling back to createThriftListingApi:', convertErr);
+        }
+      }
+
+      if (!success) {
+        await createThriftListingApi({
+          name: title.trim(),
+          title: title.trim(),
+          price: priceNum,
+          originalPrice: parseInt(originalPrice.replace(/\D/g, ''), 10) || Math.round(priceNum * 1.4),
+          condition,
+          conditionLevel: '98',
+          sourceType: 'FROM_RENTAL',
+          source: 'rent',
+          sourceLabel: 'Từ sản phẩm RENT',
+          location: product?.location || 'Đà Nẵng',
+          description: description.trim(),
+          categoryId: catId,
+          images: product?.inspectionImages?.length
+            ? product.inspectionImages
+            : product?.coverImage
+            ? [product.coverImage]
+            : ['https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop&q=80'],
+          quantity: 1,
+          status: 'APPROVED',
+        });
+      }
+
+      if (product?.isVisible !== false) {
+        await toggleVisibility(product?.sku || id);
+      }
 
       Alert.alert(
         'Thành công',

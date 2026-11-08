@@ -17,17 +17,19 @@ import { ShopHeader } from '../../../components/layout/ShopHeader';
 import {
   getShopThriftListingsApi,
   deleteThriftListingApi,
+  updateThriftListingApi,
   ThriftListingItemApi,
 } from '../../../services/thrift.api';
 import { formatCurrency } from '../../../utils/formatCurrency';
 import { normalizeImageUrl } from '../../../utils/imageUrl';
 
-type ListingTab = 'ALL' | 'APPROVED' | 'PENDING' | 'SOLD';
+type ListingTab = 'ALL' | 'APPROVED' | 'PENDING' | 'HIDDEN' | 'SOLD';
 
 const TABS: { key: ListingTab; label: string }[] = [
   { key: 'ALL', label: 'Tất cả' },
   { key: 'APPROVED', label: 'Đang bán' },
   { key: 'PENDING', label: 'Chờ duyệt' },
+  { key: 'HIDDEN', label: 'Đang ẩn' },
   { key: 'SOLD', label: 'Đã bán' },
 ];
 
@@ -61,6 +63,25 @@ export const ShopThriftListingsScreen: React.FC = () => {
     loadListings();
   };
 
+  const handleToggleHide = async (item: ThriftListingItemApi) => {
+    const isCurrentlyHidden = item.status === 'HIDDEN';
+    const nextStatus = isCurrentlyHidden ? 'APPROVED' : 'HIDDEN';
+    try {
+      await updateThriftListingApi(item._id, { status: nextStatus });
+      setListings((prev) =>
+        prev.map((l) => (l._id === item._id ? { ...l, status: nextStatus } : l))
+      );
+      Alert.alert(
+        'Thành công',
+        nextStatus === 'HIDDEN'
+          ? `Đã ẩn bài đăng "${item.name || item.title}" khỏi sàn thanh lý.`
+          : `Đã mở hiển thị bài đăng "${item.name || item.title}" trở lại trên sàn.`
+      );
+    } catch {
+      Alert.alert('Lỗi', 'Không thể thay đổi trạng thái bài đăng lúc này.');
+    }
+  };
+
   const handleDelete = (item: ThriftListingItemApi) => {
     Alert.alert(
       'Xóa tin thanh lý',
@@ -92,6 +113,8 @@ export const ShopThriftListingsScreen: React.FC = () => {
         list = list.filter((l) => l.status === 'APPROVED' && (l.quantity ?? 1) > 0);
       } else if (activeTab === 'PENDING') {
         list = list.filter((l) => l.status === 'PENDING_APPROVAL' || l.status === 'PENDING');
+      } else if (activeTab === 'HIDDEN') {
+        list = list.filter((l) => l.status === 'HIDDEN');
       } else if (activeTab === 'SOLD') {
         list = list.filter((l) => l.status === 'SOLD' || (l.quantity !== undefined && l.quantity <= 0));
       }
@@ -149,6 +172,7 @@ export const ShopThriftListingsScreen: React.FC = () => {
             if (t.key === 'ALL') count = listings.length;
             else if (t.key === 'APPROVED') count = listings.filter((l) => l.status === 'APPROVED' && (l.quantity ?? 1) > 0).length;
             else if (t.key === 'PENDING') count = listings.filter((l) => l.status === 'PENDING_APPROVAL' || l.status === 'PENDING').length;
+            else if (t.key === 'HIDDEN') count = listings.filter((l) => l.status === 'HIDDEN').length;
             else if (t.key === 'SOLD') count = listings.filter((l) => l.status === 'SOLD' || (l.quantity !== undefined && l.quantity <= 0)).length;
 
             return (
@@ -203,7 +227,11 @@ export const ShopThriftListingsScreen: React.FC = () => {
                             {item.sourceType === 'FROM_RENTAL' ? 'TỪ RENT' : 'ĐỒ ĐÃ QUA SỬ DỤNG'}
                           </Text>
                         </View>
-                        {isSold ? (
+                        {item.status === 'HIDDEN' ? (
+                          <View style={[styles.badge, styles.badgeGray]}>
+                            <Text style={styles.badgeGrayText}>ĐANG ẨN</Text>
+                          </View>
+                        ) : isSold ? (
                           <View style={[styles.badge, styles.badgeGray]}>
                             <Text style={styles.badgeGrayText}>ĐÃ BÁN</Text>
                           </View>
@@ -243,6 +271,14 @@ export const ShopThriftListingsScreen: React.FC = () => {
                     >
                       <Feather name="edit-2" size={13} color="#57534E" />
                       <Text style={styles.actionBtnTextSmall}>Sửa</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.actionBtnSmall}
+                      onPress={() => handleToggleHide(item)}
+                    >
+                      <Feather name={item.status === 'HIDDEN' ? 'eye' : 'eye-off'} size={13} color="#57534E" />
+                      <Text style={styles.actionBtnTextSmall}>{item.status === 'HIDDEN' ? 'Hiện' : 'Ẩn'}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity

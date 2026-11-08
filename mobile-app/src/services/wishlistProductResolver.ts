@@ -33,6 +33,28 @@ export interface ResolvedWishlistProduct {
   href: string;
 }
 
+// Dynamic in-memory registry for products loaded at runtime
+const DYNAMIC_PRODUCT_REGISTRY: Record<string, Partial<ResolvedWishlistProduct>> = {};
+
+export function registerWishlistProduct(
+  product: Partial<ResolvedWishlistProduct> & { id: string }
+): void {
+  if (!product || !product.id) return;
+  DYNAMIC_PRODUCT_REGISTRY[product.id] = {
+    ...DYNAMIC_PRODUCT_REGISTRY[product.id],
+    ...product,
+  };
+}
+
+export function registerWishlistProducts(
+  products: Array<Partial<ResolvedWishlistProduct> & { id: string }>
+): void {
+  if (!Array.isArray(products)) return;
+  for (const p of products) {
+    registerWishlistProduct(p);
+  }
+}
+
 // Known MongoDB products fallback dictionary
 const MONGO_RENTAL_PRODUCTS: Record<string, Partial<ResolvedWishlistProduct>> = {
   "6acee0804c6e5d97a2389e4f": {
@@ -913,6 +935,30 @@ export function resolveWishlistProduct(rawId: string): ResolvedWishlistProduct |
   const targetId = String(rawId).trim();
   const lower = targetId.toLowerCase();
 
+  // 0. Tra cứu trong DYNAMIC_PRODUCT_REGISTRY (các sản phẩm được load động từ API/Thị trường)
+  if (DYNAMIC_PRODUCT_REGISTRY[targetId]) {
+    const d = DYNAMIC_PRODUCT_REGISTRY[targetId];
+    return {
+      id: targetId,
+      mode: d.mode || 'rent',
+      title: d.title || `Sản phẩm #${targetId.slice(-6)}`,
+      description: d.description || 'Sản phẩm xác thực trên nền tảng ReUse Hub.',
+      image: d.image || '',
+      category: d.category || 'Thời trang & Đồ dùng',
+      categoryLabel: d.categoryLabel || d.category || 'Sản phẩm',
+      gradeBadge: d.gradeBadge || 'Đã kiểm định ReUse',
+      price: typeof d.price === 'number' ? d.price : 0,
+      priceUnit: d.priceUnit || (d.mode === 'thrift' ? '' : '/ ngày'),
+      deposit: typeof d.deposit === 'number' ? d.deposit : 0,
+      available: d.available !== undefined ? d.available : true,
+      availabilityLabel: d.availabilityLabel || 'Có sẵn ngay',
+      location: d.location || 'Toàn quốc',
+      origin: d.origin || 'ReUse Vault',
+      certLabel: d.certLabel || 'Smart Escrow',
+      href: d.href || (d.mode === 'thrift' ? `/thrift/listings/${targetId}` : `/rent/products/${targetId}`),
+    };
+  }
+
   // 1. Kiểm tra MongoDB ID mapping
   if (MONGO_RENTAL_PRODUCTS[targetId]) {
     const m = MONGO_RENTAL_PRODUCTS[targetId];
@@ -1084,6 +1130,25 @@ export function resolveWishlistProduct(rawId: string): ResolvedWishlistProduct |
     }
   }
 
-  return null;
+  // 6. Safe fallback for any dynamic product ID so it is never null
+  return {
+    id: targetId,
+    mode: 'rent',
+    title: `Sản phẩm #${targetId.slice(-6)}`,
+    description: 'Sản phẩm xác thực trên nền tảng ReUse Hub.',
+    image: '',
+    category: 'Sản phẩm ReUse',
+    categoryLabel: 'ReUse Hub',
+    gradeBadge: 'Grade A',
+    price: 0,
+    priceUnit: '/ ngày',
+    deposit: 0,
+    available: true,
+    availabilityLabel: 'Có sẵn',
+    location: 'Toàn quốc',
+    origin: 'ReUse Hub',
+    certLabel: 'Smart Escrow',
+    href: `/rent/products/${targetId}`,
+  };
 }
 
