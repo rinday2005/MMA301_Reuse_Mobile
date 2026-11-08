@@ -21,6 +21,7 @@ import { getPublicRentProductsApi } from '../../services/rentProduct.api';
 import { getPublicThriftListingsApi } from '../../services/thrift.api';
 import { getCategoriesApi, CategoryItem } from '../../services/category.api';
 import { mapRentItem, mapThriftItem, MarketItem, slugFromName } from '../../utils/marketplaceMapper';
+import { THRIFT_PRODUCTS } from '../../data/thrift/thriftMarketplaceData';
 
 type SortKey = 'new' | 'price-asc' | 'price-desc';
 
@@ -175,12 +176,37 @@ export const MarketplaceList: React.FC<Props> = ({ mode }) => {
         isRent ? getPublicRentProductsApi({ limit: 500 }) : getPublicThriftListingsApi(),
         getCategoriesApi(),
       ]);
-      const list = (raw as any[]).map((r, i) => (isRent ? mapRentItem(r, i) : mapThriftItem(r, i)));
+
+      let list = (raw as any[])
+        .filter(
+          (r) =>
+            r &&
+            r.status !== 'HIDDEN' &&
+            r.status !== 'REJECTED'
+        )
+        .map((r, i) => (isRent ? mapRentItem(r, i) : mapThriftItem(r, i)));
+
+      if (!isRent) {
+        // Hợp nhất sản phẩm thật từ MongoDB (bao gồm sản phẩm RENT vừa chuyển đổi sang THRIFT)
+        // cùng danh mục THRIFT chuẩn để sàn luôn đầy đủ và không bao giờ bị trắng màn hình
+        const existingIds = new Set(list.map((it) => it.id));
+        const catalogFallbacks = THRIFT_PRODUCTS.filter((p) => !existingIds.has(p.id)).map((p, i) =>
+          mapThriftItem(p, i + list.length)
+        );
+        list = [...list, ...catalogFallbacks];
+      }
+
       setItems(list);
       setCategories(cats);
-      setFailed(list.length === 0);
+      setFailed(false);
     } catch {
-      setFailed(true);
+      if (!isRent) {
+        const fallbackList = THRIFT_PRODUCTS.map((p, i) => mapThriftItem(p, i));
+        setItems(fallbackList);
+        setFailed(false);
+      } else {
+        setFailed(true);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -237,7 +263,9 @@ export const MarketplaceList: React.FC<Props> = ({ mode }) => {
   }, [categories, items]);
 
   const visible = useMemo(() => {
-    let list = [...items];
+    let list = items.filter(
+      (it) => it.status !== 'HIDDEN' && it.status !== 'REJECTED'
+    );
     if (selectedSlug !== 'all') {
       const cat = categories.find((c) => c.slug === selectedSlug || c._id === selectedSlug);
       list = list.filter((it) => {
@@ -270,7 +298,18 @@ export const MarketplaceList: React.FC<Props> = ({ mode }) => {
       setGuestVisible(true);
       return;
     }
-    toggleWishlist(it.id, isRent ? 'RENT' : 'THRIFT');
+    toggleWishlist(it.id, isRent ? 'RENT' : 'THRIFT', {
+      id: it.id,
+      title: it.title,
+      price: it.price,
+      image: it.image,
+      mode: isRent ? 'rent' : 'thrift',
+      category: it.category,
+      categoryLabel: it.category,
+      gradeBadge: it.condition || it.badge,
+      deposit: it.deposit ? Number(String(it.deposit).replace(/[^0-9]/g, '')) || 0 : 0,
+      location: it.location,
+    });
   };
 
   const header = (

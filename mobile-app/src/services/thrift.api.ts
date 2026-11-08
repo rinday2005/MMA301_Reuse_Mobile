@@ -72,6 +72,11 @@ export const createThriftListingApi = async (data: Record<string, unknown>): Pro
   return res.data?.data || res.data;
 };
 
+export const convertRentalToThriftApi = async (data: Record<string, unknown>): Promise<ThriftListingItemApi> => {
+  const res = await api.post('/thrift/listings/convert-from-rental', data);
+  return res.data?.data || res.data;
+};
+
 export const updateThriftListingApi = async (id: string, data: Record<string, unknown>): Promise<ThriftListingItemApi> => {
   const res = await api.put(`/thrift/listings/${id}`, data);
   return res.data?.data || res.data;

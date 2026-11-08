@@ -122,8 +122,9 @@ export const ThriftDetailScreen: React.FC = () => {
   }, [images, productParam, product]);
 
   const activeImage = gallery[activeThumb] || gallery[0] || normalizeImageUrl('');
+  const isHidden = product.status === 'HIDDEN';
   const isSoldOut =
-    product.status === 'SOLD' || (product.quantity !== undefined && product.quantity <= 0);
+    isHidden || product.status === 'SOLD' || (product.quantity !== undefined && product.quantity <= 0);
   const isRentalSource = product.sourceType === 'RENTAL_PRODUCT' || product.source === 'rent';
   const isCamera =
     product.category === 'camera' ||
@@ -174,7 +175,17 @@ export const ThriftDetailScreen: React.FC = () => {
 
   const handleWishlist = () =>
     requireAuth('lưu sản phẩm vào danh sách yêu thích', () =>
-      toggleWishlist(product.id, 'THRIFT')
+      toggleWishlist(product.id, 'THRIFT', {
+        id: product.id,
+        title: product.title,
+        price: product.price,
+        image: activeImage,
+        mode: 'thrift',
+        category: product.category,
+        categoryLabel: product.categoryLabel,
+        location: product.location,
+        gradeBadge: product.conditionLabel,
+      })
     );
 
   const handleChat = () =>
@@ -611,9 +622,9 @@ export const ThriftDetailScreen: React.FC = () => {
             activeOpacity={0.88}
           >
             <Text style={styles.bottomBtnText}>
-              {isSoldOut ? 'ĐÃ BÁN HẾT' : user ? 'MUA NGAY' : 'ĐĂNG NHẬP ĐỂ MUA'}
+              {isHidden ? 'TẠM ẨN BỞI SHOP' : isSoldOut ? 'ĐÃ BÁN HẾT' : user ? 'MUA NGAY' : 'ĐĂNG NHẬP ĐỂ MUA'}
             </Text>
-            <Feather name="arrow-right" size={15} color="#FFFFFF" />
+            {!isSoldOut && <Feather name="arrow-right" size={15} color="#FFFFFF" />}
           </TouchableOpacity>
         </View>
       </SafeAreaView>

@@ -46,6 +46,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const RootNavigator: React.FC = () => {
   const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   const isShopOwner = user?.role === 'SHOP_OWNER';
 
   return (
@@ -53,7 +54,7 @@ export const RootNavigator: React.FC = () => {
       <NavigationContainer>
         <Stack.Navigator
           screenOptions={{ headerShown: false }}
-          initialRouteName={isShopOwner ? 'Shop' : 'Main'}
+          initialRouteName={isAdmin ? 'Admin' : isShopOwner ? 'Shop' : 'Main'}
         >
           <Stack.Screen name="Main" component={MainTabNavigator} />
           <Stack.Screen name="Auth" component={AuthNavigator} />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,110 +9,203 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { AppHeader } from '../../../components/layout/AppHeader';
+import { useAuth } from '../../../hooks/useAuth';
 import { useShop } from '../../../context/ShopContext';
+import { getCategoriesApi, CategoryItem } from '../../../services/category.api';
 import { uploadImageToCloudinary } from '../../../utils/imageUrl';
 
-const CATEGORIES = [
-  { slug: 'camera', name: 'Camera' },
-  { slug: 'shoes', name: 'Giày dép' },
-  { slug: 'clothing', name: 'Quần áo' },
-  { slug: 'dam-du-tiec', name: 'Đầm dự tiệc' },
-  { slug: 'phu-kien', name: 'Phụ kiện' },
-  { slug: 'electronics', name: 'Thiết bị điện tử' },
-  { slug: 'camping', name: 'Dã ngoại & Cắm trại' },
+const RENT_CONDITIONS = [
+  { key: 'LIKE_NEW', label: 'Như mới (99% – Mặc diễn 1 lần, form hoàn hảo)' },
+  { key: 'NEW', label: 'Mới 100% (Brand New – Nguyên tag)' },
+  { key: 'GOOD', label: 'Tốt (95% – Vải mềm, không xước cúc khóa)' },
+  { key: 'FAIR', label: 'Khá (90% – Có dấu vết sử dụng nhẹ)' },
 ];
-
-const CONDITIONS = [
-  { key: 'NEW', label: 'Mới 100%' },
-  { key: 'LIKE_NEW', label: 'Như mới (99%)' },
-  { key: 'GOOD', label: 'Tốt (90%)' },
-  { key: 'FAIR', label: 'Khá (80%)' },
-];
-
-const LOCATIONS = ['Đà Nẵng', 'Hồ Chí Minh', 'Hà Nội'];
 
 export const CreateRentProductScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const { addProduct } = useShop();
 
+  // Shop Location synced from Profile
+  const shopProvince =
+    user?.address?.province ||
+    (user as any)?.shopProfile?.cityRegion ||
+    'Hồ Chí Minh';
+  const shopAddress =
+    (user as any)?.shopProfile?.businessAddress ||
+    user?.address?.detail ||
+    'Địa chỉ kinh doanh đã đăng ký';
+
+  // Categories from MongoDB
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState<boolean>(true);
+
+  // Form states
   const [name, setName] = useState('');
-  const [category, setCategory] = useState(CATEGORIES[0].name);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
   const [brand, setBrand] = useState('');
+  const [sizeColor, setSizeColor] = useState('');
+  const [condition, setCondition] = useState<string>(RENT_CONDITIONS[0].key);
+  const [showConditionModal, setShowConditionModal] = useState<boolean>(false);
+  const [accessories, setAccessories] = useState('Kèm bao bọc chống bụi và móc treo cao cấp');
+  const [description, setDescription] = useState('');
+
+  // Pricing & units
   const [pricePerDay, setPricePerDay] = useState('');
   const [deposit, setDeposit] = useState('');
-  const [replacementValue, setReplacementValue] = useState('');
   const [totalUnits, setTotalUnits] = useState('1');
-  const [condition, setCondition] = useState('LIKE_NEW');
-  const [location, setLocation] = useState(LOCATIONS[0]);
   const [minDays, setMinDays] = useState('1');
   const [maxDays, setMaxDays] = useState('30');
-  const [description, setDescription] = useState('');
-  const [rentalRules, setRentalRules] = useState(
-    'Bảo quản thiết bị cẩn thận trong quá trình sử dụng. Khi nhận kiện, người thuê vui lòng chụp ảnh 3 góc và ký biên bản CLA đối kiểm.'
-  );
 
-  const [imageUri, setImageUri] = useState<string>('');
-  const [uploadingImage, setUploadingImage] = useState(false);
+  // Images
+  const [coverImage, setCoverImage] = useState<string>('');
+  const [detailImages, setDetailImages] = useState<string[]>([]);
+  const [uploadingCover, setUploadingCover] = useState<boolean>(false);
+  const [uploadingDetails, setUploadingDetails] = useState<boolean>(false);
+
+  // Compliance rules
+  const [ruleCleaned, setRuleCleaned] = useState(true);
+  const [ruleInspected, setRuleInspected] = useState(true);
+  const [rulePackaged, setRulePackaged] = useState(true);
+
   const [submitting, setSubmitting] = useState(false);
 
-  // Chọn ảnh từ thư viện
-  const handlePickImage = async () => {
+  // Fetch categories from MongoDB
+  useEffect(() => {
+    let isMounted = true;
+    getCategoriesApi()
+      .then((data) => {
+        if (isMounted && data && data.length > 0) {
+          const rentCats = data.filter((c) => c.type === 'RENT' || c.type === 'BOTH' || c.isActive);
+          const list = rentCats.length > 0 ? rentCats : data;
+          setCategories(list);
+          if (list[0]) {
+            setSelectedCategory(list[0].name);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Lỗi tải categories:', err);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingCategories(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Pick Cover Image
+  const handlePickCoverImage = async () => {
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        Alert.alert('Cần quyền truy cập', 'Vui lòng cấp quyền truy cập thư viện ảnh để tải ảnh sản phẩm.');
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Cần quyền truy cập', 'Vui lòng cấp quyền thư viện ảnh.');
         return;
       }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
+      const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.8,
+        quality: 0.85,
       });
-
-      if (!result.canceled && result.assets && result.assets[0].uri) {
-        setUploadingImage(true);
-        const localUri = result.assets[0].uri;
-        setImageUri(localUri);
-
-        // Upload lên Cloudinary
+      if (!res.canceled && res.assets?.[0]?.uri) {
+        setUploadingCover(true);
+        const localUri = res.assets[0].uri;
+        setCoverImage(localUri);
         try {
           const cloudUrl = await uploadImageToCloudinary(localUri);
-          if (cloudUrl) {
-            setImageUri(cloudUrl);
-          }
+          if (cloudUrl) setCoverImage(cloudUrl);
         } catch {
-          // Giữ localUri nếu offline
+          // keep localUri fallback
         } finally {
-          setUploadingImage(false);
+          setUploadingCover(false);
         }
       }
     } catch {
-      setUploadingImage(false);
-      Alert.alert('Lỗi', 'Không thể chọn ảnh lúc này.');
+      setUploadingCover(false);
+      Alert.alert('Lỗi', 'Không thể chọn ảnh bìa lúc này.');
     }
   };
 
+  // Pick Detail Images
+  const handlePickDetailImage = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Cần quyền truy cập', 'Vui lòng cấp quyền thư viện ảnh.');
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        quality: 0.85,
+      });
+      if (!res.canceled && res.assets && res.assets.length > 0) {
+        setUploadingDetails(true);
+        const newUris: string[] = [];
+        for (const asset of res.assets) {
+          if (asset.uri) {
+            try {
+              const cloud = await uploadImageToCloudinary(asset.uri);
+              newUris.push(cloud || asset.uri);
+            } catch {
+              newUris.push(asset.uri);
+            }
+          }
+        }
+        setDetailImages((prev) => [...prev, ...newUris]);
+        setUploadingDetails(false);
+      }
+    } catch {
+      setUploadingDetails(false);
+      Alert.alert('Lỗi', 'Không thể thêm ảnh chi tiết.');
+    }
+  };
+
+  const handleRemoveDetailImage = (index: number) => {
+    setDetailImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Submit
   const handleSubmit = async () => {
     if (!name.trim()) {
-      Alert.alert('Thông báo', 'Vui lòng nhập tên sản phẩm cho thuê.');
+      Alert.alert('Lưu ý', 'Vui lòng nhập tên trang phục / set đồ cho thuê.');
+      return;
+    }
+    if (!selectedCategory) {
+      Alert.alert('Lưu ý', 'Vui lòng chọn phân mục trang phục từ Database.');
+      return;
+    }
+    if (!brand.trim()) {
+      Alert.alert('Lưu ý', 'Vui lòng nhập thương hiệu hoặc nhà thiết kế.');
+      return;
+    }
+    if (!sizeColor.trim()) {
+      Alert.alert('Lưu ý', 'Vui lòng nhập kích cỡ (Size) và màu sắc.');
       return;
     }
 
     const priceNum = parseInt(pricePerDay.replace(/\D/g, ''), 10);
-    if (!priceNum || priceNum <= 0) {
-      Alert.alert('Thông báo', 'Vui lòng nhập giá thuê/ngày hợp lệ.');
+    if (!priceNum || priceNum < 20000) {
+      Alert.alert('Lưu ý', 'Giá thuê theo ngày tối thiểu là 20.000 ₫/ngày.');
       return;
     }
 
     const depositNum = parseInt(deposit.replace(/\D/g, ''), 10) || Math.round(priceNum * 2.5);
     const unitsNum = parseInt(totalUnits, 10) || 1;
+
+    if (!ruleCleaned || !ruleInspected || !rulePackaged) {
+      Alert.alert('Lưu ý', 'Vui lòng đánh dấu xác nhận đầy đủ 3 cam kết bàn giao trang phục.');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -120,154 +213,304 @@ export const CreateRentProductScreen: React.FC = () => {
       await addProduct({
         sku,
         name: name.trim(),
-        category,
-        brand: brand.trim() || 'Chính hãng',
+        category: selectedCategory,
+        brand: brand.trim(),
         pricePerDay: priceNum,
         deposit: depositNum,
-        replacementValue: parseInt(replacementValue.replace(/\D/g, ''), 10) || depositNum * 1.5,
         totalUnits: unitsNum,
         readyUnits: unitsNum,
         rentingUnits: 0,
         maintenanceUnits: 0,
         condition,
-        location,
+        location: shopProvince,
         minDays: parseInt(minDays, 10) || 1,
         maxDays: parseInt(maxDays, 10) || 30,
-        description: description.trim(),
-        rentalRules: rentalRules.trim(),
-        coverImage: imageUri || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop&q=80',
-        inspectionImages: imageUri ? [imageUri] : [],
+        description: description.trim() || `${name.trim()} - Size & Màu: ${sizeColor.trim()}`,
+        rentalRules: `Phụ kiện kèm: ${accessories.trim()}. Bảo quản cẩn thận theo quy chuẩn ReUse Hub.`,
+        coverImage: coverImage || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop&q=80',
+        inspectionImages: detailImages.length > 0 ? detailImages : (coverImage ? [coverImage] : []),
       });
 
       Alert.alert(
-        'Thành công',
-        `Sản phẩm "${name}" đã được tạo thành công với mã SKU: ${sku}!`,
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
+        'Đăng thành công',
+        `Trang phục "${name}" đã được gửi lên hệ thống và chuyển đến Admin thẩm định!`,
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (err: any) {
-      Alert.alert('Lỗi', err?.message || 'Không thể tạo sản phẩm lúc này.');
+      Alert.alert('Lỗi', err?.message || 'Không thể tạo sản phẩm cho thuê.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const selectedConditionObj =
+    RENT_CONDITIONS.find((c) => c.key === condition) || RENT_CONDITIONS[0];
+
   return (
     <View style={styles.container}>
-      <AppHeader title="Thêm đồ RENT mới" showBack />
+      <AppHeader title="Đăng Đồ Cho Thuê (RENT)" showBack />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* Image Picker Section */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Hình ảnh đại diện sản phẩm</Text>
-          <Text style={styles.sectionSub}>Ảnh sẽ được kiểm định chất lượng hiển thị trên sàn.</Text>
+        {/* Banner Cloudinary CDN */}
+        <View style={styles.infoBanner}>
+          <Feather name="cloud" size={16} color="#4D6B50" />
+          <Text style={styles.infoBannerText}>
+            Hình ảnh lưu trực tiếp trên <Text style={{ fontWeight: '700' }}>Cloudinary CDN</Text>, thông tin đồng bộ <Text style={{ fontWeight: '700' }}>MongoDB</Text>.
+          </Text>
+        </View>
 
-          <TouchableOpacity style={styles.imageBox} onPress={handlePickImage} activeOpacity={0.85}>
-            {imageUri ? (
-              <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
+        {/* SECTION A: Hình ảnh trang phục & Thẩm định chi tiết */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <Feather name="image" size={18} color="#576151" />
+              <Text style={styles.sectionTitle}>A. Hình ảnh trang phục & Thẩm định chi tiết</Text>
+            </View>
+            <View style={styles.cdnBadge}>
+              <View style={styles.greenDot} />
+              <Text style={styles.cdnBadgeText}>Cloudinary CDN</Text>
+            </View>
+          </View>
+
+          {/* Cover Image */}
+          <Text style={styles.label}>
+            ẢNH BÌA CHÍNH (COVER IMAGE) <Text style={styles.required}>*</Text>
+          </Text>
+          <TouchableOpacity
+            style={styles.coverBox}
+            onPress={handlePickCoverImage}
+            activeOpacity={0.85}
+            disabled={uploadingCover}
+          >
+            {coverImage ? (
+              <View style={styles.coverPreviewContainer}>
+                <Image source={{ uri: coverImage }} style={styles.coverPreview} resizeMode="cover" />
+                <View style={styles.changeOverlay}>
+                  <Text style={styles.changeOverlayText}>Chạm để đổi ảnh</Text>
+                </View>
+              </View>
             ) : (
-              <View style={styles.uploadPlaceholder}>
-                <Feather name="upload-cloud" size={32} color="#78736A" />
-                <Text style={styles.uploadText}>Chạm để chọn ảnh từ thư viện</Text>
-                <Text style={styles.uploadSub}>Tự động đồng bộ lên Cloudinary</Text>
+              <View style={styles.coverPlaceholder}>
+                <View style={styles.coverIconCircle}>
+                  <Feather name="camera" size={22} color="#576151" />
+                </View>
+                <Text style={styles.coverPlaceholderTitle}>Chọn ảnh bìa chính diện</Text>
+                <Text style={styles.coverPlaceholderSub}>Chạm vào ô này để tải từ máy lên Cloudinary</Text>
               </View>
             )}
 
-            {uploadingImage && (
-              <View style={styles.uploadOverlay}>
+            {uploadingCover && (
+              <View style={styles.loadingOverlay}>
                 <ActivityIndicator size="small" color="#fff" />
-                <Text style={styles.uploadOverlayText}>Đang tải ảnh...</Text>
+                <Text style={styles.loadingOverlayText}>Đang tải lên Cloudinary...</Text>
               </View>
             )}
           </TouchableOpacity>
+
+          {/* Technical Angle Images */}
+          <View style={styles.divider} />
+          <View style={styles.subHeaderRow}>
+            <Text style={styles.label}>
+              ẢNH CHI TIẾT 3 GÓC CHỤP (TỐI THIỂU 3 ẢNH) <Text style={styles.required}>*</Text>
+            </Text>
+            <Text
+              style={[
+                styles.countBadge,
+                detailImages.length >= 3 ? styles.countBadgeSuccess : styles.countBadgeWarning,
+              ]}
+            >
+              Đã chọn: {detailImages.length}/3
+            </Text>
+          </View>
+          <Text style={styles.hintText}>
+            Gợi ý góc chụp: 1) Mặt sau • 2) Cận cảnh đường may, cúc áo, khóa kéo • 3) Nhãn mác xuất xứ.
+          </Text>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.detailsScroll}>
+            {detailImages.map((uri, idx) => (
+              <View key={idx} style={styles.detailImageBox}>
+                <Image source={{ uri }} style={styles.detailThumb} resizeMode="cover" />
+                <TouchableOpacity
+                  style={styles.removeDetailBtn}
+                  onPress={() => handleRemoveDetailImage(idx)}
+                >
+                  <Feather name="x" size={12} color="#fff" />
+                </TouchableOpacity>
+                <View style={styles.detailBadge}>
+                  <Text style={styles.detailBadgeText}>Góc {idx + 1}</Text>
+                </View>
+              </View>
+            ))}
+
+            <TouchableOpacity
+              style={styles.addDetailBox}
+              onPress={handlePickDetailImage}
+              disabled={uploadingDetails}
+            >
+              {uploadingDetails ? (
+                <ActivityIndicator size="small" color="#576151" />
+              ) : (
+                <>
+                  <Feather name="plus-circle" size={24} color="#576151" />
+                  <Text style={styles.addDetailText}>+ Thêm góc ảnh</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
         </View>
 
-        {/* Basic Information */}
+        {/* SECTION B: Thông tin trang phục & Phân loại */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Thông tin cơ bản</Text>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <MaterialCommunityIcons name="tshirt-crew-outline" size={20} color="#576151" />
+              <Text style={styles.sectionTitle}>B. Thông tin trang phục & Phân loại</Text>
+            </View>
+          </View>
 
-          <Text style={styles.label}>TÊN THIẾT BỊ / TRANG PHỤC (*)</Text>
+          {/* Tên trang phục */}
+          <Text style={styles.label}>
+            TÊN TRANG PHỤC / SET ĐỒ CHO THUÊ <Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.input}
-            placeholder="VD: Sony Alpha A7 IV Kit hoặc Đầm Dạ Hội Lụa Satin..."
-            placeholderTextColor="#A8A29E"
+            placeholder="Ví dụ: Đầm Dạ Hội Maxi Kim Sa Ánh Bạc Cúp Ngực, Áo Dài Gấm Tơ Tằm..."
+            placeholderTextColor="#9C958B"
             value={name}
             onChangeText={setName}
           />
 
-          <Text style={styles.label}>DANH MỤC (*)</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
-            {CATEGORIES.map((c) => {
-              const selected = category === c.name;
-              return (
-                <TouchableOpacity
-                  key={c.slug}
-                  style={[styles.chip, selected && styles.chipActive]}
-                  onPress={() => setCategory(c.name)}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextActive]}>{c.name}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          {/* Phân mục & Thương hiệu */}
+          <Text style={styles.label}>
+            PHÂN MỤC (DANH MỤC TỪ DATABASE) <Text style={styles.required}>*</Text>
+          </Text>
+          <TouchableOpacity
+            style={styles.selectorBtn}
+            onPress={() => setShowCategoryModal(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={selectedCategory ? styles.selectorTextActive : styles.selectorPlaceholder}>
+              {selectedCategory || (loadingCategories ? 'Đang tải danh mục...' : '-- Chọn danh mục thực tế --')}
+            </Text>
+            <Feather name="chevron-down" size={18} color="#7B766F" />
+          </TouchableOpacity>
 
-          <View style={styles.rowTwo}>
-            <View style={styles.flexOne}>
-              <Text style={styles.label}>THƯƠNG HIỆU</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="VD: Sony, Canon, Atelier..."
-                placeholderTextColor="#A8A29E"
-                value={brand}
-                onChangeText={setBrand}
-              />
+          <Text style={styles.label}>
+            THƯƠNG HIỆU / NHÀ THIẾT KẾ <Text style={styles.required}>*</Text>
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Elise, NEM, Zara, H&M, Thiết kế may đo..."
+            placeholderTextColor="#9C958B"
+            value={brand}
+            onChangeText={setBrand}
+          />
+
+          {/* Size & Màu sắc */}
+          <Text style={styles.label}>
+            KÍCH CỠ (SIZE) & MÀU SẮC <Text style={styles.required}>*</Text>
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ví dụ: Size M (Eo 68–72cm) • Màu Đỏ Ruby, Trắng Sữa..."
+            placeholderTextColor="#9C958B"
+            value={sizeColor}
+            onChangeText={setSizeColor}
+          />
+
+          {/* Tình trạng trang phục */}
+          <Text style={styles.label}>TÌNH TRẠNG TRANG PHỤC</Text>
+          <TouchableOpacity
+            style={styles.selectorBtn}
+            onPress={() => setShowConditionModal(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.selectorTextActive}>{selectedConditionObj.label}</Text>
+            <Feather name="chevron-down" size={18} color="#7B766F" />
+          </TouchableOpacity>
+
+          {/* Chi nhánh kho xuất hàng Card (Đồng bộ từ Profile Shop) */}
+          <View style={styles.shopLocationCard}>
+            <View style={styles.shopLocationHeader}>
+              <Text style={styles.shopLocationTitle}>
+                CHI NHÁNH KHO / ĐỊA ĐIỂM XUẤT HÀNG <Text style={styles.required}>*</Text>
+              </Text>
+              <View style={styles.syncedBadge}>
+                <Ionicons name="storefront-outline" size={12} color="#2D6A4F" />
+                <Text style={styles.syncedBadgeText}>Đồng bộ từ Profile Shop</Text>
+              </View>
             </View>
 
-            <View style={styles.flexOne}>
-              <Text style={styles.label}>SỐ LƯỢNG MÁY / HIỆN VẬT</Text>
-              <TextInput
-                style={styles.input}
-                keyboardType="numeric"
-                value={totalUnits}
-                onChangeText={setTotalUnits}
-              />
-            </View>
-          </View>
-
-          <Text style={styles.label}>TÌNH TRẠNG HIỆN TẠI</Text>
-          <View style={styles.conditionsGrid}>
-            {CONDITIONS.map((c) => {
-              const selected = condition === c.key;
-              return (
-                <TouchableOpacity
-                  key={c.key}
-                  style={[styles.conditionBtn, selected && styles.conditionBtnActive]}
-                  onPress={() => setCondition(c.key)}
-                >
-                  <Text style={[styles.conditionBtnText, selected && styles.conditionBtnTextActive]}>
-                    {c.label}
+            <View style={styles.locationInnerBox}>
+              <View style={styles.locationLeft}>
+                <Ionicons name="location-sharp" size={20} color="#576151" />
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={styles.locationCity}>{shopProvince}</Text>
+                  <Text style={styles.locationStreet} numberOfLines={1}>
+                    {shopAddress}
                   </Text>
-                </TouchableOpacity>
-              );
-            })}
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Profile')}
+                style={styles.updateLocationLink}
+              >
+                <Text style={styles.updateLocationText}>Cập nhật</Text>
+                <Feather name="external-link" size={12} color="#576151" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.locationFootnote}>
+              * Phí Bưu tá chuyên dụng Nanuk (2 chiều) sẽ tự động tính theo khoảng cách từ địa chỉ cửa hàng này đến địa chỉ của khách thuê.
+            </Text>
           </View>
+
+          {/* Phụ kiện / Chi tiết đi kèm set đồ */}
+          <Text style={styles.label}>
+            PHỤ KIỆN / CHI TIẾT ĐI KÈM SET ĐỒ <Text style={styles.required}>*</Text>
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Kèm bao bọc chống bụi và móc treo cao cấp"
+            placeholderTextColor="#9C958B"
+            value={accessories}
+            onChangeText={setAccessories}
+          />
+
+          {/* Mô tả chất liệu, form dáng */}
+          <Text style={styles.label}>
+            MÔ TẢ CHẤT LIỆU, FORM DÁNG & LƯU Ý SỬ DỤNG <Text style={styles.required}>*</Text>
+          </Text>
+          <TextInput
+            style={[styles.input, styles.textarea]}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            placeholder="Mô tả cụ thể về chất vải (Lụa tơ tằm, Voan, Dạ wool, Tweed...), kiểu dáng ôm hoặc suông, số đo 3 vòng khuyến nghị và các lưu ý giữ gìn khi thuê..."
+            placeholderTextColor="#9C958B"
+            value={description}
+            onChangeText={setDescription}
+          />
         </View>
 
-        {/* Pricing & Deposit */}
+        {/* SECTION C: Biểu phí thuê & Quy định bàn giao */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Định giá thuê & Cọc bảo chứng Smart Escrow</Text>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <Feather name="credit-card" size={18} color="#576151" />
+              <Text style={styles.sectionTitle}>C. Biểu phí thuê & Quy định bàn giao trang phục</Text>
+            </View>
+          </View>
 
           <View style={styles.rowTwo}>
             <View style={styles.flexOne}>
-              <Text style={styles.label}>GIÁ THUÊ / NGÀY (VNĐ) (*)</Text>
+              <Text style={styles.label}>
+                GIÁ THUÊ / NGÀY (VND) <Text style={styles.required}>*</Text>
+              </Text>
               <TextInput
                 style={styles.input}
-                placeholder="VD: 350000"
-                placeholderTextColor="#A8A29E"
+                placeholder="Ví dụ: 180000"
+                placeholderTextColor="#9C958B"
                 keyboardType="numeric"
                 value={pricePerDay}
                 onChangeText={setPricePerDay}
@@ -275,11 +518,13 @@ export const CreateRentProductScreen: React.FC = () => {
             </View>
 
             <View style={styles.flexOne}>
-              <Text style={styles.label}>TIỀN CỌC ESCROW (VNĐ)</Text>
+              <Text style={styles.label}>
+                TIỀN CỌC ESCROW (VND) <Text style={styles.required}>*</Text>
+              </Text>
               <TextInput
                 style={styles.input}
-                placeholder="VD: 1500000"
-                placeholderTextColor="#A8A29E"
+                placeholder="Ví dụ: 500000"
+                placeholderTextColor="#9C958B"
                 keyboardType="numeric"
                 value={deposit}
                 onChangeText={setDeposit}
@@ -287,277 +532,631 @@ export const CreateRentProductScreen: React.FC = () => {
             </View>
           </View>
 
-          <Text style={styles.label}>GIÁ TRỊ THAY THẾ KHI HỎNG HOÀN TOÀN (VNĐ)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="VD: 15000000"
-            placeholderTextColor="#A8A29E"
-            keyboardType="numeric"
-            value={replacementValue}
-            onChangeText={setReplacementValue}
-          />
-        </View>
-
-        {/* Location & Policy */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Cơ sở & Quy định cho thuê</Text>
-
-          <Text style={styles.label}>CHI NHÁNH BẢO QUẢN THIẾT BỊ</Text>
-          <View style={styles.locRow}>
-            {LOCATIONS.map((loc) => {
-              const selected = location === loc;
-              return (
-                <TouchableOpacity
-                  key={loc}
-                  style={[styles.locBtn, selected && styles.locBtnActive]}
-                  onPress={() => setLocation(loc)}
-                >
-                  <Text style={[styles.locBtnText, selected && styles.locBtnTextActive]}>{loc}</Text>
-                </TouchableOpacity>
-              );
-            })}
+          <View style={styles.rowThree}>
+            <View style={styles.flexOne}>
+              <Text style={styles.label}>SỐ LƯỢNG KHO</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={totalUnits}
+                onChangeText={setTotalUnits}
+              />
+            </View>
+            <View style={styles.flexOne}>
+              <Text style={styles.label}>NGÀY THUÊ MIN</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={minDays}
+                onChangeText={setMinDays}
+              />
+            </View>
+            <View style={styles.flexOne}>
+              <Text style={styles.label}>NGÀY THUÊ MAX</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={maxDays}
+                onChangeText={setMaxDays}
+              />
+            </View>
           </View>
 
-          <Text style={styles.label}>MÔ TẢ CHI TIẾT SẢN PHẨM</Text>
-          <TextInput
-            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-            multiline
-            placeholder="Nêu rõ tình trạng linh kiện, phụ kiện kèm theo, thông số kỹ thuật..."
-            placeholderTextColor="#A8A29E"
-            value={description}
-            onChangeText={setDescription}
-          />
+          {/* Compliance Checkboxes */}
+          <Text style={[styles.label, { marginTop: 12 }]}>CAM KẾT CHUẨN BỊ BÀN GIAO</Text>
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => setRuleCleaned(!ruleCleaned)}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={ruleCleaned ? 'checkbox' : 'square-outline'}
+              size={20}
+              color={ruleCleaned ? '#141310' : '#9C958B'}
+            />
+            <Text style={styles.checkboxLabel}>
+              Xác nhận trang phục đã được giặt hấp, khử khuẩn UV-C theo tiêu chuẩn
+            </Text>
+          </TouchableOpacity>
 
-          <Text style={styles.label}>QUY ĐỊNH THUÊ & KIỂM TRA ĐỐI KIỂM</Text>
-          <TextInput
-            style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
-            multiline
-            placeholder="Yêu cầu kiểm tra khi nhận hàng, hướng dẫn bảo quản..."
-            placeholderTextColor="#A8A29E"
-            value={rentalRules}
-            onChangeText={setRentalRules}
-          />
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => setRuleInspected(!ruleInspected)}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={ruleInspected ? 'checkbox' : 'square-outline'}
+              size={20}
+              color={ruleInspected ? '#141310' : '#9C958B'}
+            />
+            <Text style={styles.checkboxLabel}>
+              Xác nhận đã kiểm tra đường may, cúc áo, khóa kéo nguyên vẹn
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => setRulePackaged(!rulePackaged)}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={rulePackaged ? 'checkbox' : 'square-outline'}
+              size={20}
+              color={rulePackaged ? '#141310' : '#9C958B'}
+            />
+            <Text style={styles.checkboxLabel}>
+              Đóng gói kèm bao bọc chống bụi và móc treo cao cấp ReUse Hub
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Submit Button */}
         <TouchableOpacity
-          style={styles.submitBtn}
-          disabled={submitting}
-          activeOpacity={0.85}
+          style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
           onPress={handleSubmit}
+          disabled={submitting}
         >
           {submitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Feather name="check-circle" size={18} color="#fff" />
-              <Text style={styles.submitBtnText}>Niêm yết sản phẩm cho thuê</Text>
+              <Feather name="check-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.submitBtnText}>GỬI PHÊ DUYỆT TRANG PHỤC</Text>
             </>
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Modal Chọn Danh Mục */}
+      <Modal visible={showCategoryModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chọn Danh Mục Thực Tế (MongoDB)</Text>
+              <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                <Feather name="x" size={20} color="#141310" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 350 }}>
+              {categories.map((c) => {
+                const isSelected = selectedCategory === c.name;
+                return (
+                  <TouchableOpacity
+                    key={c._id}
+                    style={[styles.modalItem, isSelected && styles.modalItemActive]}
+                    onPress={() => {
+                      setSelectedCategory(c.name);
+                      setShowCategoryModal(false);
+                    }}
+                  >
+                    <Text style={[styles.modalItemText, isSelected && styles.modalItemTextActive]}>
+                      {c.name}
+                    </Text>
+                    {isSelected && <Feather name="check" size={16} color="#141310" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Chọn Tình Trạng */}
+      <Modal visible={showConditionModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Tình Trạng Trang Phục</Text>
+              <TouchableOpacity onPress={() => setShowConditionModal(false)}>
+                <Feather name="x" size={20} color="#141310" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 350 }}>
+              {RENT_CONDITIONS.map((c) => {
+                const isSelected = condition === c.key;
+                return (
+                  <TouchableOpacity
+                    key={c.key}
+                    style={[styles.modalItem, isSelected && styles.modalItemActive]}
+                    onPress={() => {
+                      setCondition(c.key);
+                      setShowConditionModal(false);
+                    }}
+                  >
+                    <Text style={[styles.modalItemText, isSelected && styles.modalItemTextActive]}>
+                      {c.label}
+                    </Text>
+                    {isSelected && <Feather name="check" size={16} color="#141310" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
-export default CreateRentProductScreen;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF7F2',
+    backgroundColor: '#FDF9F2',
   },
   scroll: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 48,
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF3EC',
+    borderWidth: 1,
+    borderColor: '#D4E0D2',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  infoBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#344535',
+    lineHeight: 18,
   },
   sectionCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#EFECE6',
+    borderColor: '#EBE8E1',
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1EEE7',
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#1C1A18',
+    fontFamily: 'serif',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#141310',
   },
-  sectionSub: {
-    fontSize: 11,
-    color: '#78736A',
-    marginTop: 2,
-    marginBottom: 12,
-  },
-  imageBox: {
-    height: 180,
-    backgroundColor: '#FAF7F2',
-    borderRadius: 12,
+  cdnBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
     borderWidth: 1,
-    borderColor: '#DFD8CC',
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    gap: 5,
+  },
+  greenDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  cdnBadgeText: {
+    fontSize: 10,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+    color: '#065F46',
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#141310',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    marginTop: 10,
+  },
+  required: {
+    color: '#DC2626',
+  },
+  input: {
+    backgroundColor: '#FBF9F4',
+    borderWidth: 1,
+    borderColor: '#E4DFD5',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#141310',
+  },
+  textarea: {
+    minHeight: 80,
+  },
+  selectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FBF9F4',
+    borderWidth: 1,
+    borderColor: '#E4DFD5',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  selectorTextActive: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#141310',
+  },
+  selectorPlaceholder: {
+    fontSize: 13,
+    color: '#9C958B',
+  },
+  coverBox: {
+    height: 180,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#D4CEC3',
     borderStyle: 'dashed',
+    backgroundColor: '#FBF9F4',
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  previewImage: {
+  coverPreviewContainer: {
     width: '100%',
     height: '100%',
   },
-  uploadPlaceholder: {
+  coverPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  changeOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  changeOverlayText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  coverPlaceholder: {
+    alignItems: 'center',
+    padding: 16,
+  },
+  coverIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  coverPlaceholderTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#141310',
+    marginBottom: 2,
+  },
+  coverPlaceholderSub: {
+    fontSize: 11,
+    color: '#7B766F',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    inset: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  loadingOverlayText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F1EEE7',
+    marginVertical: 14,
+  },
+  subHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  countBadge: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'monospace',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  countBadgeSuccess: {
+    backgroundColor: '#ECFDF5',
+    color: '#065F46',
+  },
+  countBadgeWarning: {
+    backgroundColor: '#FEF3C7',
+    color: '#92400E',
+  },
+  hintText: {
+    fontSize: 11,
+    color: '#7B766F',
+    marginBottom: 10,
+  },
+  detailsScroll: {
+    flexDirection: 'row',
+  },
+  detailImageBox: {
+    width: 90,
+    height: 90,
+    borderRadius: 10,
+    marginRight: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#CFC9BD',
+    backgroundColor: '#F7F3EC',
+  },
+  detailThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  removeDetailBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#DC2626',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  detailBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontFamily: 'monospace',
+  },
+  addDetailBox: {
+    width: 90,
+    height: 90,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#CFC9BD',
+    borderStyle: 'dashed',
+    backgroundColor: '#FAF8F4',
+    justifyContent: 'center',
     alignItems: 'center',
     gap: 4,
   },
-  uploadText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1C1A18',
-    marginTop: 4,
-  },
-  uploadSub: {
-    fontSize: 11,
-    color: '#78736A',
-  },
-  uploadOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  uploadOverlayText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  label: {
+  addDetailText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#78736A',
-    letterSpacing: 0.6,
-    marginTop: 10,
-    marginBottom: 6,
+    fontWeight: '700',
+    color: '#576151',
   },
-  input: {
-    backgroundColor: '#FAF7F2',
+  shopLocationCard: {
+    backgroundColor: '#F7F3EC',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DFD8CC',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#1C1A18',
+    borderColor: '#E4DFD5',
+    padding: 12,
+    marginVertical: 12,
   },
-  chipsScroll: {
+  shopLocationHeader: {
     flexDirection: 'row',
-    marginBottom: 4,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#FAF7F2',
+  shopLocationTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#141310',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  syncedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
     borderWidth: 1,
-    borderColor: '#DFD8CC',
-    marginRight: 6,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 4,
   },
-  chipActive: {
-    backgroundColor: '#1C1A18',
-    borderColor: '#1C1A18',
+  syncedBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#065F46',
   },
-  chipText: {
+  locationInnerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CFC9BD',
+    padding: 10,
+  },
+  locationLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  locationCity: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#141310',
+  },
+  locationStreet: {
+    fontSize: 11,
+    color: '#7B766F',
+    marginTop: 1,
+  },
+  updateLocationLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  updateLocationText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#57534E',
+    color: '#576151',
+    textDecorationLine: 'underline',
   },
-  chipTextActive: {
-    color: '#FAF7F2',
-    fontWeight: '700',
+  locationFootnote: {
+    fontSize: 10,
+    color: '#576151',
+    marginTop: 8,
+    lineHeight: 14,
   },
   rowTwo: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  rowThree: {
     flexDirection: 'row',
     gap: 10,
   },
   flexOne: {
     flex: 1,
   },
-  conditionsGrid: {
+  checkboxRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    marginTop: 8,
     gap: 8,
   },
-  conditionBtn: {
+  checkboxLabel: {
     flex: 1,
-    minWidth: '46%',
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#DFD8CC',
-    alignItems: 'center',
-    backgroundColor: '#FAF7F2',
-  },
-  conditionBtnActive: {
-    borderColor: '#1C1A18',
-    backgroundColor: '#1C1A18',
-  },
-  conditionBtnText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#57534E',
-  },
-  conditionBtnTextActive: {
-    color: '#FAF7F2',
-    fontWeight: '700',
-  },
-  locRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 6,
-  },
-  locBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#DFD8CC',
-    alignItems: 'center',
-    backgroundColor: '#FAF7F2',
-  },
-  locBtnActive: {
-    borderColor: '#1C1A18',
-    backgroundColor: '#1C1A18',
-  },
-  locBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#57534E',
-  },
-  locBtnTextActive: {
-    color: '#FAF7F2',
-    fontWeight: '700',
+    color: '#141310',
+    lineHeight: 18,
   },
   submitBtn: {
+    backgroundColor: '#141310',
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#1C1A18',
-    borderRadius: 14,
+    alignItems: 'center',
     paddingVertical: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 10,
+    marginTop: 8,
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
   },
   submitBtnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalBox: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    maxHeight: 450,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1EEE7',
+    paddingBottom: 12,
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#141310',
+  },
+  modalItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F7F5ED',
+  },
+  modalItemActive: {
+    backgroundColor: '#F7F5ED',
+  },
+  modalItemText: {
+    fontSize: 13,
+    color: '#141310',
+  },
+  modalItemTextActive: {
+    fontWeight: '700',
   },
 });
+
+export default CreateRentProductScreen;

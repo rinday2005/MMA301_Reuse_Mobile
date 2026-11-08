@@ -327,18 +327,20 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const toggleVisibility = async (sku: string) => {
-    const target = products.find((p) => p.sku === sku);
-    const newVisible = !target?.isVisible;
+    const target = products.find((p) => p.sku === sku || (p as any)._id === sku);
+    if (!target) return;
+    const newVisible = !target.isVisible;
+    const targetId = (target as any)._id || target.sku;
 
     setProducts((prev) =>
       prev.map((item) =>
-        item.sku === sku ? { ...item, isVisible: newVisible } : item
+        item.sku === target.sku ? { ...item, isVisible: newVisible } : item
       )
     );
 
-    if (sku && sku.length === 24 && /^[0-9a-fA-F]{24}$/.test(sku)) {
+    if (targetId && targetId.length === 24 && /^[0-9a-fA-F]{24}$/.test(targetId)) {
       try {
-        await updateRentProductApi(sku, {
+        await updateRentProductApi(targetId, {
           status: newVisible ? 'APPROVED' : 'HIDDEN',
         } as Partial<RentalProductApi>);
       } catch (err) {

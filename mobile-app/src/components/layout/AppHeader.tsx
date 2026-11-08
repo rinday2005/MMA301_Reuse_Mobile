@@ -81,8 +81,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           >
             <Feather name="heart" size={20} color="#1C1C18" />
             {wishlistCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{wishlistCount > 9 ? '9+' : wishlistCount}</Text>
+              <View style={[styles.badge, styles.wishlistBadge]}>
+                <Text style={styles.badgeText}>{wishlistCount > 99 ? '99+' : wishlistCount}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -96,7 +96,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <Feather name="shopping-bag" size={20} color="#1C1C18" />
             {cartCount > 0 && (
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
+                <Text style={styles.badgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -173,6 +173,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 3,
+  },
+  wishlistBadge: {
+    backgroundColor: '#E11D48',
   },
   badgeText: {
     color: '#FFFFFF',

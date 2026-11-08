@@ -111,7 +111,18 @@ export const HomeScreen: React.FC = () => {
       setGuestVisible(true);
       return;
     }
-    toggleWishlist(it.id, it.mode === 'rent' ? 'RENT' : 'THRIFT');
+    toggleWishlist(it.id, it.mode === 'rent' ? 'RENT' : 'THRIFT', {
+      id: it.id,
+      title: it.title,
+      price: it.price,
+      image: it.image,
+      mode: it.mode === 'rent' ? 'rent' : 'thrift',
+      category: it.category,
+      categoryLabel: it.category,
+      gradeBadge: it.condition || it.badge,
+      deposit: it.deposit ? Number(String(it.deposit).replace(/[^0-9]/g, '')) || 0 : 0,
+      location: it.location,
+    });
   };
 
   const goDetail = (it: MarketItem) =>

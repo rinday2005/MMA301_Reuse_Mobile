@@ -3,9 +3,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { UserSidebarDrawer } from './UserSidebarDrawer';
 import { GuestSidebarDrawer } from './GuestSidebarDrawer';
 import { ShopOwnerSidebarDrawer } from './ShopOwnerSidebarDrawer';
+import { AdminSidebarDrawer } from './AdminSidebarDrawer';
 
 /**
  * AppSidebarDrawer automatically switches between:
+ * - AdminSidebarDrawer (when logged in as ADMIN)
  * - ShopOwnerSidebarDrawer (when logged in as SHOP_OWNER)
  * - UserSidebarDrawer (when authenticated as regular customer / user)
  * - GuestSidebarDrawer (when browsing as guest without login)
@@ -14,6 +16,9 @@ export const AppSidebarDrawer: React.FC = () => {
   const { user } = useAuth();
 
   if (user) {
+    if (user.role === 'ADMIN') {
+      return <AdminSidebarDrawer />;
+    }
     if (user.role === 'SHOP_OWNER') {
       return <ShopOwnerSidebarDrawer />;
     }

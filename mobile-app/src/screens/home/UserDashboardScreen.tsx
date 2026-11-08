@@ -156,7 +156,7 @@ export const UserDashboardScreen: React.FC = () => {
             </View>
             <Text style={styles.welcomeTitle}>Xin chào, {displayName}!</Text>
             <Text style={styles.welcomeSubtitle}>
-              Tổng quan hành trình tuần hoàn, thiết bị đang lưu giữ và số dư tiền cọc Smart Escrow.
+              Tổng quan hành trình tuần hoàn, sản phẩm đang lưu giữ và số dư tiền cọc Smart Escrow.
             </Text>
 
             {/* Quick Metrics Grid */}
@@ -212,8 +212,8 @@ export const UserDashboardScreen: React.FC = () => {
           <View style={styles.sectionWrap}>
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionPre}>01 · THIẾT BỊ ĐANG TRONG KỲ THUÊ</Text>
-                <Text style={styles.sectionTitle}>Thiết bị đang lưu giữ</Text>
+                <Text style={styles.sectionPre}>01 · SẢN PHẨM ĐANG TRONG KỲ THUÊ</Text>
+                <Text style={styles.sectionTitle}>Sản phẩm đang lưu giữ</Text>
               </View>
               <TouchableOpacity
                 onPress={() => navigation.navigate('MyRentOrders')}

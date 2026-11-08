@@ -177,6 +177,11 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Khi gửi multipart FormData trong React Native, xóa Content-Type cố định để engine tự sinh boundary
+    if (config.data instanceof FormData && config.headers) {
+      delete (config.headers as any)['Content-Type'];
+    }
+
     return config;
   },
   (error) => {
