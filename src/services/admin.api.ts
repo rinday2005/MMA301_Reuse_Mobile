@@ -128,6 +128,15 @@ export interface MongoUserAddress {
   detail?: string;
 }
 
+export interface MongoUserLockAppeal {
+  question?: string;
+  details?: string;
+  submittedAt?: string;
+  status?: "PENDING" | "RESOLVED" | "REJECTED";
+  adminReply?: string;
+  resolvedAt?: string;
+}
+
 export interface MongoUserItem {
   _id: string;
   fullName: string;
@@ -136,7 +145,11 @@ export interface MongoUserItem {
   kycStatus?: "PENDING" | "APPROVED" | "REJECTED" | null;
   phoneNumber?: string;
   address?: MongoUserAddress | null;
-  status?: "ACTIVE" | "SUSPENDED" | "PENDING";
+  status?: "ACTIVE" | "SUSPENDED" | "LOCKED" | "PENDING" | "lock" | "locked" | string;
+  isLocked?: boolean;
+  lockReason?: string;
+  lockedAt?: string;
+  lockAppeal?: MongoUserLockAppeal | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -855,9 +868,14 @@ export interface AdminCategoryItemDetail {
   id: string;
   name: string;
   slug: string;
+  code?: string;
   description: string;
+  subtitle?: string;
+  image?: string;
   market: "RENT" | "THRIFT" | "COMMON";
   icon: string;
+  inspectionBadge?: string;
+  escrowBadge?: string;
   totalItems: number;
   rentItems: number;
   thriftItems: number;
@@ -871,13 +889,18 @@ export const fetchAdminCategoriesApi = async (): Promise<AdminCategoryItemDetail
     const payload = res.data?.data || res.data;
     const list = Array.isArray(payload) ? payload : (payload?.categories || []);
     if (Array.isArray(list)) {
-      return list.map((c: Record<string, unknown>) => ({
+      return list.map((c: Record<string, unknown>, idx: number) => ({
         id: String(c._id || c.id || ""),
         name: String(c.name || ""),
         slug: String(c.slug || String(c.name || "").toLowerCase().replace(/\s+/g, "-")),
+        code: String(c.code || `CAT.${String(idx + 1).padStart(2, "0")}`),
         description: String(c.description || "Danh mục lưu ký tuần hoàn ReUse Hub."),
+        subtitle: String(c.subtitle || "Kiểm định chuẩn hóa 100% · Bảo chứng Smart Escrow"),
+        image: String(c.image || ""),
         market: (c.type === "BOTH" ? "COMMON" : (c.type as string) || "COMMON") as "RENT" | "THRIFT" | "COMMON",
         icon: String(c.icon || "category"),
+        inspectionBadge: String(c.inspectionBadge || "100% Kiểm định chất lượng & Khử trùng UV-C"),
+        escrowBadge: String(c.escrowBadge || "Smart Escrow Bảo chứng cọc an toàn 100%"),
         totalItems: Number(c.totalItems) || 0,
         rentItems: Number(c.rentItems) || 0,
         thriftItems: Number(c.thriftItems) || 0,
@@ -891,13 +914,18 @@ export const fetchAdminCategoriesApi = async (): Promise<AdminCategoryItemDetail
       const payload = res.data?.data || res.data;
       const list = Array.isArray(payload) ? payload : (payload?.categories || []);
       if (Array.isArray(list)) {
-        return list.map((c: Record<string, unknown>) => ({
+        return list.map((c: Record<string, unknown>, idx: number) => ({
           id: String(c._id || c.id || ""),
           name: String(c.name || ""),
           slug: String(c.slug || String(c.name || "").toLowerCase().replace(/\s+/g, "-")),
+          code: String(c.code || `CAT.${String(idx + 1).padStart(2, "0")}`),
           description: String(c.description || "Danh mục lưu ký tuần hoàn ReUse Hub."),
+          subtitle: String(c.subtitle || "Kiểm định chuẩn hóa 100% · Bảo chứng Smart Escrow"),
+          image: String(c.image || ""),
           market: (c.type === "BOTH" ? "COMMON" : (c.type as string) || "COMMON") as "RENT" | "THRIFT" | "COMMON",
           icon: String(c.icon || "category"),
+          inspectionBadge: String(c.inspectionBadge || "100% Kiểm định chất lượng & Khử trùng UV-C"),
+          escrowBadge: String(c.escrowBadge || "Smart Escrow Bảo chứng cọc an toàn 100%"),
           totalItems: 0,
           rentItems: 0,
           thriftItems: 0,
@@ -915,22 +943,42 @@ export const fetchAdminCategoriesApi = async (): Promise<AdminCategoryItemDetail
 export const createAdminCategoryApi = async (data: {
   name: string;
   slug?: string;
+  code?: string;
   description?: string;
+  subtitle?: string;
+  image?: string;
+  icon?: string;
+  inspectionBadge?: string;
   type?: "RENT" | "THRIFT" | "BOTH";
+  market?: "RENT" | "THRIFT" | "COMMON";
   isActive?: boolean;
 }) => {
-  const res = await api.post("/admin/categories", data);
+  const payload = {
+    ...data,
+    type: data.type || (data.market === "COMMON" ? "BOTH" : data.market) || "BOTH",
+  };
+  const res = await api.post("/admin/categories", payload);
   return res.data?.data || res.data;
 };
 
 export const updateAdminCategoryApi = async (id: string, data: {
   name?: string;
   slug?: string;
+  code?: string;
   description?: string;
+  subtitle?: string;
+  image?: string;
+  icon?: string;
+  inspectionBadge?: string;
   type?: "RENT" | "THRIFT" | "BOTH";
+  market?: "RENT" | "THRIFT" | "COMMON";
   isActive?: boolean;
 }) => {
-  const res = await api.put(`/admin/categories/${id}`, data);
+  const payload = {
+    ...data,
+    type: data.type || (data.market === "COMMON" ? "BOTH" : data.market),
+  };
+  const res = await api.put(`/admin/categories/${id}`, payload);
   return res.data?.data || res.data;
 };
 
@@ -942,6 +990,210 @@ export const toggleCategoryStatusApi = async (id: string, isActive: boolean) => 
 export const deleteAdminCategoryApi = async (id: string) => {
   const res = await api.delete(`/admin/categories/${id}`);
   return res.data?.data || res.data;
+};
+
+export const toggleUserLockApi = async (
+  userId: string,
+  isLocked: boolean,
+  lockReason?: string
+) => {
+  const status = isLocked ? "lock" : "ACTIVE";
+  const res = await api.patch(`/admin/users/${userId}/status`, {
+    status,
+    isLocked,
+    lockReason,
+  });
+  return res.data?.data || res.data;
+};
+
+export const respondUserAppealApi = async (
+  userId: string,
+  payload: { unlock: boolean; lockReason?: string; adminReply: string }
+) => {
+  const res = await api.post(`/admin/users/${userId}/respond-appeal`, payload);
+  return res.data?.data || res.data;
+};
+
+export const appealAccountLockApi = async (payload: {
+  email: string;
+  question: string;
+  details?: string;
+}) => {
+  const res = await api.post("/auth/appeal-lock", payload);
+  return res.data?.data || res.data;
+};
+
+export interface FinancialOverview {
+  totalPlatformGmv: number;
+  totalPlatformRevenue: number;
+  netMarginPercent: number;
+  lockedEscrowAmount: number;
+  totalDepositsRefunded: number;
+  rentGmv: number;
+  thriftGmv: number;
+  totalOrdersCount: number;
+}
+
+export interface RentFinancialSector {
+  rentalFeesCollected: number;
+  escrowProcessed: number;
+  depositsReleased: number;
+  activeRetention: number;
+  penalties: number;
+  platformRentFee: number;
+  rentFeePercent: number;
+  totalOrders: number;
+}
+
+export interface ThriftFinancialSector {
+  salesVolume: number;
+  disbursed: number;
+  platformTakeRate: number;
+  takeRatePercent: number;
+  completedLots: number;
+  disputeRefunds: number;
+  totalOrders: number;
+}
+
+export interface FinancialAiInsights {
+  projectedNextMonthGmv: number;
+  projectedNextMonthRevenue: number;
+  growthRate: number;
+  escrowSafetyRatio: number;
+  disputeRate: number;
+  aiHealthScore: number;
+  executiveSummary: string;
+}
+
+export interface PlatformAuditTransaction {
+  id: string;
+  vnpayRef: string;
+  orderCode: string;
+  orderSubtitle: string;
+  orderType: "RENT" | "THRIFT";
+  type: string;
+  typeLabel: string;
+  typeBadgeColor: string;
+  amount: number;
+  amountPrefix: string;
+  amountBadge: string;
+  amountBadgeColor: string;
+  gatewayName: string;
+  gatewaySub: string;
+  gatewayIndicatorColor: string;
+  dateDisplay: string;
+  timeDisplay: string;
+  status: string;
+  statusLabel: string;
+  shaSignature: string;
+  bankAccount: string;
+  rawDate: string;
+}
+
+export interface PlatformFinanceReport {
+  overview: FinancialOverview;
+  rentSector: RentFinancialSector;
+  thriftSector: ThriftFinancialSector;
+  aiInsights: FinancialAiInsights;
+  transactions: PlatformAuditTransaction[];
+}
+
+export const fetchPlatformFinanceApi = async (): Promise<PlatformFinanceReport> => {
+  const res = await api.get("/admin/finance");
+  return res.data?.data || res.data;
+};
+
+export interface ShopOwnerItem {
+  _id: string;
+  fullName: string;
+  email: string;
+  phoneNumber?: string;
+  avatarUrl?: string;
+  role: "SHOP_OWNER";
+  kycStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
+  isLocked?: boolean;
+  status?: string;
+  lockReason?: string;
+  lockedAt?: string;
+  lockAppeal?: {
+    status?: string;
+    question?: string;
+    reply?: string;
+    submittedAt?: string;
+    respondedAt?: string;
+  } | null;
+  kycRecord?: {
+    _id?: string;
+    idCardNumber?: string;
+    fullName?: string;
+    dob?: string;
+    residentAddress?: string;
+    frontImageUrl?: string;
+    backImageUrl?: string;
+    rejectionReason?: string;
+    status?: string;
+    createdAt?: string;
+  } | null;
+  shopProfile?: {
+    shopName?: string;
+    description?: string;
+    specialization?: string;
+    roleTitle?: string;
+    businessAddress?: string;
+    cityRegion?: string;
+    coverUrl?: string;
+    rating?: number;
+    establishedYear?: number;
+  };
+  address?: {
+    province?: string;
+    district?: string;
+    ward?: string;
+    detail?: string;
+  };
+  kyc?: {
+    citizenId?: string;
+    fullName?: string;
+    dob?: string;
+    residentAddress?: string;
+    cardFrontUrl?: string;
+    cardBackUrl?: string;
+    rejectionReason?: string;
+    verifiedAt?: string;
+    submittedAt?: string;
+  };
+  totalRentProducts?: number;
+  totalThriftProducts?: number;
+  totalProducts?: number;
+  pendingListingsCount?: number;
+  completedOrdersCount?: number;
+  walletBalance?: number;
+  createdAt?: string;
+}
+
+export const getAllShopsApi = async (params?: { kycStatus?: string; search?: string }): Promise<ShopOwnerItem[]> => {
+  const response = await api.get("/admin/shops", { params });
+  if (Array.isArray(response.data?.data)) return response.data.data;
+  if (Array.isArray(response.data?.data?.shops)) return response.data.data.shops;
+  if (Array.isArray(response.data?.shops)) return response.data.shops;
+  if (Array.isArray(response.data)) return response.data;
+  return [];
+};
+
+export const getShopDetailAdminApi = async (shopId: string): Promise<{
+  shop: ShopOwnerItem;
+  rentProducts: Record<string, unknown>[];
+  thriftListings: Record<string, unknown>[];
+  recentOrders: Record<string, unknown>[];
+  stats: { totalRentProducts: number; totalThriftProducts: number; totalOrders: number };
+}> => {
+  const response = await api.get(`/admin/shops/${shopId}`);
+  return response.data?.data || response.data;
+};
+
+export const reviewShopKycApi = async (shopId: string, payload: { status: "APPROVED" | "REJECTED"; rejectionReason?: string }): Promise<Record<string, unknown>> => {
+  const response = await api.patch(`/admin/shops/${shopId}/kyc`, payload);
+  return response.data?.data || response.data;
 };
 
 export default {
@@ -959,4 +1211,11 @@ export default {
   updateAdminCategoryApi,
   toggleCategoryStatusApi,
   deleteAdminCategoryApi,
+  fetchPlatformFinanceApi,
+  toggleUserLockApi,
+  respondUserAppealApi,
+  appealAccountLockApi,
+  getAllShopsApi,
+  getShopDetailAdminApi,
+  reviewShopKycApi,
 };

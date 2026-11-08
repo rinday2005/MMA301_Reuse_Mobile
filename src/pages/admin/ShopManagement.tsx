@@ -89,10 +89,10 @@ export const ShopManagement: React.FC = () => {
   useEffect(() => {
     let active = true;
     getAllShopsApi()
-      .then((data) => {
+      .then((data: ShopOwnerItem[]) => {
         if (active) setShops(data || []);
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (active) {
           console.error("Lỗi khi tải danh sách Shop:", err);
           showToast("Không thể tải danh sách cửa hàng");
@@ -217,7 +217,7 @@ export const ShopManagement: React.FC = () => {
         )
       );
       if (inspectingShop && inspectingShop._id === shop._id) {
-        setInspectingShop((prev) =>
+        setInspectingShop((prev: ShopOwnerItem | null) =>
           prev ? { ...prev, status: "ACTIVE", isLocked: false, lockReason: "" } : null
         );
       }
@@ -249,7 +249,7 @@ export const ShopManagement: React.FC = () => {
         )
       );
       if (inspectingShop && inspectingShop._id === lockingShop._id) {
-        setInspectingShop((prev) =>
+        setInspectingShop((prev: ShopOwnerItem | null) =>
           prev
             ? {
               ...prev,
@@ -302,7 +302,7 @@ export const ShopManagement: React.FC = () => {
       );
 
       if (inspectingShop && inspectingShop._id === appealShop._id) {
-        setInspectingShop((prev) =>
+        setInspectingShop((prev: ShopOwnerItem | null) =>
           prev
             ? {
               ...prev,
@@ -351,7 +351,7 @@ export const ShopManagement: React.FC = () => {
       );
 
       if (inspectingShop && inspectingShop._id === shopId) {
-        setInspectingShop((prev) =>
+        setInspectingShop((prev: ShopOwnerItem | null) =>
           prev ? { ...prev, kycStatus: status } : null
         );
       }

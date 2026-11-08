@@ -159,12 +159,12 @@ export const CategoryManagement: React.FC = () => {
   // KPI Calculations
   const metrics = useMemo(() => {
     const total = categories.length;
-    const rentExclusive = categories.filter((c) => c.market === "RENT").length;
-    const thriftExclusive = categories.filter((c) => c.market === "THRIFT").length;
-    const common = categories.filter((c) => c.market === "COMMON").length;
+    const rentExclusive = categories.filter((c: CategoryItem) => c.market === "RENT").length;
+    const thriftExclusive = categories.filter((c: CategoryItem) => c.market === "THRIFT").length;
+    const common = categories.filter((c: CategoryItem) => c.market === "COMMON").length;
 
-    const totalRentItems = categories.reduce((sum, c) => sum + c.rentItems, 0);
-    const totalThriftItems = categories.reduce((sum, c) => sum + c.thriftItems, 0);
+    const totalRentItems = categories.reduce((sum: number, c: CategoryItem) => sum + c.rentItems, 0);
+    const totalThriftItems = categories.reduce((sum: number, c: CategoryItem) => sum + c.thriftItems, 0);
 
     return {
       total,
@@ -181,9 +181,9 @@ export const CategoryManagement: React.FC = () => {
   const tabCounts = useMemo(() => {
     return {
       ALL: categories.length,
-      RENT: categories.filter((c) => c.market === "RENT").length,
-      THRIFT: categories.filter((c) => c.market === "THRIFT").length,
-      COMMON: categories.filter((c) => c.market === "COMMON").length,
+      RENT: categories.filter((c: CategoryItem) => c.market === "RENT").length,
+      THRIFT: categories.filter((c: CategoryItem) => c.market === "THRIFT").length,
+      COMMON: categories.filter((c: CategoryItem) => c.market === "COMMON").length,
     };
   }, [categories]);
 
@@ -359,7 +359,7 @@ export const CategoryManagement: React.FC = () => {
 
   // Export JSON
   const handleExport = () => {
-    const dataToExport = filteredCategories.map((c) => ({
+    const dataToExport = filteredCategories.map((c: CategoryItem) => ({
       id: c.id,
       code: c.code,
       name: c.name,
@@ -393,7 +393,7 @@ export const CategoryManagement: React.FC = () => {
 
   // Filter & Sort Logic
   const filteredCategories = categories
-    .filter((item) => {
+    .filter((item: CategoryItem) => {
       if (activeTab !== "ALL" && item.market !== activeTab) return false;
       if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
 
@@ -411,7 +411,7 @@ export const CategoryManagement: React.FC = () => {
 
       return true;
     })
-    .sort((a, b) => {
+    .sort((a: CategoryItem, b: CategoryItem) => {
       if (sortFilter === "COUNT_DESC") {
         return b.totalItems - a.totalItems;
       }
